@@ -146,12 +146,12 @@ namespace KillerPDF.Controls
             if (preservedPage.HasValue) State.CurrentPage = preservedPage.Value;
             if (State.CurrentPage < 0) return;
             Host?.ViewerPageChanged(this, State.CurrentPage);
-            if (Host != null) Host.PageJumpText = (State.CurrentPage + 1).ToString();
+            Host?.PageJumpText = (State.CurrentPage + 1).ToString();
             Host?.EnsureSidebarPageVisible(this, State.CurrentPage);
         }
-        internal void SaveDocStateExt(string? path, FitMode fit, double zoom, ViewMode view, int page)
+        internal static void SaveDocStateExt(string? path, FitMode fit, double zoom, ViewMode view, int page)
             => SaveDocState(path, fit, zoom, view, page);
-        internal bool TryGetDocStateExt(string? path, out FitMode fit, out double zoom,
+        internal static bool TryGetDocStateExt(string? path, out FitMode fit, out double zoom,
                                         out ViewMode view, out int page)
             => TryGetDocState(path, out fit, out zoom, out view, out page);
 
@@ -165,7 +165,7 @@ namespace KillerPDF.Controls
         internal void RenderActiveSessionExt() => RenderActiveSession();
         internal void ShowEmptyStateExt() => ShowEmptyState();
         internal void FlushAllRenderCachesExt() => FlushAllRenderCaches();
-        internal void InvalidateRenderCacheExt(DocumentSession? s) => InvalidateRenderCache(s);
+        internal static void InvalidateRenderCacheExt(DocumentSession? s) => InvalidateRenderCache(s);
 
         /// <summary>Make a brand-new empty session the active one. The startup restore builds the
         /// session list itself, so it needs to place the result rather than go through

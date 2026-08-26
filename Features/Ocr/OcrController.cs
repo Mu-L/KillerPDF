@@ -6,9 +6,6 @@ using System.Windows;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 
 namespace KillerPDF.Features
@@ -46,6 +43,7 @@ namespace KillerPDF.Features
             string file = _host.CurrentFile!;
             int rot = _host.RotationFor(pageIdx);
             string lang = _host.OcrLanguageString;
+            bool formAware = _host.FormAwareOcr;
 
             var ct = _host.BeginOp(_host.Loc("Str_Op_Ocr"), _host.Loc("Str_Busy_Ocr"));
             try
@@ -63,7 +61,9 @@ namespace KillerPDF.Features
                     if (rot != 0) (bgra, w, h) = BitmapHelpers.RotateBitmap(bgra, w, h, rot);
 
                     using var ocr = new OcrService(language: lang);   // engine is not thread-safe: one per operation
-                    return ocr.RecognizeBgra(bgra, w, h);
+                    if (!formAware) return ocr.RecognizeBgra(bgra, w, h);
+                    return FormAwareOcr.Recognize(ocr, bgra, w, h,
+                        ReadFormHints(file, pageIdx), rot);
                 });
 
                 _host.HideBusy();
@@ -199,10 +199,12 @@ namespace KillerPDF.Features
             void report(int i, int n) => _host.Window.Dispatcher.Invoke(() =>
                 _host.SetBusyMessage(string.Format(_host.Loc("Str_Busy_SearchablePage"), i + 1, n)));
             string lang = _host.OcrLanguageString;
+            bool formAware = _host.FormAwareOcr;
 
             try
             {
-                var (pages, words) = await Task.Run(() => BuildSearchablePdf(src, outPath, report, ct, lang));
+                var (pages, words) = await Task.Run(() => BuildSearchablePdf(
+                    src, outPath, report, lang, formAware, ct));
                 _host.HideBusy();
                 if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_SearchablePdfCanceled")); return; }
                 _host.SetStatus(string.Format(_host.Loc("Str_St_SearchableSaved"), pages, words));
@@ -229,75 +231,53 @@ namespace KillerPDF.Features
             return baseName + "-searchable.pdf";
         }
 
-        // Renders each page, OCRs it, and appends an invisible (alpha 0) text layer positioned over the
+        // Renders each page, OCRs it, and appends an invisible text layer positioned over the
         // recognized words. The text is real content-stream text, so PdfPig extracts it for search/select;
-        // alpha 0 keeps it from showing or printing. Runs entirely off the UI thread. Also the core of the
+        // invisible text rendering keeps it from showing or printing. Runs entirely off the UI thread. Also the core of the
         // CLI's --ocr command (CliRunner).
-        internal static (int pages, int words) BuildSearchablePdf(string src, string outPath, Action<int, int> report, CancellationToken ct, string language)
+        internal static (int pages, int words) BuildSearchablePdf(string src, string outPath,
+            Action<int, int> report, string language, bool formAware,
+            CancellationToken ct)
         {
-            // Cache one XFont per integer point size so a page of words doesn't allocate thousands of fonts.
-            var fontCache = new Dictionary<int, XFont>();
-            XFont FontFor(double heightPt)
-            {
-                int key = Math.Max(4, (int)Math.Round(heightPt));
-                if (!fontCache.TryGetValue(key, out var f))
-                {
-                    try { f = new XFont("Arial", key, XFontStyle.Regular); }
-                    catch { f = new XFont("Segoe UI", key, XFontStyle.Regular); }
-                    fontCache[key] = f;
-                }
-                return f;
-            }
-
-            int totalWords = 0;
-            var invisible = new XSolidBrush(XColor.FromArgb(0, 0, 0, 0));
-
             using var docReader = DocLib.Instance.GetDocReader(src, new PageDimensions(OcrRenderMax, OcrRenderMax));
             using var ocr = new OcrService(language: language);   // one engine reused across the whole document (single-threaded here)
-
-            var outDoc = PdfReader.Open(src, PdfDocumentOpenMode.Modify);
-            int pages = outDoc.PageCount;
+            int pages = PdfEngineIntegration.ReadPageInformation(src).Count;
+            IReadOnlyList<IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>> formPages =
+                formAware ? ReadAllFormHints(src, pages) :
+                [
+                    .. Enumerable.Range(0, pages).Select(_ =>
+                        (IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>)
+                        [])
+                ];
+            var layers = new List<PdfEngineIntegration.SearchablePage>(pages);
             for (int i = 0; i < pages; i++)
             {
                 // Cooperative cancel: bail before the next page; the caller sees the canceled token and the
-                // file is never saved (outDoc.Save is past the loop), so no partial output is written.
-                if (ct.IsCancellationRequested) return (i, totalWords);
+                // destination write happens after the loop, so no partial output is written.
+                if (ct.IsCancellationRequested) return (i, 0);
                 report(i, pages);
 
                 using var pr = docReader.GetPageReader(i);
                 int w = pr.GetPageWidth();
                 int h = pr.GetPageHeight();
                 byte[] bgra = pr.GetImage();
-                if (bgra is null || bgra.Length == 0 || w <= 0 || h <= 0) continue;
-
-                OcrResult result = ocr.RecognizeBgra(bgra, w, h);
-                if (result.Words.Count == 0) continue;
-
-                var page = outDoc.Pages[i];
-                using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
-
-                // OCR boxes are top-left pixel space; XGraphics is top-left point space. Same convention,
-                // so mapping is a straight scale (mirrors DrawAnnotationsOnDocument).
-                double sx = page.Width.Point / w;
-                double sy = page.Height.Point / h;
-
-                foreach (var word in result.Words)
+                if (bgra is null || bgra.Length == 0 || w <= 0 || h <= 0)
                 {
-                    double bx = word.Left * sx;
-                    double by = word.Top * sy;
-                    double bh = Math.Max(1, (word.Bottom - word.Top) * sy);
-                    try
-                    {
-                        // (bx, by) is the top-left of the text by default (Near/Near alignment).
-                        gfx.DrawString(word.Text, FontFor(bh), invisible, bx, by);
-                        totalWords++;
-                    }
-                    catch { /* a single word that won't lay out should not abort the page */ }
+                    layers.Add(new PdfEngineIntegration.SearchablePage(
+                        Math.Max(1, w), Math.Max(1, h), []));
+                    continue;
                 }
-            }
 
-            outDoc.Save(outPath);
-            outDoc.Close();
+                OcrResult result = formAware
+                    ? FormAwareOcr.Recognize(ocr, bgra, w, h, formPages[i])
+                    : ocr.RecognizeBgra(bgra, w, h);
+                layers.Add(new PdfEngineIntegration.SearchablePage(w, h,
+                    [.. result.Words.Select(word => new PdfEngineIntegration.SearchableWord(
+                        word.Text, word.Left, word.Top, word.Right, word.Bottom))]));
+            }
+            if (ct.IsCancellationRequested) return (pages, 0);
+            int totalWords = PdfEngineIntegration.AddSearchableTextLayers(
+                src, outPath, layers);
             return (pages, totalWords);
         }
 
@@ -337,10 +317,12 @@ namespace KillerPDF.Features
             void report(int i, int n) => _host.Window.Dispatcher.Invoke(() =>
                 _host.SetBusyMessage(string.Format(_host.Loc("Str_Busy_ExtractingPage"), i + 1, n)));
             string lang = _host.OcrLanguageString;
+            bool formAware = _host.FormAwareOcr;
 
             try
             {
-                int pages = await Task.Run(() => ExtractText(src, pageCount, outPath, markdown, report, ct, lang));
+                int pages = await Task.Run(() => ExtractText(
+                    src, pageCount, outPath, markdown, report, lang, formAware, ct));
                 _host.HideBusy();
                 if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_TextExtractCanceled")); return; }
                 _host.SetStatus(string.Format(_host.Loc("Str_St_TextExtracted"), pages, Path.GetFileName(outPath)));
@@ -360,12 +342,20 @@ namespace KillerPDF.Features
         // OCR each page and concatenate the text into one file. Markdown gets a "## Page N" heading per
         // page; plain text uses a simple divider. Cancellable - nothing is written if canceled.
         private static int ExtractText(string src, int pageCount, string outPath, bool markdown,
-            Action<int, int> report, CancellationToken ct, string language)
+            Action<int, int> report, string language, bool formAware,
+            CancellationToken ct)
         {
             string nl = Environment.NewLine;
             var sb = new StringBuilder();
             using var docReader = DocLib.Instance.GetDocReader(src, new PageDimensions(OcrRenderMax, OcrRenderMax));
             using var ocr = new OcrService(language: language);
+            IReadOnlyList<IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>> formPages =
+                formAware ? ReadAllFormHints(src, pageCount) :
+                [
+                    .. Enumerable.Range(0, pageCount).Select(_ =>
+                        (IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>)
+                        [])
+                ];
 
             for (int i = 0; i < pageCount; i++)
             {
@@ -379,7 +369,9 @@ namespace KillerPDF.Features
                 byte[] bgra = pr.GetImage();
                 string text = (bgra is null || bgra.Length == 0 || w <= 0 || h <= 0)
                     ? string.Empty
-                    : ocr.RecognizeBgra(bgra, w, h).Text.TrimEnd();
+                    : (formAware
+                        ? FormAwareOcr.Recognize(ocr, bgra, w, h, formPages[i])
+                        : ocr.RecognizeBgra(bgra, w, h)).Text.TrimEnd();
                 // Normalize Tesseract's LF line breaks to the platform's so .txt opens cleanly everywhere.
                 text = text.Replace("\r\n", "\n").Replace("\n", nl);
 
@@ -392,6 +384,28 @@ namespace KillerPDF.Features
             if (ct.IsCancellationRequested) return 0;
             File.WriteAllText(outPath, sb.ToString());
             return pageCount;
+        }
+
+        private static IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo> ReadFormHints(
+            string path, int pageIndex)
+        {
+            try { return PdfEngineIntegration.ReadPageFormWidgets(path, pageIndex); }
+            catch { return []; }
+        }
+
+        private static IReadOnlyList<IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>> ReadAllFormHints(
+            string path, int pageCount)
+        {
+            try { return PdfEngineIntegration.ReadAllPageFormWidgets(path); }
+            catch
+            {
+                return
+                [
+                    .. Enumerable.Range(0, pageCount).Select(_ =>
+                        (IReadOnlyList<KillerPdf.Engine.Documents.PdfFormWidgetInfo>)
+                        [])
+                ];
+            }
         }
     }
 }

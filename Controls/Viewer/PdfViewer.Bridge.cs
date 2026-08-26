@@ -4,7 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
-using PdfSharpCore.Pdf;
+using KillerPDF.Services;
 
 namespace KillerPDF.Controls
 {
@@ -95,7 +95,7 @@ namespace KillerPDF.Controls
         // NOT host services. Every one of these already rides in DocumentSession, which tab
         // switching swaps by reference. They forward for now because the window still owns the
         // active session; when the viewer holds its own, this whole block goes.
-        private PdfDocument? _doc;
+        private PdfWorkingDocument? _doc;
         private string? _currentFile;
         // Settable: the tab switch rebinds all three by reference.
         private Dictionary<int, List<PageAnnotation>> _annotations = [];

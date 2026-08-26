@@ -14,9 +14,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -51,6 +48,7 @@ namespace KillerPDF
         // ============================================================
 
         private bool _pageDragArmed;
+        private int _pageDropInsertionIndex = -1;
         private void PageList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _dragStartPoint = e.GetPosition(null);
@@ -73,7 +71,12 @@ namespace KillerPDF
                 Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
             {
                 if (PageList.SelectedIndex >= 0)
-                    DragDrop.DoDragDrop(PageList, PageList.SelectedIndex, DragDropEffects.Move);
+                {
+                    int[] selected = [.. PageList.SelectedItems.Cast<PageThumbnailVm>()
+                        .Select(page => page.PageIndex).OrderBy(index => index)];
+                    try { DragDrop.DoDragDrop(PageList, selected, DragDropEffects.Move); }
+                    finally { HidePageDropIndicator(); }
+                }
             }
         }
 
@@ -81,68 +84,126 @@ namespace KillerPDF
         {
             // #172: files dropped onto the Pages sidebar append to the open document,
             // so the list accepts FileDrop as well as its own page-reorder payload.
-            if (e.Data.GetDataPresent(typeof(int)))
+            if (e.Data.GetDataPresent(typeof(int[])))
+            {
                 e.Effects = DragDropEffects.Move;
+                ShowPageDropIndicator(e.GetPosition(PageList));
+            }
             else if (_doc != null && DroppedOpenablePaths(e).Length > 0)
+            {
                 e.Effects = DragDropEffects.Copy;
+                ShowPageDropIndicator(e.GetPosition(PageList));
+            }
             else
+            {
                 e.Effects = DragDropEffects.None;
+                HidePageDropIndicator();
+            }
             e.Handled = true;
+        }
+
+        private void PageList_DragLeave(object sender, DragEventArgs e) => HidePageDropIndicator();
+
+        /// <summary>Returns the insertion slot from 0 through Count and the matching visual Y.
+        /// Both the marker and the drop consume this result so what the user sees is authoritative.</summary>
+        private (int Index, double Y)? PageDropSlot(Point position)
+        {
+            ListBoxItem? last = null;
+            int lastIndex = -1;
+            for (int i = 0; i < PageList.Items.Count; i++)
+            {
+                if (PageList.ItemContainerGenerator.ContainerFromIndex(i) is not ListBoxItem item) continue;
+                var top = item.TranslatePoint(new Point(0, 0), PageList);
+                if (position.Y < top.Y + item.ActualHeight / 2)
+                    return (i, item.TranslatePoint(new Point(0, 0), PageListFadeHost).Y);
+                last = item;
+                lastIndex = i;
+            }
+            if (last is null) return null;
+            double bottom = last.TranslatePoint(new Point(0, last.ActualHeight), PageListFadeHost).Y;
+            return (lastIndex + 1, bottom);
+        }
+
+        private void ShowPageDropIndicator(Point position)
+        {
+            var slot = PageDropSlot(position);
+            if (slot is null) { HidePageDropIndicator(); return; }
+            _pageDropInsertionIndex = slot.Value.Index;
+            if (PageDropIndicator.RenderTransform is TranslateTransform move)
+                move.Y = Math.Max(0, Math.Min(PageListFadeHost.ActualHeight - PageDropIndicator.Height,
+                    slot.Value.Y - PageDropIndicator.Height / 2));
+            PageDropIndicator.Visibility = Visibility.Visible;
+        }
+
+        private void HidePageDropIndicator()
+        {
+            PageDropIndicator.Visibility = Visibility.Collapsed;
+            _pageDropInsertionIndex = -1;
         }
 
         private static string[] DroppedOpenablePaths(DragEventArgs e)
             => e.Data.GetDataPresent(DataFormats.FileDrop)
-                ? ((string[])e.Data.GetData(DataFormats.FileDrop)!).Where(IsOpenablePath).ToArray()
+                ? [.. ((string[])e.Data.GetData(DataFormats.FileDrop)!).Where(IsOpenablePath)]
                 : [];
 
-        // #172: append the dropped files' pages to the open document. Appending (not inserting at
-        // the drop point) keeps existing page indices stable, so annotations and rotations need no
-        // remapping.
-        private async void AppendFilesToCurrentDoc(string[] files)
+        // #172/#233: import dropped files into the open document. The page insertion marker supplies
+        // an exact position; annotations and rotations after that position move with their pages.
+        private async void AppendFilesToCurrentDoc(string[] files, int? insertionIndex = null)
         {
             if (_doc is null) return;
             CommitActiveTextBox();
-            int before = _doc.PageCount;
+            var imports = new List<PdfEngineIntegration.ImportedDocument>();
             foreach (var f in files)
             {
+                string? importPath = null;
                 if (PdfImport.IsPdfPath(f))
                 {
-                    var target = _doc;
-                    if (target != null && TryAppendPdfPages(target, f)) continue;
-
-                    // #203: a damaged PDF used to be swallowed here, so nothing was added and
-                    // nothing was said. Offer the same repair the open path offers.
-                    string? repaired = await RepairDroppedPdfAsync(f);
-                    if (repaired != null && _doc != null) TryAppendPdfPages(_doc, repaired);
+                    importPath = f;
+                    try { PdfEngineIntegration.ValidateDocument(importPath); }
+                    catch { importPath = await RepairPdfForImportAsync(f); }
                 }
                 else
                 {
-                    var target = _doc;
-                    if (target != null)
-                        try { PdfImport.AddImagePagesFromFile(target, f); } catch { /* skip an unreadable image */ }
+                    try
+                    {
+                        importPath = App.MakeTempFile("dropimage");
+                        File.WriteAllBytes(importPath, PdfEngineIntegration.MergeFiles([f]));
+                    }
+                    catch { importPath = null; }
                 }
+                if (importPath is null) continue;
+                try
+                {
+                    var pages = PdfEngineIntegration.ReadPageInformation(importPath);
+                    imports.Add(new PdfEngineIntegration.ImportedDocument(importPath,
+                        [.. pages.Select(page => page.Rotation)]));
+                }
+                catch { /* skip anything still unreadable after repair */ }
             }
             if (_doc is null) return;
-            if (_doc.PageCount == before) { SetStatus(Loc("Str_Drop_NothingOpenable")); return; }
-            MarkDirty(true);
-            SaveTempAndReload(keepAnnotations: true, preserveZoom: true);
-            SetStatus(string.Format(Loc("Str_Status_Merged"), files.Length));
-        }
-
-        /// <summary>
-        /// Import-mode page copy. False when the file cannot be read at all, which is the signal
-        /// to offer a repair rather than silently dropping it.
-        /// </summary>
-        private static bool TryAppendPdfPages(PdfDocument target, string path)
-        {
-            try
+            if (imports.Count == 0) { SetStatus(Loc("Str_Drop_NothingOpenable")); return; }
+            int insertAt = Math.Max(0, Math.Min(insertionIndex ?? _doc.PageCount, _doc.PageCount));
+            int importedCount = imports.Sum(import => import.PageRotations.Count);
+            if (insertAt < _doc.PageCount && importedCount > 0)
             {
-                using var src = PdfReader.Open(path, PdfDocumentOpenMode.Import);
-                if (src.PageCount == 0) return false;
-                for (int i = 0; i < src.PageCount; i++) target.AddPage(src.Pages[i]);
-                return true;
+                var shifted = new Dictionary<int, List<PageAnnotation>>();
+                foreach (var pair in _annotations)
+                {
+                    int page = pair.Key >= insertAt ? pair.Key + importedCount : pair.Key;
+                    foreach (PageAnnotation annotation in pair.Value) annotation.PageIndex = page;
+                    shifted[page] = pair.Value;
+                }
+                _annotations.Clear();
+                foreach (var pair in shifted) _annotations[pair.Key] = pair.Value;
             }
-            catch { return false; }
+            SaveTempAndReload(
+                keepAnnotations: true,
+                preserveZoom: true,
+                finalizeSavedFile: path => PdfEngineIntegration.InsertDocuments(path, imports, insertAt),
+                remapRotations: rotations =>
+                    PdfEngineIntegration.RemapRotationsAfterDocumentInsertion(rotations, imports, insertAt),
+                selectedPageAfterReload: insertAt);
+            SetStatus(string.Format(Loc("Str_Status_Merged"), files.Length));
         }
 
         /// <summary>
@@ -150,7 +211,7 @@ namespace KillerPDF
         /// repaired temp copy, or null if the user declined or nothing recovered it. The original
         /// file is never written to.
         /// </summary>
-        private async System.Threading.Tasks.Task<string?> RepairDroppedPdfAsync(string path)
+        private async System.Threading.Tasks.Task<string?> RepairPdfForImportAsync(string path)
         {
             var ask = KillerDialog.Show(this,
                 string.Format(Loc("Str_Dlg_RepairAsk"), System.IO.Path.GetFileName(path)),
@@ -182,31 +243,44 @@ namespace KillerPDF
 
         private void PageList_Drop(object sender, DragEventArgs e)
         {
-            if (_doc != null && !e.Data.GetDataPresent(typeof(int)))
+            if (_doc != null && !e.Data.GetDataPresent(typeof(int[])))
             {
                 var files = DroppedOpenablePaths(e);
-                if (files.Length > 0) { AppendFilesToCurrentDoc(files); e.Handled = true; return; }
-            }
-            if (_doc is null || !e.Data.GetDataPresent(typeof(int))) return;
-            var doc = _doc;
-            int fromIdx = (int)e.Data.GetData(typeof(int))!;
-            var pos = e.GetPosition(PageList);
-            int toIdx = PageList.Items.Count - 1;
-            for (int i = 0; i < PageList.Items.Count; i++)
-            {
-                if (PageList.ItemContainerGenerator.ContainerFromIndex(i) is ListBoxItem item)
+                if (files.Length > 0)
                 {
-                    var itemPos = item.TranslatePoint(new Point(0, item.ActualHeight / 2), PageList);
-                    if (pos.Y < itemPos.Y) { toIdx = i; break; }
+                    int insertAt = _pageDropInsertionIndex >= 0 ? _pageDropInsertionIndex : _doc.PageCount;
+                    HidePageDropIndicator();
+                    AppendFilesToCurrentDoc(files, insertAt);
+                    e.Handled = true;
+                    return;
                 }
             }
-            if (fromIdx == toIdx) return;
-            var page = doc.Pages[fromIdx];
-            doc.Pages.RemoveAt(fromIdx);
-            if (toIdx > fromIdx) toIdx--;
-            doc.Pages.Insert(toIdx, page);
-            SaveTempAndReload();
-            PageList.SelectedIndex = toIdx;
+            if (_doc is null || !e.Data.GetDataPresent(typeof(int[]))) { HidePageDropIndicator(); return; }
+            int[] fromIndices = (int[])e.Data.GetData(typeof(int[]))!;
+            if (fromIndices.Length == 0) { HidePageDropIndicator(); return; }
+            int insertionIndex = _pageDropInsertionIndex;
+            if (insertionIndex < 0)
+                insertionIndex = PageDropSlot(e.GetPosition(PageList))?.Index ?? fromIndices[0];
+            HidePageDropIndicator();
+            IReadOnlyList<int> order = PdfEngineIntegration.PageOrderAfterMove(
+                PageList.Items.Count, fromIndices, insertionIndex);
+            if (order.SequenceEqual(Enumerable.Range(0, PageList.Items.Count))) return;
+            IReadOnlyList<int> selectedAfter = [];
+            SaveTempAndReload(
+                finalizeSavedFile: path =>
+                    selectedAfter = PdfEngineIntegration.MovePages(path, fromIndices, insertionIndex),
+                remapRotations: rotations =>
+                    PdfEngineIntegration.RemapRotationsAfterPageMoves(
+                        rotations, fromIndices, insertionIndex),
+                selectedPageAfterReload: Enumerable.Range(0, order.Count)
+                    .First(index => order[index] == fromIndices[0]));
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)(() =>
+            {
+                PageList.SelectedItems.Clear();
+                foreach (int index in selectedAfter)
+                    if (index >= 0 && index < PageList.Items.Count)
+                        PageList.SelectedItems.Add(PageList.Items[index]);
+            }));
         }
     }
 }

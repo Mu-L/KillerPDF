@@ -394,6 +394,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Bar_Color">Renk:</sys:String>
     <sys:String x:Key="Str_Bar_Fill">Dolgu:</sys:String>
     <sys:String x:Key="Str_Bar_Size">Boyut:</sys:String>
+    <sys:String x:Key="Str_Bar_LetterSpacing">Harf aralığı:</sys:String>
     <sys:String x:Key="Str_Bar_Opacity">Opaklık:</sys:String>
     <sys:String x:Key="Str_Bar_FillOpacity">Dolgu Opaklığı:</sys:String>
     <sys:String x:Key="Str_Bar_Font">Yazı tipi:</sys:String>
@@ -410,12 +411,26 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Sign_Desc">{0} dosyasını bir sertifikayla mühürler ve imzalı bir kopya kaydeder.</sys:String>
     <sys:String x:Key="Str_Sign_Certificate">Sertifika</sys:String>
     <sys:String x:Key="Str_Sign_FromFile">Bir dosyadan (.pfx / .p12)</sys:String>
-    <sys:String x:Key="Str_Sign_FromStore">Windows sertifika deposundan</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">Windows sertifika deposundan / USB token</sys:String>
     <sys:String x:Key="Str_Sign_Browse">Gözat...</sys:String>
     <sys:String x:Key="Str_Sign_Password">Parola</sys:String>
     <sys:String x:Key="Str_Sign_Reason">Neden (isteğe bağlı)</sys:String>
     <sys:String x:Key="Str_Sign_Location">Konum (isteğe bağlı)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">İletişim (isteğe bağlı)</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">Görünür imza göster</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">İmza metni</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">Dijital olarak imzalayan: {name}&#10;Tarih: {date}&#10;Neden: {reason}&#10;Konum: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_Page">Page</sys:String>
+    <sys:String x:Key="Str_Sign_Position">Position</sys:String>
+    <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
+    <sys:String x:Key="Str_Sign_BottomRight">Bottom right</sys:String>
+    <sys:String x:Key="Str_Sign_TopLeft">Top left</sys:String>
+    <sys:String x:Key="Str_Sign_TopRight">Top right</sys:String>
+    <sys:String x:Key="Str_Sign_Width">Width</sys:String>
+    <sys:String x:Key="Str_Sign_Height">Height</sys:String>
+    <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">Sertifika sahibi</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">İmza sayfasını, boyutlarını ve metin boyutunu kontrol edin.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">İmzalı kopyayı farklı kaydet</sys:String>
     <sys:String x:Key="Str_Sign_Sign">İmzala</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">İptal</sys:String>
@@ -443,6 +458,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Ocr_SearchablePdf">Aranabilir PDF Oluştur...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">Tüm Metni Çıkart...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">Dil</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">Form duyarlı OCR</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Önce bir PDF açın</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - yakında</sys:String>
     <sys:String x:Key="Str_TT_Ocr">Sayfada OCR uygula (metni kopyala) (Ctrl+Shift+O)</sys:String>
@@ -477,6 +493,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Tf_Warn">Bir sayfayı dönüştürmek (döndürmek veya ölçeklemek) onu rasterize eder: sayfa bir görsel olarak yeniden kaydedilir, bu nedenle üzerindeki seçilebilir metin kaybolur. Daha sonra OCR uygulayarak tekrar aranabilir hale getirebilirsiniz.</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">Beni bir daha uyarma</sys:String>
     <sys:String x:Key="Str_Tf_Done">{0} sayfa dönüştürüldü</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">{0} sayfa dönüştürüldü</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">Sayfa görüntülenemedi - birazdan tekrar deneyin.</sys:String>
     <sys:String x:Key="Str_Tf_Failed">Dönüştürme başarısız: {0}</sys:String>
     <sys:String x:Key="Str_Crop_Position">Konum</sys:String>
@@ -717,6 +734,13 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Tf_LevelsBlack">Siyah noktası</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Beyaz noktası</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Orta tonlar</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <!-- 1.7.4 hardcoded-string sweep (#227) -->
     <sys:String x:Key="Str_Color_Name">Renk</sys:String>
     <sys:String x:Key="Str_Color_Pick">Bir renk seçin</sys:String>

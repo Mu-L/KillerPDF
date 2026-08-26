@@ -360,7 +360,7 @@ namespace KillerPDF.Controls
             if (i < 0 || i >= _filterPatterns.Count) return null;
             string p = _filterPatterns[i][0];
             if (p.Length > 2 && p.StartsWith("*.") && p.IndexOfAny(['*', '?'], 2) < 0)
-                return p.Substring(1);
+                return p[1..];
             return null;
         }
 
@@ -370,7 +370,7 @@ namespace KillerPDF.Controls
             foreach (var pats in _filterPatterns)
                 foreach (var p in pats)
                     if (p.Length > 2 && p.StartsWith("*.") && p.IndexOfAny(['*', '?'], 2) < 0)
-                        yield return p.Substring(1);
+                        yield return p[1..];
         }
 
         /// <summary>True when the name passes the active filter. Folders are never filtered out.</summary>
@@ -608,7 +608,7 @@ namespace KillerPDF.Controls
                     if (!_showHidden)
                     {
                         if ((info.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
-                        if (info.Name.StartsWith(".", StringComparison.Ordinal)) continue;
+                        if (info.Name.StartsWith('.')) continue;
                     }
                     _raw.Add(new PickerEntry(info.Name, sub, true, 0, SafeTime(() => info.LastWriteTime)));
                 }
@@ -619,7 +619,7 @@ namespace KillerPDF.Controls
                     if (!_showHidden)
                     {
                         if ((fi.Attributes & (FileAttributes.Hidden | FileAttributes.System)) != 0) continue;
-                        if (fi.Name.StartsWith(".", StringComparison.Ordinal)) continue;
+                        if (fi.Name.StartsWith('.')) continue;
                     }
                     _raw.Add(new PickerEntry(fi.Name, file, false, SafeLen(fi), SafeTime(() => fi.LastWriteTime)));
                 }
@@ -892,9 +892,9 @@ namespace KillerPDF.Controls
             _treeSyncing = false;
         }
 
-        private static IEnumerable<string> RelativeSegments(string rootPath, string fullPath)
+        private static string[] RelativeSegments(string rootPath, string fullPath)
         {
-            string rest = fullPath.Substring(rootPath.Length);
+            string rest = fullPath[rootPath.Length..];
             return rest.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
                               StringSplitOptions.RemoveEmptyEntries);
         }
@@ -1246,7 +1246,7 @@ namespace KillerPDF.Controls
                 {
                     string? ext = ActiveFilterExt();
                     if (ext == null && !string.IsNullOrEmpty(DefaultExt))
-                        ext = DefaultExt.StartsWith(".") ? DefaultExt : "." + DefaultExt;
+                        ext = DefaultExt.StartsWith('.') ? DefaultExt : "." + DefaultExt;
                     if (ext != null) full += ext;
                 }
 
@@ -1374,7 +1374,7 @@ namespace KillerPDF.Controls
                         WM_NCLBUTTONDOWN, new IntPtr(ht), IntPtr.Zero);
         }
 
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+        [System.Runtime.InteropServices.LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+        private static partial IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
     }
 }

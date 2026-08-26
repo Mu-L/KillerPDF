@@ -15,7 +15,8 @@
          verapdf --recurse --format json C:\pdf-corpus-resaved > after.json
       4. Compare:
          .\Compare-VeraPDF.ps1 -Baseline baseline.json -After after.json `
-             -BaselineRoot C:\pdf-corpus -AfterRoot C:\pdf-corpus-resaved
+             -BaselineRoot C:\pdf-corpus -AfterRoot C:\pdf-corpus-resaved `
+             -ResaveLog resave.csv
 
     Files are matched by path relative to the given roots. The check that
     matters for release: zero regressions. A regression is any of:
@@ -23,7 +24,8 @@
       - rules added:       a file fails rules after that it did not fail before
                            (even if it already failed others)
       - PARSE_ERROR_AFTER: veraPDF parsed the baseline file but not the resave
-      - MISSING_AFTER:     file present in baseline report but absent in after
+      - MISSING_AFTER:     file present in baseline report but absent in after and not
+                           recorded as an intentional batch skip
 
     Exit code 0 = no regressions, 1 = regressions found, 2 = usage/input error.
 
@@ -37,6 +39,7 @@ param(
     [Parameter(Mandatory = $true)] [string]$After,
     [Parameter(Mandatory = $true)] [string]$BaselineRoot,
     [Parameter(Mandatory = $true)] [string]$AfterRoot,
+    [string]$ResaveLog,
     [string]$CsvOut,
     [switch]$ShowUnchanged
 )
@@ -108,6 +111,19 @@ function Get-VeraJobs {
 
 $baseJobs  = Get-VeraJobs -Path $Baseline -Root $BaselineRoot
 $afterJobs = Get-VeraJobs -Path $After -Root $AfterRoot
+$skipped = @{}
+if ($ResaveLog) {
+    if (-not (Test-Path -LiteralPath $ResaveLog)) {
+        Write-Error "Resave log not found: $ResaveLog"
+        exit 2
+    }
+    foreach ($row in @(Import-Csv -LiteralPath $ResaveLog)) {
+        if ([string]$row.Status -eq 'SKIP') {
+            $skipKey = ([string]$row.File).Replace('/', '\').TrimStart('\').ToLowerInvariant()
+            $skipped[$skipKey] = [string]$row.Detail
+        }
+    }
+}
 
 $results = New-Object System.Collections.Generic.List[object]
 $regressionCount = 0
@@ -117,6 +133,13 @@ foreach ($key in @($baseJobs.Keys | Sort-Object)) {
     $b = $baseJobs[$key]
 
     if (-not $afterJobs.ContainsKey($key)) {
+        if ($skipped.ContainsKey($key)) {
+            $results.Add([pscustomobject]@{
+                File = $key; Change = 'SKIPPED'; Regression = $false
+                Detail = $skipped[$key]
+            })
+            continue
+        }
         $results.Add([pscustomobject]@{
             File = $key; Change = 'MISSING_AFTER'; Regression = $true
             Detail = 'In baseline report but absent from after report (resave failed or file skipped)'

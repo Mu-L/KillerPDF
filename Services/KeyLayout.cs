@@ -21,12 +21,15 @@ namespace KillerPDF.Services
     // ============================================================
     internal static class KeyLayout
     {
+        // LibraryImport cannot generate the mutable StringBuilder buffer required by ToUnicodeEx.
+#pragma warning disable SYSLIB1054
         [DllImport("user32.dll")] private static extern IntPtr GetKeyboardLayout(uint idThread);
         [DllImport("user32.dll")] private static extern uint MapVirtualKeyEx(uint uCode, uint uMapType, IntPtr dwhkl);
         [DllImport("user32.dll")] private static extern short VkKeyScanEx(char ch, IntPtr dwhkl);
         [DllImport("user32.dll")]
         private static extern int ToUnicodeEx(uint wVirtKey, uint wScanCode, byte[] lpKeyState,
             [Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder pwszBuff, int cchBuff, uint wFlags, IntPtr dwhkl);
+#pragma warning restore SYSLIB1054
 
         private const uint MAPVK_VK_TO_VSC = 0;
         private const int VK_SHIFT = 0x10;
@@ -59,11 +62,11 @@ namespace KillerPDF.Services
                 if (rc < 0)
                 {
                     var flush = new StringBuilder(8);
-                    ToUnicodeEx(VK_SPACE, MapVirtualKeyEx(VK_SPACE, MAPVK_VK_TO_VSC, hkl),
-                                new byte[256], flush, flush.Capacity, 0, hkl);
+                    _ = ToUnicodeEx(VK_SPACE, MapVirtualKeyEx(VK_SPACE, MAPVK_VK_TO_VSC, hkl),
+                                    new byte[256], flush, flush.Capacity, 0, hkl);
                     return '\0';
                 }
-                return rc > 0 ? sb[sb.Length - 1] : '\0';
+                return rc > 0 ? sb[^1] : '\0';
             }
             catch { return '\0'; }   // never let a shortcut check throw
         }

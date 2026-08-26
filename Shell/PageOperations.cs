@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -41,10 +38,12 @@ namespace KillerPDF
                 foreach (var idx in indices)
                     if (_annotations.TryGetValue(idx, out var anns) && _renderDims.TryGetValue(idx, out var dims))
                         Services.AnnotationRotate.Remap(anns, delta, dims.w, dims.h);
-                foreach (var idx in indices)
-                    _doc.Pages[idx].Rotate = ((_doc.Pages[idx].Rotate + delta) % 360 + 360) % 360;
                 int restoreIdx = PageList.SelectedIndex;
-                SaveTempAndReload(keepAnnotations: true);
+                SaveTempAndReload(
+                    keepAnnotations: true,
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterPageTurns(
+                            rotations, indices, delta));
                 PageList.SelectedIndex = Math.Min(restoreIdx, PageList.Items.Count - 1);
                 // After a rotation the page aspect ratio changes; always fit-to-page so the
                 // full rotated page is visible regardless of the previous zoom level.
@@ -72,11 +71,9 @@ namespace KillerPDF
             {
                 var indices = new List<int>();
                 foreach (PageThumbnailVm vm in selected) indices.Add(vm.PageIndex);
-                using var importDoc = PdfReader.Open(currentFile, PdfDocumentOpenMode.Import);
-                var newDoc = new PdfDocument();
-                foreach (var idx in indices.OrderBy(i => i))
-                    newDoc.AddPage(importDoc.Pages[idx]);
-                newDoc.Save(dlg.FileName);
+                int[] ordered = [.. indices.OrderBy(index => index)];
+                PdfEngineIntegration.ExtractPages(
+                    currentFile, dlg.FileName, ordered, _pageRotations);
                 SetStatus(string.Format(Loc("Str_Extracted"), indices.Count, System.IO.Path.GetFileName(dlg.FileName)));
             }
             catch (Exception ex)
@@ -88,7 +85,6 @@ namespace KillerPDF
         private void Delete_Click(object sender, RoutedEventArgs e)
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
-            var doc = _doc;
             var selected = PageList.SelectedItems;
             if (selected.Count == 0) { KillerDialog.Show(this, Loc("Str_Dlg_SelectDelete")); return; }
             var result = KillerDialog.Show(this, selected.Count == 1 ? Loc("Str_Dlg_DeletePage1") : string.Format(Loc("Str_Dlg_DeletePagesN"), selected.Count), "KillerPDF",
@@ -98,9 +94,10 @@ namespace KillerPDF
             {
                 var indices = new List<int>();
                 foreach (PageThumbnailVm vm in selected) indices.Add(vm.PageIndex);
-                foreach (var idx in indices.OrderByDescending(i => i))
-                    doc.Pages.RemoveAt(idx);
-                SaveTempAndReload();
+                SaveTempAndReload(
+                    finalizeSavedFile: path => PdfEngineIntegration.RemovePages(path, indices),
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterPageRemoval(rotations, indices));
                 SetStatus(string.Format(Loc("Str_Deleted"), indices.Count, _doc?.PageCount));
             }
             catch (Exception ex)
@@ -112,14 +109,18 @@ namespace KillerPDF
         private void InsertBlankPage_Click(object sender, RoutedEventArgs e)
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
-            var doc = _doc;
-            int insertAfter = PageList.SelectedIndex >= 0 ? PageList.SelectedIndex : doc.PageCount - 1;
+            int insertAfter = PageList.SelectedIndex >= 0
+                ? PageList.SelectedIndex : _doc.PageCount - 1;
+            int insertIndex = insertAfter + 1;
             try
             {
-                var blank = new PdfPage { Width = XUnit.FromPoint(595), Height = XUnit.FromPoint(842) };
-                doc.Pages.Insert(insertAfter + 1, blank);
-                SaveTempAndReload();
-                PageList.SelectedIndex = insertAfter + 1;
+                SaveTempAndReload(
+                    finalizeSavedFile: path =>
+                        PdfEngineIntegration.InsertBlankPage(path, insertIndex, 595, 842),
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterPageInsertion(
+                            rotations, insertIndex));
+                PageList.SelectedIndex = insertIndex;
                 SetStatus(string.Format(Loc("Str_St_InsertedBlank"), insertAfter + 2));
             }
             catch (Exception ex)
@@ -133,11 +134,15 @@ namespace KillerPDF
         private void AddBlankPageAtEnd()
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
-            var doc = _doc;
             try
             {
-                doc.Pages.Add(new PdfPage { Width = XUnit.FromPoint(595), Height = XUnit.FromPoint(842) });
-                SaveTempAndReload();
+                int insertIndex = _doc.PageCount;
+                SaveTempAndReload(
+                    finalizeSavedFile: path =>
+                        PdfEngineIntegration.InsertBlankPage(path, insertIndex, 595, 842),
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterPageInsertion(
+                            rotations, insertIndex));
                 if (PageList.Items.Count > 0) PageList.SelectedIndex = PageList.Items.Count - 1;
                 SetStatus(string.Format(Loc("Str_St_AddedBlank"), _doc?.PageCount));
             }
@@ -150,24 +155,22 @@ namespace KillerPDF
         private void MoveUp_Click(object sender, RoutedEventArgs e)
         {
             if (_doc is null || PageList.SelectedIndex <= 0) return;
-            var doc = _doc;
             int idx = PageList.SelectedIndex;
-            var page = doc.Pages[idx];
-            doc.Pages.RemoveAt(idx);
-            doc.Pages.Insert(idx - 1, page);
-            SaveTempAndReload();
+            SaveTempAndReload(
+                finalizeSavedFile: path => PdfEngineIntegration.MovePage(path, idx, idx - 1),
+                remapRotations: rotations =>
+                    PdfEngineIntegration.RemapRotationsAfterPageMove(rotations, idx, idx - 1));
             PageList.SelectedIndex = idx - 1;
         }
 
         private void MoveDown_Click(object sender, RoutedEventArgs e)
         {
             if (_doc is null || PageList.SelectedIndex < 0 || PageList.SelectedIndex >= _doc.PageCount - 1) return;
-            var doc = _doc;
             int idx = PageList.SelectedIndex;
-            var page = doc.Pages[idx];
-            doc.Pages.RemoveAt(idx);
-            doc.Pages.Insert(idx + 1, page);
-            SaveTempAndReload();
+            SaveTempAndReload(
+                finalizeSavedFile: path => PdfEngineIntegration.MovePage(path, idx, idx + 1),
+                remapRotations: rotations =>
+                    PdfEngineIntegration.RemapRotationsAfterPageMove(rotations, idx, idx + 1));
             PageList.SelectedIndex = idx + 1;
         }
 
@@ -222,7 +225,7 @@ namespace KillerPDF
                 return;
             }
 
-            int    pageCount = _doc.PageCount;
+            int    pageCount = EnsureEngineDocumentSession().Pages.Count;
             string filePath  = _currentFile;
             int preservedPage = ActiveViewer.CurrentPageIndex;
 

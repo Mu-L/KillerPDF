@@ -15,12 +15,9 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Docnet.Core;
 using Docnet.Core.Models;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 // The scrubs, bitmap helpers, import helpers and PDFium interop all live in Services
-// (PdfScrub.cs, BitmapHelpers.cs, PdfImport.cs, PdfiumInterop.cs; KillerUI refactor,
+// (BitmapHelpers.cs, PdfImport.cs, PdfiumInterop.cs; KillerUI refactor,
 // 2026-07-31), called qualified below. No Features-to-Shell reaches remain in this file.
 // OpenBatchConsole and FlattenBatchDetail are shared with the batch runner.
 using static KillerPDF.Features.BatchRunner;
@@ -76,6 +73,7 @@ namespace KillerPDF.Features
             string? command = args.FirstOrDefault(a =>
                 Eq(a, "--help") || Eq(a, "-h") || Eq(a, "/?") ||
                 Eq(a, "--version") || Eq(a, "-v") ||
+                Eq(a, "--verify") || Eq(a, "/verify") ||
                 Eq(a, "--merge") || Eq(a, "--extract-pages") || Eq(a, "--split") ||
                 Eq(a, "--decrypt") || Eq(a, "--to-image") || Eq(a, "--flatten") ||
                 Eq(a, "--print") || Eq(a, "--ocr"));
@@ -95,7 +93,11 @@ namespace KillerPDF.Features
                         break;
                     case "--version":
                     case "-v":
-                        con.WriteLine(Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "unknown");
+                        con.WriteLine(AppVersion.Display);
+                        break;
+                    case "--verify":
+                    case "/verify":
+                        exitCode = CliVerifyPayload(con);
                         break;
                     case "--merge":
                         exitCode = CliMerge(positionals, con);
@@ -140,11 +142,12 @@ namespace KillerPDF.Features
 
         private static string CliHelpText() => string.Join(Environment.NewLine,
         [
-            "KillerPDF " + (Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "") + " - command line usage",
+            "KillerPDF " + AppVersion.Display + " - command line usage",
             "",
             "  KillerPDF.exe <file.pdf>                                    open in the app",
             "  KillerPDF.exe --version | -v                                print version",
             "  KillerPDF.exe --help | -h | /?                              this text",
+            "  KillerPDF.exe --verify | /verify                            verify every installed payload file",
             "",
             "  --merge <out.pdf> <in1> <in2> ...        merge PDFs (and images) into one PDF",
             "  --extract-pages <in.pdf> <pages> <out.pdf>",
@@ -167,6 +170,19 @@ namespace KillerPDF.Features
             "Exit codes: 0 success, 1 operation failed, 2 bad usage.",
             "Runs headless and works while the KillerPDF window is open.",
         ]);
+
+        private static int CliVerifyPayload(TextWriter output)
+        {
+            PayloadIntegrityResult result = PayloadIntegrityVerifier.Verify(AppContext.BaseDirectory);
+            if (result.Success)
+            {
+                output.WriteLine($"PASS: verified {result.VerifiedFiles} payload files.");
+                return 0;
+            }
+            output.WriteLine("FAIL: installed payload verification failed.");
+            foreach (string error in result.Errors) output.WriteLine("  " + error);
+            return 1;
+        }
 
         /// <summary>
         /// Splits args into positionals (everything after the command flag that
@@ -237,11 +253,8 @@ namespace KillerPDF.Features
         // ============================================================
         // --merge <out.pdf> <in1> <in2> ...
         // ============================================================
-        // Mirrors the GUI merge (FileOperations.cs Merge_Click): per source PDF,
-        // harvest named destinations from a ReadOnly open, copy pages from an
-        // Import open, then rewrite named-destination links against the page
-        // offset. Image inputs go through the same importer the GUI drop
-        // pipeline uses (ImportAndZip.cs).
+        // The engine imports complete PDF graphs and authors one page per image
+        // frame, retaining input order and a leading PDF's original byte prefix.
         private static int CliMerge(List<string> pos, TextWriter con)
         {
             if (pos.Count < 3)
@@ -259,32 +272,12 @@ namespace KillerPDF.Features
                 { con.WriteLine("Output file cannot also be an input."); return 2; }
             }
 
-            using var outPdf = new PdfDocument();
-            foreach (var f in inputs)
-            {
-                if (PdfImport.IsPdfPath(f))
-                {
-                    int pageOffset = outPdf.PageCount;
-                    Dictionary<string, int> namedDestMap;
-                    using (var srcRead = PdfReader.Open(f, PdfDocumentOpenMode.ReadOnly))
-                        namedDestMap = PdfImport.BuildNamedDestMap(srcRead);
-                    using var src = PdfReader.Open(f, PdfDocumentOpenMode.Import);
-                    for (int i = 0; i < src.PageCount; i++)
-                        outPdf.AddPage(src.Pages[i]);
-                    if (namedDestMap.Count > 0)
-                        PdfImport.RewriteNamedDestLinks(outPdf, pageOffset, namedDestMap);
-                }
-                else
-                {
-                    PdfImport.AddImagePagesFromFile(outPdf, f);
-                }
-            }
-
-            PdfScrub.ScrubEmptyOutlines(outPdf);
-            PdfScrub.ScrubDegenerateCropBoxes(outPdf);
+            byte[] merged = PdfEngineIntegration.MergeFiles(inputs);
             CliEnsureParentDir(outPath);
-            outPdf.Save(outPath);
-            con.WriteLine($"Merged {inputs.Count} files ({outPdf.PageCount} pages) -> {outPath}");
+            File.WriteAllBytes(outPath, merged);
+            int pageCount = KillerPdf.Engine.Documents.PdfDocumentInformation
+                .Read(KillerPdf.Engine.Documents.PdfDocument.Open(merged)).PageCount;
+            con.WriteLine($"Merged {inputs.Count} files ({pageCount} pages) -> {outPath}");
             return 0;
         }
 
@@ -303,17 +296,14 @@ namespace KillerPDF.Features
             string inPath = Path.GetFullPath(pos[0]), spec = pos[1], outPath = Path.GetFullPath(pos[2]);
             if (!File.Exists(inPath)) { con.WriteLine($"Input not found: {inPath}"); return 2; }
 
-            using var importDoc = PdfReader.Open(inPath, PdfDocumentOpenMode.Import);
-            var indices = CliParsePageRange(spec, importDoc.PageCount, out string err);
+            byte[] source = File.ReadAllBytes(inPath);
+            int pageCount = KillerPdf.Engine.Documents.PdfDocumentInformation
+                .Read(KillerPdf.Engine.Documents.PdfDocument.Open(source)).PageCount;
+            var indices = CliParsePageRange(spec, pageCount, out string err);
             if (indices is null) { con.WriteLine(err); return 2; }
 
-            using var newDoc = new PdfDocument();
-            foreach (var idx in indices)
-                newDoc.AddPage(importDoc.Pages[idx]);
-            PdfScrub.ScrubEmptyOutlines(newDoc);
-            PdfScrub.ScrubDegenerateCropBoxes(newDoc);
             CliEnsureParentDir(outPath);
-            newDoc.Save(outPath);
+            File.WriteAllBytes(outPath, PdfEngineIntegration.ExtractPages(source, indices));
             con.WriteLine($"Extracted {indices.Count} pages -> {outPath}");
             return 0;
         }
@@ -332,18 +322,17 @@ namespace KillerPDF.Features
             if (!File.Exists(inPath)) { con.WriteLine($"Input not found: {inPath}"); return 2; }
             Directory.CreateDirectory(outDir);
 
-            using var importDoc = PdfReader.Open(inPath, PdfDocumentOpenMode.Import);
+            byte[] source = File.ReadAllBytes(inPath);
+            IReadOnlyList<byte[]> pages = PdfEngineIntegration.SplitPages(source);
             string baseName = Path.GetFileNameWithoutExtension(inPath);
-            int digits = Math.Max(3, importDoc.PageCount.ToString().Length);
-            for (int i = 0; i < importDoc.PageCount; i++)
+            int digits = Math.Max(3, pages.Count.ToString().Length);
+            for (int i = 0; i < pages.Count; i++)
             {
-                using var single = new PdfDocument();
-                single.AddPage(importDoc.Pages[i]);
-                PdfScrub.ScrubEmptyOutlines(single);
-                PdfScrub.ScrubDegenerateCropBoxes(single);
-                single.Save(Path.Combine(outDir, $"{baseName}-page-{(i + 1).ToString().PadLeft(digits, '0')}.pdf"));
+                File.WriteAllBytes(
+                    Path.Combine(outDir, $"{baseName}-page-{(i + 1).ToString().PadLeft(digits, '0')}.pdf"),
+                    pages[i]);
             }
-            con.WriteLine($"Split {importDoc.PageCount} pages into {outDir}");
+            con.WriteLine($"Split {pages.Count} pages into {outDir}");
             return 0;
         }
 
@@ -352,8 +341,8 @@ namespace KillerPDF.Features
         // ============================================================
         // Without a password: the same lossless PDFium strip the GUI uses at
         // open time (owner/permissions encryption), with the Import-rebuild
-        // fallback. With a password: PdfSharpCore opens with the password and
-        // saves a decrypted copy, the same sequence as the GUI password path.
+        // fallback. With a password, The KillerPDF.Engine authenticates and
+        // fully rewrites the document without its encryption dictionary.
         private static int CliDecrypt(List<string> pos, Dictionary<string, string> options, TextWriter con)
         {
             if (pos.Count != 2)
@@ -368,10 +357,7 @@ namespace KillerPDF.Features
             options.TryGetValue("--password", out string? password);
             if (!string.IsNullOrEmpty(password))
             {
-                using var doc = PdfReader.Open(inPath, password!, PdfDocumentOpenMode.Modify);
-                PdfScrub.ScrubEmptyOutlines(doc);
-                PdfScrub.ScrubDegenerateCropBoxes(doc);
-                doc.Save(outPath);
+                PdfEngineIntegration.RemoveEncryption(inPath, outPath, password!);
                 con.WriteLine($"Decrypted -> {outPath}");
                 return 0;
             }
@@ -410,8 +396,7 @@ namespace KillerPDF.Features
                 var dec = App.MakeTempFile("clidec");
                 if (!string.IsNullOrEmpty(password))
                 {
-                    using var pdoc = PdfReader.Open(inPath, password!, PdfDocumentOpenMode.Modify);
-                    pdoc.Save(dec);
+                    PdfEngineIntegration.RemoveEncryption(inPath, dec, password!);
                 }
                 else if (!PdfiumInterop.TryPdfiumStripEncryption(inPath, dec) && !PdfImport.TryImportRepairToPath(inPath, dec))
                 {
@@ -423,23 +408,21 @@ namespace KillerPDF.Features
 
             try
             {
-                using var doc = PdfReader.Open(workPath, PdfDocumentOpenMode.Modify);
-                var rotations = new int[doc.PageCount];
-                var dims = new (double WPt, double HPt)[doc.PageCount];
+                IReadOnlyList<KillerPdf.Engine.Documents.PdfPageInformation> pages =
+                    PdfEngineIntegration.ReadPageInformation(workPath);
+                var rotations = new int[pages.Count];
+                var dims = new (double WPt, double HPt)[pages.Count];
                 bool anyRot = false;
-                for (int i = 0; i < doc.PageCount; i++)
+                for (int i = 0; i < pages.Count; i++)
                 {
-                    var p = doc.Pages[i];
-                    rotations[i] = ((p.Rotate % 360) + 360) % 360;
-                    dims[i] = (p.Width.Point, p.Height.Point);
-                    if (rotations[i] != 0) { anyRot = true; p.Rotate = 0; }
+                    rotations[i] = pages[i].Rotation;
+                    dims[i] = (pages[i].Width, pages[i].Height);
+                    if (rotations[i] != 0) anyRot = true;
                 }
                 if (!anyRot) return (workPath, rotations, dims);
 
                 var renderTemp = App.MakeTempFile("clirender");
-                PdfScrub.ScrubEmptyOutlines(doc);
-                PdfScrub.ScrubDegenerateCropBoxes(doc);
-                doc.Save(renderTemp);
+                PdfEngineIntegration.CreateZeroRotationCopy(workPath, renderTemp);
                 return (renderTemp, rotations, dims);
             }
             catch (Exception ex)
@@ -540,7 +523,7 @@ namespace KillerPDF.Features
         // --flatten <in.pdf> <out.pdf> [--dpi n]
         // ============================================================
         // Same rasterize-and-rebuild the GUI's Save Flattened runs (150 dpi
-        // default, PNG-embedded pages sized in points), plus the rotation
+        // default, engine-authored image pages sized in points), plus the rotation
         // handling the GUI gets for free from its normalized working copy.
         private static int CliFlatten(List<string> pos, Dictionary<string, string> options, TextWriter con)
         {
@@ -559,7 +542,7 @@ namespace KillerPDF.Features
             using var dr = DocLib.Instance.GetDocReader(renderPath, new PageDimensions(dpi / 72.0));
             int pageCount = dr.GetPageCount();
 
-            using var outDoc = new PdfDocument();
+            var pages = new List<PdfEngineIntegration.RasterPage>(pageCount);
             for (int i = 0; i < pageCount; i++)
             {
                 byte[] raw; int w, h;
@@ -575,8 +558,6 @@ namespace KillerPDF.Features
                 }
                 int rot = rotations != null && i < rotations.Length ? rotations[i] : 0;
                 if (rot != 0) (raw, w, h) = BitmapHelpers.RotateBitmap(raw, w, h, rot);
-                var png = BitmapHelpers.RenderToPng(raw, w, h);
-
                 double wPt, hPt;
                 if (dims != null && i < dims.Length)
                 {
@@ -591,15 +572,10 @@ namespace KillerPDF.Features
                     hPt = h * 72.0 / dpi;
                 }
 
-                var newPage = outDoc.AddPage();
-                newPage.Width = XUnit.FromPoint(wPt);
-                newPage.Height = XUnit.FromPoint(hPt);
-                using var xi = XImage.FromStream(() => new MemoryStream(png));
-                using var gfx = XGraphics.FromPdfPage(newPage);
-                gfx.DrawImage(xi, 0, 0, newPage.Width.Point, newPage.Height.Point);
+                pages.Add(new PdfEngineIntegration.RasterPage(w, h, wPt, hPt, raw));
             }
             CliEnsureParentDir(outPath);
-            outDoc.Save(outPath);
+            File.WriteAllBytes(outPath, PdfEngineIntegration.CreateRasterDocument(pages));
             con.WriteLine($"Flattened {pageCount} pages at {dpi:0} dpi -> {outPath}");
             return 0;
         }
@@ -641,7 +617,7 @@ namespace KillerPDF.Features
                 queue = queues.FirstOrDefault(q =>
                             string.Equals(q.FullName, printerName, StringComparison.OrdinalIgnoreCase))
                      ?? queues.FirstOrDefault(q =>
-                            q.FullName.IndexOf(printerName, StringComparison.OrdinalIgnoreCase) >= 0);
+                            q.FullName.Contains(printerName, StringComparison.OrdinalIgnoreCase));
                 if (queue is null)
                 {
                     con.WriteLine($"Printer not found: {printerName}. Available:");
@@ -756,19 +732,18 @@ namespace KillerPDF.Features
             CliEnsureParentDir(outPath);
             var (pages, words) = OcrController.BuildSearchablePdf(srcForOcr, outPath,
                 (i, n) => { if (i == 1 || i == n || i % 10 == 0) con.WriteLine($"OCR page {i}/{n}"); },
-                CancellationToken.None, lang);
+                lang, formAware: false, ct: CancellationToken.None);
 
             // The render source had /Rotate stripped; put the angles back on the
             // output so rotated pages still display rotated. Content and text
             // layer share page space, so they stay aligned.
             if (rotations != null && rotations.Any(r => r != 0))
             {
-                using var outDoc = PdfReader.Open(outPath, PdfDocumentOpenMode.Modify);
-                for (int i = 0; i < outDoc.PageCount && i < rotations.Length; i++)
-                    if (rotations[i] != 0) outDoc.Pages[i].Rotate = rotations[i];
-                PdfScrub.ScrubEmptyOutlines(outDoc);
-                PdfScrub.ScrubDegenerateCropBoxes(outDoc);
-                outDoc.Save(outPath);
+                var restoredRotations = rotations
+                    .Select((rotation, pageIndex) => (pageIndex, rotation))
+                    .Where(item => item.rotation != 0)
+                    .ToDictionary(item => item.pageIndex, item => item.rotation);
+                PdfEngineIntegration.ApplyPageRotations(outPath, restoredRotations);
             }
 
             con.WriteLine($"OCR complete: {pages} pages, {words} words -> {outPath}");

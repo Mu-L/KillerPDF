@@ -53,9 +53,7 @@ namespace KillerPDF
             try { Directory.CreateDirectory(LogDir); } catch { /* best-effort */ }
 
             var sb  = new StringBuilder();
-            var ver = Assembly.GetExecutingAssembly().GetName().Version;
-
-            sb.AppendLine($"KillerPDF v{ver?.ToString(3)} crash report");
+            sb.AppendLine($"KillerPDF v{AppVersion.Display} crash report");
             sb.AppendLine($"Time    : {DateTime.Now:yyyy-MM-dd HH:mm:ss zzz}");
             sb.AppendLine($"OS      : {Environment.OSVersion}");
             sb.AppendLine($"CLR     : {Environment.Version}");

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,9 +14,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -25,6 +23,51 @@ namespace KillerPDF.Controls
     // members spelled bare here resolve through PdfViewer.Bridge.cs.
     public partial class PdfViewer
     {
+        private readonly ConditionalWeakTable<Canvas, SafeCanvas> _textEditorLayers = [];
+
+        private SafeCanvas TextEditorLayerFor(Canvas pageCanvas)
+        {
+            if (_textEditorLayers.TryGetValue(pageCanvas, out SafeCanvas? existing))
+                return existing;
+            var layer = new SafeCanvas
+            {
+                Width = pageCanvas.Width,
+                Height = pageCanvas.Height,
+                Background = null,
+                ClipToBounds = true
+            };
+            Panel.SetZIndex(layer, 1000);
+            pageCanvas.SizeChanged += (_, _) =>
+            {
+                layer.Width = pageCanvas.ActualWidth > 0 ? pageCanvas.ActualWidth : pageCanvas.Width;
+                layer.Height = pageCanvas.ActualHeight > 0 ? pageCanvas.ActualHeight : pageCanvas.Height;
+            };
+            pageCanvas.Children.Add(layer);
+            _textEditorLayers.Add(pageCanvas, layer);
+            return layer;
+        }
+
+        private void ClearRenderedCanvas(Canvas pageCanvas)
+        {
+            SafeCanvas editorLayer = TextEditorLayerFor(pageCanvas);
+            for (int index = pageCanvas.Children.Count - 1; index >= 0; index--)
+                if (!ReferenceEquals(pageCanvas.Children[index], editorLayer))
+                    pageCanvas.Children.RemoveAt(index);
+        }
+
+        private void QueueTextEditorFocus(TextBox textBox, bool selectAll = false)
+        {
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+            {
+                if (!ReferenceEquals(_activeTextBox, textBox)
+                    || textBox.Parent is not SafeCanvas) return;
+                textBox.Focus();
+                Keyboard.Focus(textBox);
+                if (selectAll) textBox.SelectAll();
+                if (!ReferenceEquals(_tehBox, textBox)) AttachTextEditResizeHandles(textBox);
+            }));
+        }
+
         // ============================================================
         // Inline text editing (double-click)
         // ============================================================
@@ -78,7 +121,7 @@ namespace KillerPDF.Controls
                 if (char.IsWhiteSpace(c)) continue;
                 total++;
                 if (char.IsLetterOrDigit(c)) { letters++; continue; }
-                if (ok.IndexOf(c) >= 0) continue;          // ordinary punctuation is fine
+                if (ok.Contains(c)) continue;              // ordinary punctuation is fine
                 weird++;                                   // replacement / PUA / stray symbol = mapping break
             }
             if (total == 0) return false;
@@ -87,7 +130,8 @@ namespace KillerPDF.Controls
 
         private void EditTextAtPosition(Point canvasPos, int pageIdx)
         {
-            if (_currentFile is null || !_renderDims.ContainsKey(pageIdx)) return;
+            if (_currentFile is null
+                || !_renderDims.TryGetValue(pageIdx, out var renderDimensions)) return;
 
             // Commit any existing edit first
             if (_activeTextBox is not null)
@@ -110,8 +154,9 @@ namespace KillerPDF.Controls
                     _textFillColor = placed.GetFill();   // and the fill swatches in sync with the box
                     double syp = 1.0;
                     if (_doc is not null && _renderDims.TryGetValue(pageIdx, out var prd) && prd.h > 0)
-                        syp = _doc.Pages[pageIdx].Height.Point / prd.h;
+                        syp = EnsureEngineDocumentSession().Pages[pageIdx].Height / prd.h;
                     _textFontSize = Math.Max(1, Math.Round(placed.FontSize * syp));
+                    _textLetterSpacing = placed.LetterSpacing * syp;
                     // Sync the bar's typeface + B/I/S to the box being re-edited.
                     _textFontName = string.IsNullOrEmpty(placed.FontName) ? "Segoe UI" : placed.FontName;
                     _textBold = placed.Bold; _textItalic = placed.Italic; _textStrike = placed.Strike; _textUnderline = placed.Underline;
@@ -143,11 +188,14 @@ namespace KillerPDF.Controls
                     };
                     Canvas.SetLeft(ptb, placed.Position.X);
                     Canvas.SetTop(ptb, placed.Position.Y);
-                    _activeCanvas.Children.Add(ptb);
+                    TextEditorLayerFor(_activeCanvas).Children.Add(ptb);
                     _activeTextBox = ptb;
                     StyleEditBox(ptb);   // restore the box's typeface + B/I/S
                     ptb.PreviewKeyDown += TextBox_PreviewKeyDown;
-                    ptb.Loaded += (s, ev) => { ptb.Focus(); Keyboard.Focus(ptb); ptb.SelectAll(); ptb.LostFocus += TextBox_LostFocus; AttachTextEditResizeHandles(ptb); };
+                    ptb.LostFocus += TextBox_LostFocus;
+                    ptb.Loaded += (_, _) => QueueTextEditorFocus(ptb, selectAll: true);
+                    ptb.PreviewMouseLeftButtonDown += (_, _) => QueueTextEditorFocus(ptb);
+                    QueueTextEditorFocus(ptb, selectAll: true);
                     ShowTextSettings();
                     SetStatus(Loc("Str_St_EditingText"));
                     return;
@@ -166,7 +214,7 @@ namespace KillerPDF.Controls
 
             try
             {
-                var (renderW, renderH) = _renderDims[pageIdx];
+                var (renderW, renderH) = renderDimensions;
 
                 using var pigDoc = PdfPigDoc.Open(_currentFile);
                 if (pageIdx >= pigDoc.NumberOfPages) return;
@@ -345,6 +393,7 @@ namespace KillerPDF.Controls
             _textBold = bold;
             _textItalic = italic;
             _textStrike = _textUnderline = false;
+            _textLetterSpacing = 0;
             _pendingEditWasDirty = _isDirty;   // capture before the cover dirties the doc
             if (!_annotations.ContainsKey(pageIdx)) _annotations[pageIdx] = [];
             _annotations[pageIdx].Add(cover);
@@ -373,15 +422,16 @@ namespace KillerPDF.Controls
             };
             Canvas.SetLeft(tb, cLeft);
             Canvas.SetTop(tb, cTop);
-            _activeCanvas.Children.Add(tb);
+            TextEditorLayerFor(_activeCanvas).Children.Add(tb);
             _activeTextBox = tb;
             StyleEditBox(tb);
             tb.PreviewKeyDown += TextBox_PreviewKeyDown;
-            tb.Loaded += (s, ev) => { tb.Focus(); Keyboard.Focus(tb); tb.SelectAll(); tb.LostFocus += TextBox_LostFocus; AttachTextEditResizeHandles(tb); };
+            tb.LostFocus += TextBox_LostFocus;
+            tb.Loaded += (_, _) => QueueTextEditorFocus(tb, selectAll: true);
+            tb.PreviewMouseLeftButtonDown += (_, _) => QueueTextEditorFocus(tb);
+            QueueTextEditorFocus(tb, selectAll: true);
             ShowTextSettings();
-            SetStatus(string.IsNullOrEmpty(text)
-                ? "Type your text, then drag the cover over the original - Enter to save, Escape to cancel"
-                : "Editing text - change size/color above, Enter to save, Escape to cancel");
+            SetStatus(Loc("Str_St_EditingText"));
         }
 
         // ============================================================
@@ -408,7 +458,7 @@ namespace KillerPDF.Controls
         // Background shown WHILE editing a text box: the chosen fill if one is set, otherwise a faint
         // translucent neutral gray. Gray (not white) so the empty editable box stays visible on both
         // light/white pages and dark pages; it's only shown during editing and never committed.
-        private Brush TextEditBackground()
+        private SolidColorBrush TextEditBackground()
             => _textFillColor.A > 0 ? new SolidColorBrush(_textFillColor)
                                     : new SolidColorBrush(Color.FromArgb(64, 128, 128, 128));
 
@@ -417,7 +467,8 @@ namespace KillerPDF.Controls
         // treated as a request to place a new one (the Grid-view "box jumps to cursor" bug).
         private bool ClickInsideActiveTextBox(Point pos)
         {
-            if (_activeTextBox is null || !ReferenceEquals(_activeTextBox.Parent, _activeCanvas)) return false;
+            if (_activeTextBox is null
+                || !ReferenceEquals(_activeTextBox.Parent, TextEditorLayerFor(_activeCanvas))) return false;
             double x = Canvas.GetLeft(_activeTextBox), y = Canvas.GetTop(_activeTextBox);
             if (double.IsNaN(x) || double.IsNaN(y)) return false;
             double w = _activeTextBox.ActualWidth > 0 ? _activeTextBox.ActualWidth : _activeTextBox.Width;
@@ -433,7 +484,7 @@ namespace KillerPDF.Controls
             double fontCanvas = _textFontSize;
             if (_doc is not null && _renderDims.TryGetValue(pageIdx, out var rdims) && rdims.h > 0)
             {
-                double sy = _doc.Pages[pageIdx].Height.Point / rdims.h;
+                double sy = EnsureEngineDocumentSession().Pages[pageIdx].Height / rdims.h;
                 if (sy > 0) fontCanvas = _textFontSize / sy;
             }
             // A default-size box dropped at the click point. Width is fixed (text wraps to it) and the
@@ -458,24 +509,16 @@ namespace KillerPDF.Controls
             };
             Canvas.SetLeft(tb, pos.X);
             Canvas.SetTop(tb, pos.Y);
-            _activeCanvas.Children.Add(tb);
+            TextEditorLayerFor(_activeCanvas).Children.Add(tb);
             _activeTextBox = tb;
             StyleEditBox(tb);   // current typeface + B/I/S
             tb.PreviewKeyDown += TextBox_PreviewKeyDown;
             tb.LostFocus += TextBox_LostFocus;
-            // Focus the box and attach its live resize handles once laid out. Loaded fires on first
-            // placement; a dispatcher fallback covers re-entry (Text tool -> Select -> Text again),
-            // where Loaded may have already run - without it the new box silently took no typing and
-            // showed no handles. Activate is idempotent (guards against double focus/handle attach).
-            void Activate()
-            {
-                if (!ReferenceEquals(_activeTextBox, tb)) return;
-                tb.Focus();
-                Keyboard.Focus(tb);
-                if (!ReferenceEquals(_tehBox, tb)) AttachTextEditResizeHandles(tb);
-            }
-            tb.Loaded += (s, e) => Activate();
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(Activate));
+            // Input priority runs after the placement click has completed, so that click cannot
+            // immediately take focus back from the new editor.
+            tb.Loaded += (_, _) => QueueTextEditorFocus(tb);
+            tb.PreviewMouseLeftButtonDown += (_, _) => QueueTextEditorFocus(tb);
+            QueueTextEditorFocus(tb);
         }
 
         // ── Live resize handles around the editing TextBox ──────────────────────────────
@@ -506,7 +549,7 @@ namespace KillerPDF.Controls
                 // PreviewMouseLeftButtonDown and would otherwise intercept the click), mirroring the
                 // committed-annotation resize handles.
                 _textEditHandles.Add(hd);
-                _activeCanvas.Children.Add(hd);
+                TextEditorLayerFor(_activeCanvas).Children.Add(hd);
             }
             tb.SizeChanged += TextEditBox_SizeChanged;
             LayoutTextEditHandles();
@@ -537,7 +580,7 @@ namespace KillerPDF.Controls
 
         private void RemoveTextEditHandles()
         {
-            if (_tehBox is not null) _tehBox.SizeChanged -= TextEditBox_SizeChanged;
+            _tehBox?.SizeChanged -= TextEditBox_SizeChanged;
             foreach (var hd in _textEditHandles) RemoveFromParent(hd);
             _textEditHandles.Clear();
             _tehBox = null;
@@ -685,6 +728,7 @@ namespace KillerPDF.Controls
                     Position = new Point(x, y),
                     Content = content,
                     FontSize = tb.FontSize,
+                    LetterSpacing = CanvasLetterSpacing(pageIdx),
                     FontName = _textFontName,
                     Bold = _textBold,
                     Italic = _textItalic,

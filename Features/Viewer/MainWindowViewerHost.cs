@@ -39,8 +39,11 @@ namespace KillerPDF
         System.Windows.Controls.ContextMenu IViewerHost.MakeThemedMenu() => MakeThemedMenu();
         void IViewerHost.CloseSearchBar() => CloseSearchBar();
         void IViewerHost.HideSignaturePopup() => HideSignaturePopup();
-        void IViewerHost.SaveTempAndReload(bool keepAnnotations, bool preserveZoom)
-            => SaveTempAndReload(keepAnnotations, preserveZoom);
+        void IViewerHost.SaveTempAndReload(bool keepAnnotations, bool preserveZoom,
+            Action<string>? finalizeSavedFile, Action<Dictionary<int, int>>? remapRotations,
+            int? selectedPageAfterReload)
+            => SaveTempAndReload(keepAnnotations, preserveZoom, finalizeSavedFile,
+                remapRotations, selectedPageAfterReload);
         void IViewerHost.RecordNavJump() => RecordNavJump();
         PageAnnotation? IViewerHost.PairPartner(PageAnnotation annotation) => PairPartner(annotation);
         void IViewerHost.RenderStamps(int page) => RenderStamps(page);
@@ -79,7 +82,6 @@ namespace KillerPDF
         System.Windows.Media.Effects.DropShadowEffect IViewerHost.AnnotBarShadow() => AnnotBarShadow();
         void IViewerHost.FadeOverlayOut(UIElement element) => FadeOverlayOut(element);
         void IViewerHost.FadeOutAndRemoveBar(System.Windows.Controls.Border? bar) => FadeOutAndRemoveBar(bar);
-        PdfSharpCore.Pdf.PdfItem IViewerHost.DerefItem(PdfSharpCore.Pdf.PdfItem item) => DerefItem(item);
         string IViewerHost.WordsToText(System.Collections.Generic.IEnumerable<UglyToad.PdfPig.Content.Word> words)
             => WordsToText(words);
         System.Windows.Controls.MenuItem IViewerHost.MakeMenuItem(string header, RoutedEventHandler click,

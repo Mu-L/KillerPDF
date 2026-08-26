@@ -19,9 +19,9 @@ namespace KillerPDF.Services
         internal static BitmapSource Apply(BitmapSource source, System.Collections.Generic.IReadOnlyList<Point> normalizedCorners)
         {
             if (normalizedCorners.Count != 4) throw new ArgumentException("Four corners are required.");
-            Point[] q = normalizedCorners.Select(p => new Point(
+            Point[] q = [.. normalizedCorners.Select(p => new Point(
                 Math.Max(0, Math.Min(1, p.X)) * (source.PixelWidth - 1),
-                Math.Max(0, Math.Min(1, p.Y)) * (source.PixelHeight - 1))).ToArray();
+                Math.Max(0, Math.Min(1, p.Y)) * (source.PixelHeight - 1)))];
 
             double signedArea = 0;
             for (int i = 0; i < 4; i++)

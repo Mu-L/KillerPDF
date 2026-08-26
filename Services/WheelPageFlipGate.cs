@@ -2,14 +2,14 @@ namespace KillerPDF.Services
 {
     /// <summary>
     /// Separates fast in-page wheel scrolling from page navigation at the edge. Momentum events
-    /// immediately following a content scroll are ignored; after that, two standard wheel notches
-    /// in the same direction confirm that the user intends to change pages (#205).
+    /// immediately following a content scroll are ignored; after that, one standard geared-wheel
+    /// notch or an equivalent accumulated precision-wheel gesture changes the page (#205).
     /// </summary>
     internal sealed class WheelPageFlipGate
     {
         private static readonly TimeSpan MomentumQuietPeriod = TimeSpan.FromMilliseconds(250);
         private static readonly TimeSpan ConfirmationWindow = TimeSpan.FromMilliseconds(650);
-        private const int ConfirmationDelta = 240;
+        private const int ConfirmationDelta = 120;
 
         private DateTime _blockUntilUtc;
         private DateTime _lastEdgeWheelUtc;

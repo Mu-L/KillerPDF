@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -27,12 +24,14 @@ namespace KillerPDF
         // Temp save/reload
         // ============================================================
 
-        private void SaveTempAndReload(bool keepAnnotations = false, bool preserveZoom = false)
+        private void SaveTempAndReload(bool keepAnnotations = false, bool preserveZoom = false,
+            Action<string>? finalizeSavedFile = null,
+            Action<Dictionary<int, int>>? remapRotations = null,
+            int? selectedPageAfterReload = null)
         {
             if (_doc is null || _currentFile is null) return;
-            // We're about to replace the working file with a fresh temp; release the cached PDFium link
-            // handle for the outgoing file now (it reopens for the new temp on the post-reload re-render).
-            CloseLinkPdfiumDoc();
+            // The serialized working file is about to change, so discard its immutable engine view.
+            CloseEngineDocumentSession();
             // Stop render workers tied to the outgoing file before clearing the cache. Without this,
             // an already-running Grid or Continuous task can finish after the clear and put an old
             // page bitmap straight back into the active session.
@@ -44,34 +43,30 @@ namespace KillerPDF
             // the reload and stay selectable/movable; they are re-rendered after the doc reopens.
             if (!keepAnnotations) _annotations.Clear();
             _renderDims.Clear();
-            ActiveViewer.InvalidateRenderCacheExt(_active);   // pages changed pixels / order: drop this tab's cached bitmaps
+            Controls.PdfViewer.InvalidateRenderCacheExt(_active);   // pages changed pixels / order: drop this tab's cached bitmaps
             _renderedPrimaryPage = -1;        // force a re-render after reload even if the same page stays selected (e.g. rotate)
             ClearSelection();
             MarkDirty();
             var doc = _doc;
-            int selectedIdx = PageList.SelectedIndex;
+            int selectedIdx = selectedPageAfterReload ?? PageList.SelectedIndex;
 
-            // Capture page rotations, then strip them from the document before saving.
+            // Capture page rotations, then strip them from the serialized working copy.
             // Docnet uses FPDF_GetPageWidth/Height (MediaBox, no rotation) to size the bitmap,
             // then renders with PDFium's page CTM which *does* include /Rotate.  For 90�/270�
             // the rendered landscape content overflows the portrait-sized bitmap and gets clipped.
             // Stripping /Rotate to 0 before saving means Docnet renders clean unrotated content
             // that fits the bitmap; RotateBitmap is applied in each render path instead.
-            _pageRotations.Clear();
-            for (int i = 0; i < doc.PageCount; i++)
-            {
-                int rot = ((doc.Pages[i].Rotate % 360) + 360) % 360;
-                _pageRotations[i] = rot;
-                doc.Pages[i].Rotate = 0;
-            }
+            EnsureEngineDocumentSession().CaptureRotations(_pageRotations);
+            remapRotations?.Invoke(_pageRotations);
 
             var tempPath = App.MakeTempFile("temp");
+            var serializedPath = App.MakeTempFile("serialized");
             try
             {
-                PdfScrub.ScrubEmptyOutlines(doc);   // #103: never write a dangling /Outlines reference
-                PdfScrub.ScrubDegenerateCropBoxes(doc);   // never write a zero-size /CropBox (Adobe out-of-range)
-                doc.Save(tempPath);
+                doc.Save(serializedPath);
                 doc.Close();
+                PdfEngineIntegration.RepairHarmlessSaveArtifacts(serializedPath);
+                PdfEngineIntegration.CreateZeroRotationCopy(serializedPath, tempPath);
             }
             catch (Exception saveEx) when (PdfImport.IsXRefException(saveEx))
             {
@@ -87,6 +82,12 @@ namespace KillerPDF
                     !PdfImport.TryImportRepairToPath(_currentFile!, tempPath, stripRotations: true))
                     throw; // re-throw original if both fallbacks fail
             }
+
+            // Structural operations can finalize the freshly serialized working file through
+            // KillerPDF.Engine before PdfSharpCore reopens it. The callback owns atomic replacement
+            // of tempPath and runs only after the base save or repair path has completed.
+            finalizeSavedFile?.Invoke(tempPath);
+
             // PdfSharpCore sometimes saves a file where one object's xref offset points at the
             // xref table itself (object N offset = xref table position). When PdfSharp then tries
             // to re-open that file in Modify mode it seeks to the xref table, reads the keyword
@@ -95,7 +96,7 @@ namespace KillerPDF
             // robust error recovery and will rewrite a correct xref), then retry the open.
             try
             {
-                _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempPath);
             }
             catch (Exception openEx) when (PdfImport.IsXRefException(openEx))
             {
@@ -103,19 +104,14 @@ namespace KillerPDF
                 if (!PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempPath, fixedPath))
                     throw; // PDFium also failed - re-throw original reopen error
                 tempPath = fixedPath;
-                _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempPath);
             }
             _currentFile = tempPath;
 
             // Clear once more after the old workers have observed cancellation. This closes the race
             // where a worker was already inside PDFium when the first clear happened and published its
             // stale result while the edited document was being saved and reopened.
-            ActiveViewer.InvalidateRenderCacheExt(_active);
-
-            // Restore rotations in the reopened in-memory doc so saves, form fields,
-            // and all other operations see the correct rotation values.
-            foreach (var kv in _pageRotations)
-                _doc.Pages[kv.Key].Rotate = kv.Value;
+            Controls.PdfViewer.InvalidateRenderCacheExt(_active);
 
             RefreshPageList();
             if (selectedIdx >= 0 && selectedIdx < PageList.Items.Count)

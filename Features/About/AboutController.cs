@@ -32,9 +32,8 @@ namespace KillerPDF.Features
 
         internal AboutController(IAboutHost host) => _host = host;
 
-        /// <summary>The running assembly's version, three parts.</summary>
-        internal static string Version =>
-            System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?";
+        /// <summary>The running build's SemVer, including a prerelease label when present.</summary>
+        internal static string Version => AppVersion.Display;
 
         /// <summary>Release date baked in from the csproj's ReleaseDate property, so a user can see
         /// how old their build is. A file timestamp would not survive being copied and the PE linker
@@ -57,8 +56,8 @@ namespace KillerPDF.Features
         {
             var (sigValid, sigSubject, sigThumbprint) = App.GetExeSignerInfo();
 
-            _host.Publisher   = sigValid ? sigSubject : "(not signed or chain failed)";
-            _host.Thumbprint  = string.IsNullOrEmpty(sigThumbprint) ? "(none)" : sigThumbprint;
+            _host.Publisher   = sigValid ? sigSubject : _host.Loc("Str_Margin_None");
+            _host.Thumbprint  = string.IsNullOrEmpty(sigThumbprint) ? _host.Loc("Str_Margin_None") : sigThumbprint;
             _host.Sha256      = _host.Loc("Str_About_Computing");
             _host.ReleaseDate = ReleaseDate;
 
@@ -66,7 +65,7 @@ namespace KillerPDF.Features
 
             // Signed, verified, AND signed by Steve - all three, not merely "is signed".
             bool signedByMe = sigValid
-                           && sigSubject.IndexOf(SignerName, StringComparison.OrdinalIgnoreCase) >= 0;
+                           && sigSubject.Contains(SignerName, StringComparison.OrdinalIgnoreCase);
             // 0x201C / 0x201D are the curly quotes, built from codepoints so this file stays ASCII
             // on disk - the same encoding trap that made release.ps1 PS7-only.
             _host.SetAlias(signedByMe ? (char)0x201C + AkaName + (char)0x201D : null);
@@ -79,7 +78,7 @@ namespace KillerPDF.Features
         }
 
         /// <summary>Opens the GitHub release for the running version.</summary>
-        internal void OpenReleaseNotes() => OpenUrl($"{Repo}/releases/tag/v{Version}");
+        internal static void OpenReleaseNotes() => OpenUrl($"{Repo}/releases/tag/v{Version}");
 
         internal static void OpenUrl(string url)
         {
@@ -107,7 +106,6 @@ namespace KillerPDF.Features
             if (current is null) return;
             try
             {
-                System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
                 using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(4) };
                 http.DefaultRequestHeaders.UserAgent.ParseAdd("KillerPDF-UpdateCheck");
                 var json = await http.GetStringAsync($"{Repo.Replace("github.com", "api.github.com/repos")}/releases/latest")
@@ -185,11 +183,11 @@ namespace KillerPDF.Features
         {
             try
             {
-                System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
                 using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(90) };
                 http.DefaultRequestHeaders.UserAgent.ParseAdd("KillerPDF-UpdateCheck");
 
-                var exeUrl = $"{Repo}/releases/download/{tag}/KillerPDF.exe";
+                string assetName = App.IsPortable() ? "KillerPDF-Portable.exe" : "KillerPDF-Setup.exe";
+                var exeUrl = $"{Repo}/releases/download/{tag}/{assetName}";
                 // Read the checksums from the release ASSET next to the exe, not from
                 // raw.githubusercontent at the tag. Both files are uploaded to the release
                 // together, so the hash can never drift from the exe the way a repo-committed
@@ -202,7 +200,7 @@ namespace KillerPDF.Features
                 string? expected = null;
                 foreach (var line in sumsTxt.Replace("\r", "").Split('\n'))
                 {
-                    if (line.TrimStart().StartsWith("KillerPDF.exe", StringComparison.OrdinalIgnoreCase))
+                    if (line.TrimStart().StartsWith(assetName, StringComparison.OrdinalIgnoreCase))
                     {
                         var parts = line.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
                         if (parts.Length >= 2) expected = parts[^1];
@@ -211,9 +209,8 @@ namespace KillerPDF.Features
                 }
                 if (string.IsNullOrEmpty(expected)) return null;
 
-                string actual;
-                using (var sha = System.Security.Cryptography.SHA256.Create())
-                    actual = BitConverter.ToString(sha.ComputeHash(exeBytes)).Replace("-", "");
+                string actual = Convert.ToHexString(
+                    System.Security.Cryptography.SHA256.HashData(exeBytes));
                 if (!actual.Equals(expected, StringComparison.OrdinalIgnoreCase)) return null;
 
                 var path = Path.Combine(Path.GetTempPath(), $"KillerPDF_update_{Guid.NewGuid():N}.exe");
@@ -229,9 +226,10 @@ namespace KillerPDF.Features
         {
             try
             {
-                var curExe = Process.GetCurrentProcess().MainModule!.FileName;
+                var curExe = Environment.ProcessPath
+                    ?? throw new InvalidOperationException("The current executable path is unavailable.");
                 var reopen = _host.FileToReopen;
-                var pid    = Process.GetCurrentProcess().Id;
+                var pid    = Environment.ProcessId;
                 var relArg = string.IsNullOrEmpty(reopen) ? "" : $" \"{reopen}\"";
                 var bat    = Path.Combine(Path.GetTempPath(), $"killerpdf_update_{Guid.NewGuid():N}.bat");
                 bool portable = App.IsPortable();

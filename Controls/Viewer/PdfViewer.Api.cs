@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using PdfSharpCore.Pdf;
+using KillerPDF.Services;
 
 namespace KillerPDF.Controls
 {
@@ -27,11 +27,11 @@ namespace KillerPDF.Controls
     {
         // ── Annotations: selection, hit-testing, geometry ────────────────────────────────────
         internal void AddAnnotationExt(PageAnnotation a) => AddAnnotation(a);
-        internal Rect AnnotBoundsExt(PageAnnotation a) => AnnotBounds(a);
+        internal static Rect AnnotBoundsExt(PageAnnotation a) => AnnotBounds(a);
         internal static Point AnnotGetPosExt(PageAnnotation a) => AnnotGetPos(a);
         internal static void AnnotSetPosExt(PageAnnotation a, Point pos) => AnnotSetPos(a, pos);
         internal Point ClampAnnotPosExt(PageAnnotation a) => ClampAnnotPos(a);
-        internal bool HitTestAnnotationExt(PageAnnotation a, Point pos, out Rect bounds)
+        internal static bool HitTestAnnotationExt(PageAnnotation a, Point pos, out Rect bounds)
             => HitTestAnnotation(a, pos, out bounds);
         internal static bool IsDraggableExt(PageAnnotation a) => IsDraggable(a);
         internal void SelectAnnotationExt(PageAnnotation a, Rect bounds) => SelectAnnotation(a, bounds);
@@ -83,13 +83,13 @@ namespace KillerPDF.Controls
         internal void RebuildCropBarForLocaleExt() => RebuildCropBarForLocale();
 
         // ── Links ────────────────────────────────────────────────────────────────────────────
-        internal void CloseLinkPdfiumDocExt() => CloseLinkPdfiumDoc();
+        internal void CloseEngineDocumentSessionExt() => CloseEngineDocumentSession();
+        internal PdfEngineDocumentSession EnsureEngineDocumentSessionExt() => EnsureEngineDocumentSession();
         internal void AddLinkMenuItemsExt(ContextMenu menu, object target, int annotIndex, int pageIndex)
             => AddLinkMenuItems(menu, target, annotIndex, pageIndex);
-        internal int? ResolveDestExt(PdfItem? destItem) => ResolveDest(destItem);
         internal bool IsPanning => _isPanning;
         internal EditTool CurrentToolRef { get => _currentTool; set => _currentTool = value; }
-        internal PdfDocument? DocumentRef { get => _doc; set => _doc = value; }
+        internal PdfWorkingDocument? DocumentRef { get => _doc; set => _doc = value; }
         internal string? CurrentFileRef { get => _currentFile; set => _currentFile = value; }
         internal Dictionary<int, List<PageAnnotation>> AnnotationsRef { get => _annotations; set => _annotations = value; }
         internal Dictionary<int, (int w, int h)> RenderDimsRef { get => _renderDims; set => _renderDims = value; }
@@ -118,6 +118,7 @@ namespace KillerPDF.Controls
         internal InkAnnotation? ActiveInkRef { get => _activeInk; set => _activeInk = value; }
         internal TextBox? ActiveTextBoxRef { get => _activeTextBox; set => _activeTextBox = value; }
         internal double TextFontSizeRef { get => _textFontSize; set => _textFontSize = value; }
+        internal double TextLetterSpacingRef { get => _textLetterSpacing; set => _textLetterSpacing = value; }
         internal string TextFontNameRef { get => _textFontName; set => _textFontName = value; }
         internal bool TextBoldRef { get => _textBold; set => _textBold = value; }
         internal bool TextItalicRef { get => _textItalic; set => _textItalic = value; }
@@ -165,13 +166,15 @@ namespace KillerPDF.Controls
         internal TextBox? CropRangeBoxRef { get => _cropRangeBox; set => _cropRangeBox = value; }
         internal string CropUnitRef { get => _cropUnit; set => _cropUnit = value; }
         internal bool UpdatingCropInputsRef { get => _updatingCropInputs; set => _updatingCropInputs = value; }
-        internal Dictionary<int, string> FormTextValuesRef { get => _formTextValues; set => _formTextValues = value; }
-        internal Dictionary<int, bool> FormCheckValuesRef { get => _formCheckValues; set => _formCheckValues = value; }
+        internal Dictionary<string, string> FormTextValuesRef { get => _formTextValues; set => _formTextValues = value; }
+        internal Dictionary<string, string> FormChoiceValuesRef { get => _formChoiceValues; set => _formChoiceValues = value; }
+        internal Dictionary<string, IReadOnlyList<string>> FormMultiChoiceValuesRef { get => _formMultiChoiceValues; set => _formMultiChoiceValues = value; }
+        internal Dictionary<string, bool> FormCheckValuesRef { get => _formCheckValues; set => _formCheckValues = value; }
         internal Dictionary<string, string> FormRadioValuesRef { get => _formRadioValues; set => _formRadioValues = value; }
-        internal Dictionary<int, double> FormFontSizesRef { get => _formFontSizes; set => _formFontSizes = value; }
+        internal Dictionary<string, double> FormFontSizesRef { get => _formFontSizes; set => _formFontSizes = value; }
         internal Border? FormSizeBarRef { get => _formSizeBar; set => _formSizeBar = value; }
         internal TextBox? ActiveFormTbRef { get => _activeFormTb; set => _activeFormTb = value; }
-        internal int ActiveFormObjRef { get => _activeFormObj; set => _activeFormObj = value; }
+        internal string ActiveFormNameRef { get => _activeFormName; set => _activeFormName = value; }
         internal double ActiveFormScaleRef { get => _activeFormScale; set => _activeFormScale = value; }
         internal Stack<UndoEntry> UndoStackRef { get => _undoStack; set => _undoStack = value; }
         internal Stack<UndoEntry> RedoStackRef { get => _redoStack; set => _redoStack = value; }
@@ -189,8 +192,7 @@ namespace KillerPDF.Controls
         internal List<FrameworkElement> AnnotBarDragInnersRef => _annotBarDragInners;
 
         // ── Save paths ───────────────────────────────────────────────────────────────────────
-        internal void DrawAnnotationsOnDocumentExt(int? onlyPage = null) => DrawAnnotationsOnDocument(onlyPage);
-        internal void WriteFormValuesToDocumentExt() => WriteFormValuesToDocument();
+        internal void WriteFormValuesToDocumentExt(string path) => WriteFormValuesToDocument(path);
 
         // ── Handlers bound from MainWindow.xaml ──────────────────────────────────────────────
         // WPF resolves Click="X" against the XAML root's code-behind, which is still MainWindow, so

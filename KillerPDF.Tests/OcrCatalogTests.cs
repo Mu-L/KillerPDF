@@ -18,7 +18,7 @@ namespace KillerPDF.Tests;
 // the build until its model is registered. release.ps1 runs the suite, so it cannot ship broken.
 public sealed class OcrCatalogTests
 {
-    // The test binary sits at KillerPDF.Tests\bin\<cfg>\net48; the repo root is the ancestor that
+    // The test binary sits under KillerPDF.Tests\bin\<cfg>; the repo root is the ancestor that
     // holds Strings\. Walking up beats a pile of ..\..\.. that breaks whenever the layout moves.
     private static string StringsDir()
     {
@@ -30,10 +30,9 @@ public sealed class OcrCatalogTests
     }
 
     private static string[] ShippedLocales() =>
-        Directory.GetFiles(StringsDir(), "*.xaml")
+        [.. Directory.GetFiles(StringsDir(), "*.xaml")
                  .Select(f => Path.GetFileNameWithoutExtension(f)!)
-                 .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-                 .ToArray();
+                 .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)];
 
     [Fact]
     public void TheStringsFolderIsActuallyFound()

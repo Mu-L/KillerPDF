@@ -164,7 +164,7 @@ namespace KillerPDF.Controls
                     {
                         var a = d.Attributes;
                         if ((a & FileAttributes.Hidden) != 0 || (a & FileAttributes.System) != 0) continue;
-                        if (d.Name.StartsWith(".", StringComparison.Ordinal)) continue;
+                        if (d.Name.StartsWith('.')) continue;
                     }
 
                     list.Add(new FolderNode(d.FullName, d.Name, mayHaveChildren: true));

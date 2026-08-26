@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -139,8 +136,8 @@ namespace KillerPDF
                 { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseIn } };
                 anim.Completed += (_, _) =>
                 {
-                    if (_annotBarContent is not null) _annotBarContent.Visibility = Visibility.Collapsed;
-                    if (_annotBarDots is not null) _annotBarDots.Visibility = Visibility.Visible;
+                    _annotBarContent?.Visibility = Visibility.Collapsed;
+                    _annotBarDots?.Visibility = Visibility.Visible;
                     bar.ClipToBounds = false;   // content is hidden now, nothing to clip
                 };
                 bar.BeginAnimation(FrameworkElement.HeightProperty, anim);
@@ -150,8 +147,8 @@ namespace KillerPDF
                 // Show the full content again before growing back, and let the width track content again.
                 bar.Width = double.NaN;
                 bar.Effect = AnnotBarShadow();   // restore the drop shadow on the expanded bar
-                if (_annotBarContent is not null) _annotBarContent.Visibility = Visibility.Visible;
-                if (_annotBarDots is not null) _annotBarDots.Visibility = Visibility.Collapsed;
+                _annotBarContent?.Visibility = Visibility.Visible;
+                _annotBarDots?.Visibility = Visibility.Collapsed;
                 double full = _annotBarFullHeight > 0 ? _annotBarFullHeight : bar.ActualHeight;
                 var anim = new DoubleAnimation(peek, full, new Duration(TimeSpan.FromMilliseconds(120)))
                 { EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut } };
@@ -496,7 +493,7 @@ namespace KillerPDF
         }
 
         // Localized display name for each theme, shown on the picker row.
-        private string ThemeDisplayName(Theme t) => t switch
+        private static string ThemeDisplayName(Theme t) => t switch
         {
             Theme.Light        => Loc("Str_Theme_Light"),
             Theme.Black        => Loc("Str_Theme_Black"),
@@ -880,10 +877,10 @@ namespace KillerPDF
                 (SaveAsBtn,   SaveMenuBtn,   "ToolbarSplitMainAccent", "ToolbarButtonAccent"),
                 (OcrBtn,      OcrMenuBtn,    "ToolbarSplitMain",       "ToolbarButton"),
             };
-            foreach (var s in splits)
+            foreach (var (Main, Chevron, Split, Plain) in splits)
             {
-                if (s.Chevron is not null) s.Chevron.Margin = chevMargin;
-                if (s.Main is not null) s.Main.Style = (Style)FindResource(textMode ? s.Plain : s.Split);
+                Chevron?.Margin = chevMargin;
+                Main?.Style = (Style)FindResource(textMode ? Plain : Split);
             }
         }
 
@@ -1091,6 +1088,7 @@ namespace KillerPDF
                     (ToolDrawBtn,       new UIElement[] { MiDraw }),
                     (ToolUnderlineBtn,  new UIElement[] { MiUnderline }),   // now the Line tool
                     (ToolHighlightBtn,  new UIElement[] { MiHighlight }),
+                    (GrpFormField,      new UIElement[] { MiFormField }),
                     (ToolTextBtn,       new UIElement[] { MiText }),
                 };
 
@@ -1119,6 +1117,7 @@ namespace KillerPDF
                 UIElement? activeToolBar = _currentTool switch
                 {
                     EditTool.Text      => ToolTextBtn,
+                    EditTool.FormField => GrpFormField,
                     EditTool.Line      => ToolUnderlineBtn,   // repurposed to the Line tool
                     EditTool.Highlight => ToolHighlightBtn,
                     EditTool.Draw      => ToolDrawBtn,

@@ -396,6 +396,7 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Bar_Color">顏色：</sys:String>
     <sys:String x:Key="Str_Bar_Fill">填滿：</sys:String>
     <sys:String x:Key="Str_Bar_Size">大小：</sys:String>
+    <sys:String x:Key="Str_Bar_LetterSpacing">字元間距：</sys:String>
     <sys:String x:Key="Str_Bar_Opacity">不透明度：</sys:String>
     <sys:String x:Key="Str_Bar_FillOpacity">填滿不透明度：</sys:String>
     <sys:String x:Key="Str_Bar_Font">字型：</sys:String>
@@ -412,12 +413,26 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Sign_Desc">使用憑證密封 {0} 並儲存簽署副本。</sys:String>
     <sys:String x:Key="Str_Sign_Certificate">憑證</sys:String>
     <sys:String x:Key="Str_Sign_FromFile">來自檔案 (.pfx / .p12)</sys:String>
-    <sys:String x:Key="Str_Sign_FromStore">來自 Windows 憑證存放區</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">來自 Windows 憑證存放區 / USB token</sys:String>
     <sys:String x:Key="Str_Sign_Browse">瀏覽...</sys:String>
     <sys:String x:Key="Str_Sign_Password">密碼</sys:String>
     <sys:String x:Key="Str_Sign_Reason">原因（選填）</sys:String>
     <sys:String x:Key="Str_Sign_Location">位置（選填）</sys:String>
     <sys:String x:Key="Str_Sign_Contact">聯絡方式（選填）</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">顯示可見簽名</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">簽名文字</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">數位簽署者：{name}&#10;日期：{date}&#10;原因：{reason}&#10;位置：{location}</sys:String>
+    <sys:String x:Key="Str_Sign_Page">Page</sys:String>
+    <sys:String x:Key="Str_Sign_Position">Position</sys:String>
+    <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
+    <sys:String x:Key="Str_Sign_BottomRight">Bottom right</sys:String>
+    <sys:String x:Key="Str_Sign_TopLeft">Top left</sys:String>
+    <sys:String x:Key="Str_Sign_TopRight">Top right</sys:String>
+    <sys:String x:Key="Str_Sign_Width">Width</sys:String>
+    <sys:String x:Key="Str_Sign_Height">Height</sys:String>
+    <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">憑證持有者</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">請檢查簽名的頁面、尺寸和文字大小。</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">簽署副本另存為</sys:String>
     <sys:String x:Key="Str_Sign_Sign">簽署</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">取消</sys:String>
@@ -445,6 +460,7 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Ocr_SearchablePdf">製作可搜尋的 PDF...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">擷取所有文字...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">語言</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">表單感知 OCR</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">請先開啟一個 PDF</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - 即將推出</sys:String>
     <sys:String x:Key="Str_TT_Ocr">OCR 頁面（複製文字） (Ctrl+Shift+O)</sys:String>
@@ -479,6 +495,7 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Tf_Warn">變形頁面（旋轉或縮放）會將其點陣化：頁面會重新儲存為圖片，因此頁面上任何可選取的文字都會遺失。您之後可以執行 OCR 讓它再次可搜尋。</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">不要再警告我</sys:String>
     <sys:String x:Key="Str_Tf_Done">已變形第 {0} 頁</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">已變形 {0} 頁</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">無法呈現頁面 - 請稍後再試。</sys:String>
     <sys:String x:Key="Str_Tf_Failed">變形失敗：{0}</sys:String>
     <sys:String x:Key="Str_Crop_Position">位置</sys:String>
@@ -583,7 +600,7 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_KS_ViewKeyboard">鍵盤</sys:String>
     <sys:String x:Key="Str_KS_HoldHint">按住 Ctrl、Shift 或 Alt 預覽該層 - 懸停在亮起的按鍵上查看操作</sys:String>
     <sys:String x:Key="Str_Zoom_ActualSize">實際大小</sys:String>
-    <sys:String x:Key="Str_KS_PrevTab">上一個標籤頁</sys:String>
+    <sys:String x:Key="Str_KS_PrevTab">上一個分頁</sys:String>
 
     <sys:String x:Key="Str_KS_Ocr">OCR</sys:String>
 
@@ -719,6 +736,13 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Tf_LevelsBlack">黑場</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">白場</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">中間調</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <!-- 1.7.4 hardcoded-string sweep (#227) -->
     <sys:String x:Key="Str_Color_Name">顏色</sys:String>
     <sys:String x:Key="Str_Color_Pick">選擇顏色</sys:String>

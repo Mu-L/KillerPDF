@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -168,7 +165,7 @@ namespace KillerPDF
             IntPtr monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
             if (monitor != IntPtr.Zero)
             {
-                var info = new MONITORINFO { cbSize = Marshal.SizeOf(typeof(MONITORINFO)) };
+                var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
                 GetMonitorInfo(monitor, ref info);
                 RECT work = info.rcWork;
                 RECT mon = info.rcMonitor;
@@ -195,22 +192,25 @@ namespace KillerPDF
             }
         }
 
-        [DllImport("user32.dll")]
-        private static extern IntPtr MonitorFromWindow(IntPtr handle, uint flags);
+        [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW")]
+        private static partial IntPtr MonitorFromWindow(IntPtr handle, uint flags);
 
-        [DllImport("user32.dll")]
-        private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+        [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
 
-        [DllImport("user32.dll")]
-        private static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
+        [LibraryImport("user32.dll")]
+        private static partial IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
 
-        [DllImport("user32.dll")]
-        private static extern bool SetWindowPos(
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool SetWindowPos(
             IntPtr hWnd, IntPtr hWndInsertAfter,
             int X, int Y, int cx, int cy, uint uFlags);
 
-        [DllImport("user32.dll")]
-        private static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+        [LibraryImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool GetWindowRect(IntPtr hwnd, out RECT rect);
 
         private const int WM_NCLBUTTONDOWN = 0x00A1;
         private const int WM_NCHITTEST     = 0x0084;
@@ -284,39 +284,9 @@ namespace KillerPDF
 
         private void Install_Click(object sender, RoutedEventArgs e)
         {
-            bool machineInstallExists = App.MachineInstallExists();
-            bool userInstallExists = App.UserInstallExists();
-            bool updating = machineInstallExists || userInstallExists;
-            // Two checkboxes, matching Killendar and KillerShell: the desktop shortcut (on by
-            // default, as it always was) and the all-users install. If an all-users copy already
-            // exists, keep that scope selected: KillerPDF deliberately supports one installed
-            // copy, not competing Program Files and per-user installations.
-            var (confirmed, wantDesktop, allUsers) = KillerDialog.ShowTwoCheckPrompt(this,
-                Loc(machineInstallExists ? "Str_Dlg_UpdateMachineMsg" :
-                    userInstallExists ? "Str_Dlg_UpdateUserMsg" : "Str_Dlg_InstallMsg"),
-                Loc("Str_Chk_Desktop"),  check1Initial: true,
-                Loc("Str_Chk_AllUsers"), check2Initial: machineInstallExists,
-                Loc(updating ? "Str_Btn_DoUpdate" : "Str_Btn_DoInstall"),
-                Loc("Str_Btn_Cancel"));
-            if (!confirmed) return;
-
-            if (machineInstallExists && !allUsers)
-            {
-                KillerDialog.Show(this, Loc("Str_Dlg_OneInstallOnly"),
-                    Loc("Str_Dlg_InstallTitle"), MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
-            // Hide the badge immediately so it doesn't flash if relaunch is slow
-            _portableBadge.Visibility = Visibility.Collapsed;
-
-            if (!App.InstallAndRelaunch(_currentFile, wantDesktop, allUsers))
-            {
-                // Elevation refused, or the copy failed - both already reported. Put the badge back
-                // so the session carries on rather than silently looking installed.
-                _portableBadge.Visibility = App.IsPortable() ? Visibility.Visible : Visibility.Collapsed;
-                SetStatus(Loc("Str_Status_InstallFailed"));
-            }
+            Process.Start(new ProcessStartInfo(
+                "https://github.com/SteveTheKiller/KillerPDF/releases/latest")
+                { UseShellExecute = true });
         }
 
         private void MinimizeBtn_Click(object sender, RoutedEventArgs e) =>
@@ -536,9 +506,8 @@ namespace KillerPDF
 
             // This is the permanent resize hit target. Its child canvases choose dots or the
             // Win98 hatch; collapsing the parent also hid the hatch.
-            if (ResizeGripDots != null)
-                ResizeGripDots.Visibility = Visibility.Visible;
-            UpdateRootClip(squared);
+            ResizeGripDots?.Visibility = Visibility.Visible;
+            UpdateRootClip();
         }
 
         // Windows 11 native rounded-corner toggle (DWMWA_WINDOW_CORNER_PREFERENCE = 33).
@@ -549,7 +518,7 @@ namespace KillerPDF
                 var hwnd = new WindowInteropHelper(this).Handle;
                 if (hwnd == IntPtr.Zero) return;
                 int pref = rounded ? DWMWCP_ROUND : DWMWCP_DONOTROUND;
-                DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int));
+                _ = DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int));
             }
             catch { /* pre-Win11 DWM: attribute unsupported, square corners */ }
         }
@@ -558,8 +527,8 @@ namespace KillerPDF
         private const int DWMWCP_DONOTROUND = 1;
         private const int DWMWCP_ROUND      = 2;
 
-        [DllImport("dwmapi.dll", EntryPoint = "DwmSetWindowAttribute")]
-        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+        [LibraryImport("dwmapi.dll", EntryPoint = "DwmSetWindowAttribute")]
+        private static partial int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 
         private const double ShadowMargin = 10;
         private bool _chromeSquared;   // true when maximized/snapped
@@ -567,7 +536,7 @@ namespace KillerPDF
         // Under WindowChrome the OS rounds the HWND itself, so content fills a square client rect and
         // needs no internal rounded clip. (A rounded clip here would expose dark corner triangles
         // against the now-square frame.) Kept as a no-op hook so existing call sites stay valid.
-        private void UpdateRootClip(bool squared)
+        private void UpdateRootClip()
         {
             if (RootClipGrid is null) return;
             RootClipGrid.Clip = null;
@@ -583,7 +552,7 @@ namespace KillerPDF
             if (hwnd == IntPtr.Zero || !GetWindowRect(hwnd, out RECT w)) return false;
             IntPtr mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
             if (mon == IntPtr.Zero) return false;
-            var info = new MONITORINFO { cbSize = Marshal.SizeOf(typeof(MONITORINFO)) };
+            var info = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
             if (!GetMonitorInfo(mon, ref info)) return false;
             RECT a = info.rcWork;
 

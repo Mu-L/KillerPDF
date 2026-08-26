@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -55,11 +52,24 @@ namespace KillerPDF
                 return;
             }
 
-            // Don't intercept keys when typing in an editable TextBox (typewriter tool or form field).
-            // The zoom ComboBox is editable-but-read-only; after using it, focus parks on its inner
-            // TextBox and would otherwise swallow every shortcut (e.g. Ctrl+F) until the user clicked away.
-            if (e.OriginalSource is TextBox tbSrc && !tbSrc.IsReadOnly) return;
-            if (_activeTextBox is not null && _activeTextBox.IsFocused) return;
+            // Ordinary typing and standard text-editing gestures stay in an editable TextBox.
+            // Window commands such as Ctrl+S, Ctrl+F, and Ctrl+P must continue through the app
+            // shortcut chain even while a form field or typewriter box owns keyboard focus.
+            bool editableTextFocused =
+                e.OriginalSource is TextBox tbSrc && !tbSrc.IsReadOnly
+                || _activeTextBox is not null && _activeTextBox.IsFocused;
+            if (editableTextFocused && e.Key == Key.Escape
+                && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                Keyboard.ClearFocus();
+                Focus();
+                e.Handled = true;
+                return;
+            }
+            if (editableTextFocused
+                && EditableTextShortcutPolicy.KeepInTextBox(
+                    e.Key, Keyboard.Modifiers, e.SystemKey))
+                return;
 
             if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
             {
@@ -513,7 +523,7 @@ namespace KillerPDF
             else if (e.Key == Key.Space && !_spaceHeld)
             {
                 _spaceHeld = true;
-                PagePreviewPanel.Cursor = Cursors.Hand;
+                PagePreviewPanel.Cursor = DragCursors.Open;
                 e.Handled = true;
             }
         }
@@ -653,6 +663,7 @@ namespace KillerPDF
                 // Illustrator / Figma convention) - its digit went to Text so Shapes could take 4 and
                 // the digits keep mirroring the toolbar order.
                 case Key.V: SetTool(EditTool.Select); return true;
+                case Key.F: SetTool(EditTool.FormField); return true;
                 case Key.T: case Key.D1: case Key.NumPad1: SetTool(EditTool.Text); return true;
                 case Key.H: case Key.D2: case Key.NumPad2: SetTool(EditTool.Highlight); return true;
                 case Key.L: case Key.U: case Key.D3: case Key.NumPad3: SetTool(EditTool.Line); return true;

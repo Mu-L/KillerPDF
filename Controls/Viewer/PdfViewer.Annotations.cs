@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -26,6 +23,41 @@ namespace KillerPDF.Controls
     // changes. Window members spelled bare here resolve through PdfViewer.Bridge.cs.
     public partial class PdfViewer
     {
+        private double CanvasLetterSpacing(int pageIndex)
+        {
+            double spacing = _textLetterSpacing;
+            if (_doc is not null && pageIndex >= 0 && _renderDims.TryGetValue(pageIndex, out var rd) && rd.h > 0)
+            {
+                double sy = EnsureEngineDocumentSession().Pages[pageIndex].Height / rd.h;
+                if (sy > 0) spacing /= sy;
+            }
+            return spacing;
+        }
+
+        private static void ApplyLetterSpacing(DependencyObject control, string text, double spacing)
+        {
+            var effects = new TextEffectCollection();
+            if (Math.Abs(spacing) >= .01)
+            {
+                int column = 0;
+                var elements = System.Globalization.StringInfo.GetTextElementEnumerator(text);
+                while (elements.MoveNext())
+                {
+                    string current = elements.GetTextElement();
+                    int index = elements.ElementIndex;
+                    if (current is "\r" or "\n") { column = 0; continue; }
+                    effects.Add(new TextEffect
+                    {
+                        PositionStart = index,
+                        PositionCount = current.Length,
+                        Transform = new TranslateTransform(column * spacing, 0)
+                    });
+                    column++;
+                }
+            }
+            control.SetValue(TextBlock.TextEffectsProperty, effects);
+        }
+
         private static double MeasureTextBoxHeight(string text, double width, double fontSize)
         {
             double inner = Math.Max(1, width - 4);   // minus left+right padding (2 + 2)
@@ -59,6 +91,7 @@ namespace KillerPDF.Controls
                 TextWrapping = TextWrapping.Wrap,
                 VerticalAlignment = VerticalAlignment.Top
             };
+            ApplyLetterSpacing(tb, ta.Content, ta.LetterSpacing);
             // Crisp glyphs: pixel-snapped layout + grayscale AA (ClearType can't subpixel on the
             // transparent overlay, and the default left the placed text looking aliased).
             TextOptions.SetTextFormattingMode(tb, TextFormattingMode.Display);
@@ -86,7 +119,7 @@ namespace KillerPDF.Controls
             // every multi-page view populates; fall back to the single-page canvas. View-mode
             // independent on purpose so the tools behave identically in all four modes.
             _activeCanvas = CanvasForPage(pageIndex);
-            _activeCanvas.Children.Clear();
+            ClearRenderedCanvas(_activeCanvas);
 
             RenderStamps(pageIndex);   // stamp layer (page numbers / watermark) sits beneath annotations
 
@@ -443,7 +476,7 @@ namespace KillerPDF.Controls
                 ? "Str_St_DeletedAnnotationOne" : "Str_St_DeletedAnnotationMany"), toDelete.Count));
         }
 
-        private bool HitTestAnnotation(PageAnnotation annot, Point pos, out Rect bounds)
+        private static bool HitTestAnnotation(PageAnnotation annot, Point pos, out Rect bounds)
         {
             switch (annot)
             {
@@ -517,8 +550,7 @@ namespace KillerPDF.Controls
             }
             foreach (var hd in _resizeHandles)
                 hd.Fill = AccentBrush();
-            if (_cropPreviewRect is not null)
-                _cropPreviewRect.Fill = AccentBrush(55);
+            _cropPreviewRect?.Fill = AccentBrush(55);
         }
 
         // Positions the four corner handles around an annotation's bounds (top-left x,y and size w,h).
@@ -653,8 +685,9 @@ namespace KillerPDF.Controls
                 _textFillColor = tsel.GetFill();
                 double sy = 1.0;
                 if (_doc is not null && _renderDims.TryGetValue(tsel.PageIndex, out var rd) && rd.h > 0)
-                    sy = _doc.Pages[tsel.PageIndex].Height.Point / rd.h;
+                    sy = EnsureEngineDocumentSession().Pages[tsel.PageIndex].Height / rd.h;
                 _textFontSize = Math.Max(1, Math.Round(tsel.FontSize * sy));
+                _textLetterSpacing = tsel.LetterSpacing * sy;
                 ShowTextSettings();
             }
             // Selecting a highlight / strikethrough / underline opens the draw bar synced to it, so its
@@ -730,7 +763,7 @@ namespace KillerPDF.Controls
                     break;
             }
         }
-        private Rect AnnotBounds(PageAnnotation a)
+        private static Rect AnnotBounds(PageAnnotation a)
         {
             // Ink isn't a simple rect in HitTestAnnotation (it's a proximity test), so derive its bounds
             // from the stroke points; everything else reuses HitTestAnnotation's out-bounds via a far probe.
@@ -821,6 +854,10 @@ namespace KillerPDF.Controls
         {
             if (_doc is null) return;
             if (sender is Canvas srcCanvas) _activeCanvas = srcCanvas;
+            if (Keyboard.FocusedElement is TextBox focusedField
+                && (e.OriginalSource is not DependencyObject clickSource
+                    || !IsDescendantOf(clickSource, focusedField)))
+                Keyboard.ClearFocus();
             // A click on a live text-edit corner handle starts a free-form resize. Checked FIRST, before
             // the "click inside the editing box" guard below: that guard tests OriginalSource, which is
             // unreliable across the nested transparent canvases, so it can otherwise swallow a corner
@@ -1140,6 +1177,11 @@ namespace KillerPDF.Controls
                     e.Handled = true;
                     break;
 
+                case EditTool.FormField:
+                    BeginFormFieldDrag(pos);
+                    e.Handled = true;
+                    break;
+
                 case EditTool.Highlight:
                 case EditTool.Strikethrough:
                 case EditTool.Underline:
@@ -1343,6 +1385,12 @@ namespace KillerPDF.Controls
             if (e.OriginalSource is DependencyObject moveSrc && IsFormFieldElement(moveSrc))
                 return;
 
+            // #221: the Select tool has two behaviors, flowing selection on text and a marquee on
+            // empty page. Reflect the behavior under the pointer instead of leaving an arrow over
+            // selectable text. Link hover below deliberately takes precedence with a hand.
+            if (_currentTool == EditTool.Select && sender is Canvas textHoverCanvas && textHoverCanvas.Tag is int textPage)
+                textHoverCanvas.Cursor = SelectableTextCursor(textPage, e.GetPosition(textHoverCanvas));
+
             // Shapes tool (#127 Phase 3): rubber-band the in-progress polygon (no button held).
             if (_currentTool == EditTool.Shape && _shapePolyPoints.Count > 0)
             {
@@ -1363,7 +1411,9 @@ namespace KillerPDF.Controls
                         if (hpos.X >= l.Cx - LinkHitPad && hpos.X <= l.Cx + l.Cw + LinkHitPad &&
                             hpos.Y >= l.Cy - LinkHitPad && hpos.Y <= l.Cy + l.Ch + LinkHitPad)
                         { hoverTarget = l.Tip; break; }
-                linkHoverCv.Cursor = hoverTarget != null ? System.Windows.Input.Cursors.Hand : null;
+                linkHoverCv.Cursor = hoverTarget != null
+                    ? System.Windows.Input.Cursors.Hand
+                    : SelectableTextCursor(hpage, hpos);
                 ShowLinkHoverStatus(hoverTarget);
             }
 
@@ -1679,6 +1729,13 @@ namespace KillerPDF.Controls
                     _cropCanvasRect = new Rect(Canvas.GetLeft(crect), Canvas.GetTop(crect), crect.Width, crect.Height);
                     SyncCropBoxInputs();
                     break;
+
+                case EditTool.FormField when _activePreview is Rectangle fieldRect:
+                    Canvas.SetLeft(fieldRect, Math.Min(pos.X, _drawStart.X));
+                    Canvas.SetTop(fieldRect, Math.Min(pos.Y, _drawStart.Y));
+                    fieldRect.Width = Math.Abs(pos.X - _drawStart.X);
+                    fieldRect.Height = Math.Abs(pos.Y - _drawStart.Y);
+                    break;
             }
         }
 
@@ -1859,18 +1916,18 @@ namespace KillerPDF.Controls
                     // Tiny drag = single click -> try annotation selection
                     ClearTextSelection();
                     bool shiftSel = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
-                    if (pageIdx >= 0 && _annotations.ContainsKey(pageIdx))
+                    if (pageIdx >= 0 && _annotations.TryGetValue(pageIdx, out var pageAnnotations))
                     {
-                        for (int i = _annotations[pageIdx].Count - 1; i >= 0; i--)
+                        for (int i = pageAnnotations.Count - 1; i >= 0; i--)
                         {
-                            if (HitTestAnnotation(_annotations[pageIdx][i], _selectStart, out Rect bounds))
+                            if (HitTestAnnotation(pageAnnotations[i], _selectStart, out Rect bounds))
                             {
                                 if (shiftSel)
                                     // Add/remove this annotation from the multi-selection.
-                                    ToggleMultiSelect(_annotations[pageIdx][i], bounds,
+                                    ToggleMultiSelect(pageAnnotations[i], bounds,
                                                       _gestureCanvas ?? CanvasForPage(pageIdx));
                                 else
-                                    SelectAnnotation(_annotations[pageIdx][i], bounds);
+                                    SelectAnnotation(pageAnnotations[i], bounds);
                                 break;
                             }
                         }
@@ -1917,6 +1974,10 @@ namespace KillerPDF.Controls
 
             switch (_currentTool)
             {
+                case EditTool.FormField when _activePreview is Rectangle fieldRect:
+                    CommitFormFieldDrag(pageIdx, fieldRect);
+                    break;
+
                 case EditTool.Highlight when _activePreview is Rectangle:
                 case EditTool.Strikethrough when _activePreview is Rectangle:
                 case EditTool.Underline when _activePreview is Rectangle:
@@ -2310,9 +2371,8 @@ namespace KillerPDF.Controls
             foreach (var p in pages) RenderAllAnnotations(p);
             ReattachSelectionVisuals();   // keep the current selection chrome after the repaint
             MarkDirty();
-            SetStatus(pids.Count == 1
-                ? "Unpaired - the text and cover are now separate"
-                : $"Unpaired {pids.Count} text/cover pairs");
+            string unpaired = Loc("Str_Ctx_Unpair");
+            SetStatus(pids.Count == 1 ? unpaired : $"{unpaired} ({pids.Count})");
         }
 
         // RenderAllAnnotations rebuilds the page canvas from scratch, so the selection outline and any
@@ -2357,7 +2417,11 @@ namespace KillerPDF.Controls
             {
                 if (current is FrameworkElement fe && fe.Tag as string == FormOverlayTag)
                     return true;
-                current = VisualTreeHelper.GetParent(current);
+                // A choice field's open dropdown lives in a Popup, whose visual tree dead-ends at
+                // its PopupRoot instead of reaching the tagged ComboBox. The logical tree does
+                // cross that boundary (a generated ComboBoxItem's logical parent is the ComboBox),
+                // so prefer it and fall back to the visual walk inside templates.
+                current = LogicalTreeHelper.GetParent(current) ?? GetAnyParent(current);
             }
             return false;
         }
@@ -2584,7 +2648,7 @@ namespace KillerPDF.Controls
                 // rotations) then PDFium, mirroring the save/reload path, instead of crashing.
                 try
                 {
-                    _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempPath);
                 }
                 catch (Exception undoOpenEx) when (PdfImport.IsXRefException(undoOpenEx))
                 {
@@ -2593,7 +2657,7 @@ namespace KillerPDF.Controls
                         && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempPath, fixedPath))
                         throw;
                     tempPath = fixedPath;
-                    _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempPath);
                 }
                 _currentFile = tempPath;
                 _annotations.Clear();
@@ -2687,11 +2751,5 @@ namespace KillerPDF.Controls
             SetStatus(string.Format(Loc("Str_St_ClearedAll"), total));
         }
 
-        // onlyPage: when set, burns just that one page's annotations (used by Transform, which rasterizes a
-        // single page and wants its annotations baked in). Default null burns every page, as before.
-        private void DrawAnnotationsOnDocument(int? onlyPage = null)
-            => PdfBurn.DrawAnnotationsIntoDoc(_doc, _annotations, _renderDims, onlyPage, _pageRotations);
-
-        // The burn core (DrawAnnotationsIntoDoc) lives in Services/PdfBurn.cs.
     }
 }

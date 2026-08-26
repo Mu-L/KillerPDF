@@ -7,15 +7,16 @@ Each language is a single XAML `ResourceDictionary` file in the `Strings/` folde
 - `en-US.xaml` - English (US)
 - `bn.xaml` - Bengali
 - `cs-CZ.xaml` - Czech
-- `zh-CN.xaml` - Simplified Chinese
-- `zh-TW.xaml` - Traditional Chinese
 - `de-DE.xaml` - German
 - `es.xaml` - Spanish
 - `fr-FR.xaml` - French
 - `hu-HU.xaml` - Hungarian
+- `it-IT.xaml` - Italian
 - `ja-JP.xaml` - Japanese
 - `pl-PL.xaml` - Polish
 - `tr-TR.xaml` - Turkish
+- `zh-CN.xaml` - Simplified Chinese
+- `zh-TW.xaml` - Traditional Chinese
 
 ## How to contribute
 
@@ -38,7 +39,7 @@ Each language is a single XAML `ResourceDictionary` file in the `Strings/` folde
 - **Keep format placeholders intact.** Some strings contain `{0}`, `{1}`, etc. - these are filled in by the app at runtime and must stay in the translation, in the same order.
 - **Keep XML entities.** `&amp;` means `&`, `&#xE711;` is a glyph code - leave them as-is.
 - **Missing keys fall back to English.** Every language file is layered over `en-US.xaml`, so any key you don't include just shows the English text. You never have to keep a file fully in sync with new keys - translate what you can, and untranslated bits stay readable in English.
-- **Use plain hyphens (`-`), not em or en dashes (`—`, `–`),** to match the existing files - unless your language's typography genuinely requires otherwise.
+- **Use plain hyphens (`-`), never em or en dashes (`—`, `–`),** to match the existing files, and even where your language's typography would normally call for one. This is a house style rule applied across every app and every language, so it deliberately overrides local convention. If you think it is wrong for your language, say so in the pull request rather than working around it.
 - The file must be valid XML. You can check by pasting it into [xmllint.com](https://www.xmllint.com) or any XML validator.
 
 ## Format string example

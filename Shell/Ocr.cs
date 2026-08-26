@@ -45,7 +45,7 @@ namespace KillerPDF
 
         // The user's chosen OCR languages, persisted as a '+'-joined setting. Filtered to those actually
         // installed (a deleted pack can't be passed to Tesseract) and never empty - English is the floor.
-        private List<string> GetSelectedOcrLanguages()
+        private static List<string> GetSelectedOcrLanguages()
         {
             var stored = (App.GetSetting("OcrLanguages") ?? "eng")
                 .Split(['+'], StringSplitOptions.RemoveEmptyEntries);
@@ -56,16 +56,17 @@ namespace KillerPDF
             return sel;
         }
 
-        private void SetSelectedOcrLanguages(List<string> langs) =>
+        private static void SetSelectedOcrLanguages(List<string> langs) =>
             App.SetSetting("OcrLanguages", string.Join("+", langs));
 
         // The language string handed to Tesseract, e.g. "eng" or "eng+spa".
-        private string CurrentOcrLanguageString() => string.Join("+", GetSelectedOcrLanguages());
+        private static string CurrentOcrLanguageString() => string.Join("+", GetSelectedOcrLanguages());
 
         // High-quality (tessdata_best) vs standard model preference, persisted. When on, downloads pull the
         // larger, more accurate "best" models and new languages keep using them.
-        private bool OcrHighQuality => App.GetSetting("OcrHighQuality") == "1";
-        private void SetOcrHighQuality(bool on) => App.SetSetting("OcrHighQuality", on ? "1" : "0");
+        private static bool OcrHighQuality => App.GetSetting("OcrHighQuality") == "1";
+        private static void SetOcrHighQuality(bool on) => App.SetSetting("OcrHighQuality", on ? "1" : "0");
+        private static bool OcrFormAware => App.GetSetting("OcrFormAware") == "1";
 
         // Builds the multi-select Language submenu. Installed languages are checkable and stay toggled in the
         // open menu; not-yet-installed ones offer a one-time download. At least one language stays selected.
@@ -367,6 +368,7 @@ namespace KillerPDF
         }
 
         string IOcrHost.OcrLanguageString => CurrentOcrLanguageString();
+        bool IOcrHost.FormAwareOcr => OcrFormAware;
         Task<bool> IOcrHost.EnsureOcrModelsReadyAsync() => EnsureOcrModelsReadyAsync();
         void IOcrHost.CommitActiveTextBox() => CommitActiveTextBox();
         void IOcrHost.SaveDocumentTo(string path) => _doc!.Save(path);
@@ -432,6 +434,20 @@ namespace KillerPDF
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ocr_ExtractText"), (_, _) => ExtractAllText(), null, ""));
                 menu.Items.Add(new Separator());
                 menu.Items.Add(BuildLanguageMenu());
+                var formAware = new MenuItem
+                {
+                    Header = Loc("Str_Ocr_FormAware"),
+                    IsCheckable = true,
+                    IsChecked = OcrFormAware,
+                    StaysOpenOnClick = true
+                };
+                formAware.Click += (_, _) =>
+                {
+                    bool enabled = !OcrFormAware;
+                    App.SetSetting("OcrFormAware", enabled ? "1" : "0");
+                    formAware.IsChecked = enabled;
+                };
+                menu.Items.Add(formAware);
             }
             menu.PlacementTarget = (UIElement)sender;
             menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;

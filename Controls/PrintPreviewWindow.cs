@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Docnet.Core;
 using Docnet.Core.Models;
+using KillerPDF.Services;
 
 namespace KillerPDF
 {
@@ -21,7 +22,7 @@ namespace KillerPDF
     /// pages ourselves, expose printer / orientation / copies / page-range settings,
     /// and drive the spooler via a non-UI PrintDialog when the user clicks Print.
     /// </summary>
-    internal sealed class PrintPreviewWindow : Window
+    internal sealed partial class PrintPreviewWindow : Window
     {
         private readonly BitmapSource?[] _pages;   // filled lazily as pages render in the background
         private readonly int[] _rasterW;
@@ -66,10 +67,11 @@ namespace KillerPDF
         // changes halfway through (especially N-up, which controls the page-loop increment).
         private readonly record struct PrintLayout(
             bool Landscape, int AlignH, int AlignV, int ScaleMode, double CustomPct,
-            double MarginPx, int NUp, bool Duplex);
+            double MarginPx, int NUp, bool Duplex, bool Grayscale);
 
         private PrintLayout CurrentLayout() => new(
-            _landscape, _alignH, _alignV, _scaleMode, _customPct, _marginPx, _nUp, _duplex);
+            _landscape, _alignH, _alignV, _scaleMode, _customPct, _marginPx,
+            _nUp, _duplex, _grayscale);
 
         // Printable area in DIPs for the currently selected printer + orientation.
         private double _areaW = 816;   // Letter portrait fallback (8.5in * 96)
@@ -78,6 +80,8 @@ namespace KillerPDF
         private readonly Grid _previewHost = new();
         private readonly TextBlock _pageLabel = new();
         private readonly TextBlock _renderLabel = new();   // "Rendering X / Y" line shown above the page nav
+        private Button _previousPage = null!;
+        private Button _nextPage = null!;
         private ComboBox _printerCombo = null!;
         // #186: manual paper pick. Index 0 = "Match document" (the automatic MediaSizeForDocument
         // behavior); the rest are the driver's supported sizes, repopulated on printer change.
@@ -396,7 +400,9 @@ namespace KillerPDF
                     // white sheet doesn't peek through as a 1px hairline at the page edge (float seam).
                     if (iw >= (aw - 2 * m) - 1.5) iw = aw - 2 * m + 1;   // +1 bleed: covers the right hairline (clipped by the sheet)
                     if (ih >= (ah - 2 * m) - 1.5) ih = ah - 2 * m + 1;
-                    var img = new Image { Source = pages[idx]!, Width = iw, Height = ih };
+                    BitmapSource source = layout.Grayscale
+                        ? PrintColorConverter.CreateGrayscaleBitmap(pages[idx]!) : pages[idx]!;
+                    var img = new Image { Source = source, Width = iw, Height = ih };
                     RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
                     Canvas.SetLeft(img, m + OffsetH(aw - 2 * m, iw, layout));
                     Canvas.SetTop(img, m + OffsetV(ah - 2 * m, ih, layout));
@@ -415,7 +421,9 @@ namespace KillerPDF
                     double availW = Math.Max(1, cellW - gap), availH = Math.Max(1, cellH - gap);
                     double s = Math.Min(availW / rw[idx], availH / rh[idx]);
                     double iw = rw[idx] * s, ih = rh[idx] * s;
-                    var img = new Image { Source = pages[idx]!, Width = iw, Height = ih };
+                    BitmapSource source = layout.Grayscale
+                        ? PrintColorConverter.CreateGrayscaleBitmap(pages[idx]!) : pages[idx]!;
+                    var img = new Image { Source = source, Width = iw, Height = ih };
                     RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
                     Canvas.SetLeft(img, m + col * cellW + (cellW - iw) / 2);
                     Canvas.SetTop(img, m + row * cellH + (cellH - ih) / 2);
@@ -464,7 +472,7 @@ namespace KillerPDF
                 () => { DialogResult = false; Close(); }, _rootGrid);
         }
 
-        private UIElement BuildSettingsColumn()
+        private Grid BuildSettingsColumn()
         {
             // Options live in a scroller (buttons are pinned below), so only a little top/side inset.
             var panel = new StackPanel { Margin = new Thickness(16, 8, 12, 4) };
@@ -679,7 +687,11 @@ namespace KillerPDF
             colorMode.Items.Add(S("Str_Print_BW"));
             _grayscale = App.GetSetting("PrintGrayscale") == "1";   // restore last color choice
             colorMode.SelectedIndex = _grayscale ? 1 : 0;
-            colorMode.SelectionChanged += (s, _) => _grayscale = ((ComboBox)s).SelectedIndex == 1;
+            colorMode.SelectionChanged += (s, _) =>
+            {
+                _grayscale = ((ComboBox)s).SelectedIndex == 1;
+                UpdatePreview();
+            };
             panel.Children.Add(colorMode);
 
             panel.Children.Add(Label(S("Str_Print_Copies")));
@@ -772,7 +784,7 @@ namespace KillerPDF
             return column;
         }
 
-        private UIElement BuildPreviewColumn()
+        private DockPanel BuildPreviewColumn()
         {
             var wrap = new Border
             {
@@ -785,60 +797,62 @@ namespace KillerPDF
             };
 
             var grid = new Grid();
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            Grid.SetRow(_previewHost, 0);
             grid.Children.Add(_previewHost);
 
-            var nav = new StackPanel
-            {
-                Orientation         = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-            var prev = MakeButton("◀", false);   // left triangle
-            prev.Click += (_, _) => { if (_previewIndex > 0) { _previewIndex--; UpdatePreview(); } };
-            var next = MakeButton("▶", false);   // right triangle
-            next.Click += (_, _) => { if (_previewIndex < SheetCount() - 1) { _previewIndex++; UpdatePreview(); } };
-            _pageLabel.Foreground = R("TextBrush");
-            _pageLabel.VerticalAlignment = VerticalAlignment.Center;
-            _pageLabel.Margin = new Thickness(12, 0, 12, 0);
-            _pageLabel.FontSize = 12;
-            nav.Children.Add(prev);
-            nav.Children.Add(_pageLabel);
-            nav.Children.Add(next);
+            var navigation = new Grid { Height = 42, Margin = new Thickness(8, 0, 8, 8) };
+            navigation.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            navigation.ColumnDefinitions.Add(new ColumnDefinition());
+            navigation.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            _previousPage = MakeButton("‹", false);
+            _previousPage.Width = 44;
+            _previousPage.ToolTip = S("Str_Kb_PrevPage");
+            _previousPage.Click += (_, _) => { if (_previewIndex > 0) { _previewIndex--; UpdatePreview(); } };
+            Grid.SetColumn(_previousPage, 0);
+            navigation.Children.Add(_previousPage);
+            _nextPage = MakeButton("›", false);
+            _nextPage.Width = 44;
+            _nextPage.ToolTip = S("Str_Kb_NextPage");
+            _nextPage.Click += (_, _) => { if (_previewIndex < SheetCount() - 1) { _previewIndex++; UpdatePreview(); } };
+            Grid.SetColumn(_nextPage, 2);
+            navigation.Children.Add(_nextPage);
 
-            // "Rendering X / Y" gets its own line above the page nav while pages stream in.
+            _pageLabel.Foreground = R("TextBrush");
+            _pageLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            _pageLabel.FontSize = 12;
+
+            // Rendering progress stays with the counter, but the compact strip now lives below the
+            // framed content pane instead of consuming document-preview height.
             _renderLabel.Foreground = R("MutedTextBrush");
             _renderLabel.HorizontalAlignment = HorizontalAlignment.Center;
             _renderLabel.FontSize = 11;
-            _renderLabel.Margin = new Thickness(0, 0, 0, 2);
             _renderLabel.Visibility = Visibility.Collapsed;
-
-            var navColumn = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 8) };
-            navColumn.Children.Add(_renderLabel);
-            navColumn.Children.Add(nav);
-            Grid.SetRow(navColumn, 1);
-            grid.Children.Add(navColumn);
+            var navCenter = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            navCenter.Children.Add(_renderLabel);
+            navCenter.Children.Add(_pageLabel);
+            Grid.SetColumn(navCenter, 1);
+            navigation.Children.Add(navCenter);
 
             // Film grain over the preview canvas, behind the page so it textures the margins
             // around the sheet rather than the document itself.
             var previewGrain = MakeGrainLayer();
             if (previewGrain != null)
             {
-                Grid.SetRow(previewGrain, 0);
-                Grid.SetRowSpan(previewGrain, 2);   // also texture the page-counter row so it isn't a flat gray bar
                 Panel.SetZIndex(previewGrain, 0);
                 Panel.SetZIndex(_previewHost, 1);
-                Panel.SetZIndex(navColumn, 1);       // keep the counter and arrows above the grain
                 grid.Children.Add(previewGrain);
             }
 
             wrap.Child = grid;
-            // Family shadow under the content pane, like the main window (flat on 98SE).
-            var host = UiKit.PaneWithShadow(wrap);
-            Grid.SetColumn(host, 1);
-            return host;
+            var previewColumn = new DockPanel();
+            DockPanel.SetDock(navigation, Dock.Bottom);
+            previewColumn.Children.Add(navigation);
+            previewColumn.Children.Add(UiKit.PaneWithShadow(wrap));
+            Grid.SetColumn(previewColumn, 1);
+            return previewColumn;
         }
 
         private static TextBlock Label(string text) => new()
@@ -916,7 +930,7 @@ namespace KillerPDF
 
         // Collapsible section, the TransformWindow.WrapSection pattern: lifts the children added
         // since <paramref name="start"/> into a togglable body under a chevron header.
-        private void WrapSection(StackPanel host, int start, string title, bool expanded)
+        private static void WrapSection(StackPanel host, int start, string title, bool expanded)
         {
             var children = host.Children.Cast<UIElement>().Skip(start).ToList();
             while (host.Children.Count > start) host.Children.RemoveAt(start);
@@ -960,8 +974,7 @@ namespace KillerPDF
                     {
                         if (bin == InputBin.Unknown) continue;
                         _sourceBins.Add(bin);
-                        _sourceCombo.Items.Add(System.Text.RegularExpressions.Regex.Replace(
-                            bin.ToString(), "(?<=[a-z])(?=[A-Z])", " "));
+                        _sourceCombo.Items.Add(CamelCaseBoundaryRegex().Replace(bin.ToString(), " "));
                     }
             }
             catch { /* driver quirk - default entry only */ }
@@ -977,8 +990,7 @@ namespace KillerPDF
             string name = raw;
             if (name.StartsWith("ISO", StringComparison.Ordinal)) name = "ISO " + name[3..];
             else if (name.StartsWith("JIS", StringComparison.Ordinal)) name = "JIS " + name[3..];
-            name = System.Text.RegularExpressions.Regex.Replace(
-                name, @"(?<=[a-z])(?=[A-Z])|(?<=\d)(?=[A-Z])", " ");
+            name = PaperNameBoundaryRegex().Replace(name, " ");
             string dims;
             if (raw.StartsWith("NorthAmerica", StringComparison.Ordinal))
             {
@@ -1051,7 +1063,14 @@ namespace KillerPDF
         private void UpdatePreview()
         {
             _previewHost.Children.Clear();
-            if (_pages.Length == 0) { _pageLabel.Text = S("Str_Print_NoPages"); _renderLabel.Visibility = Visibility.Collapsed; return; }
+            if (_pages.Length == 0)
+            {
+                _pageLabel.Text = S("Str_Print_NoPages");
+                _renderLabel.Visibility = Visibility.Collapsed;
+                _previousPage?.IsEnabled = false;
+                _nextPage?.IsEnabled = false;
+                return;
+            }
 
             var selected = SelectedIndices();
             if (selected.Count == 0)
@@ -1072,13 +1091,17 @@ namespace KillerPDF
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment   = VerticalAlignment.Center,
                 });
-                if (_printBtn != null) _printBtn.IsEnabled = false;
+                _printBtn?.IsEnabled = false;
+                _previousPage?.IsEnabled = false;
+                _nextPage?.IsEnabled = false;
                 return;
             }
-            if (_printBtn != null) _printBtn.IsEnabled = !_isLoading && !_printing;
+            _printBtn?.IsEnabled = !_isLoading && !_printing;
             int sheets = Math.Max(1, (selected.Count + _nUp - 1) / _nUp);
             int sheet = Math.Max(0, Math.Min(_previewIndex, sheets - 1));
             _previewIndex = sheet;
+            _previousPage?.IsEnabled = sheet > 0;
+            _nextPage?.IsEnabled = sheet + 1 < sheets;
 
             // Source pages on this sheet, taken from the SELECTED set (one for 1-up, up to _nUp for N-up).
             var idxs = new System.Collections.Generic.List<int>();
@@ -1142,7 +1165,7 @@ namespace KillerPDF
         public void FinishLoading()
         {
             _isLoading = false;
-            if (_printBtn != null) _printBtn.IsEnabled = true;
+            _printBtn?.IsEnabled = true;
             UpdatePreview();
         }
 
@@ -1163,7 +1186,7 @@ namespace KillerPDF
         }
 
         // Spinning ring + progress text shown in the preview area while pages render.
-        private UIElement BuildLoadingIndicator()
+        private StackPanel BuildLoadingIndicator()
         {
             var sp = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             var ring = new System.Windows.Shapes.Ellipse
@@ -1223,8 +1246,8 @@ namespace KillerPDF
                 return;
             }
 
-            int.TryParse(_copiesBox.Text?.Trim(), out int copies);
-            if (copies < 1) copies = 1;
+            if (!int.TryParse(_copiesBox.Text?.Trim(), out int copies) || copies < 1)
+                copies = 1;
 
             // The 300 DPI re-rasterize below (plus the compose + spool) runs long enough on real
             // documents that the window froze with no feedback - it read as a crash. Cover the card
@@ -1321,6 +1344,12 @@ namespace KillerPDF
                     "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        [System.Text.RegularExpressions.GeneratedRegex("(?<=[a-z])(?=[A-Z])")]
+        private static partial System.Text.RegularExpressions.Regex CamelCaseBoundaryRegex();
+
+        [System.Text.RegularExpressions.GeneratedRegex(@"(?<=[a-z])(?=[A-Z])|(?<=\d)(?=[A-Z])")]
+        private static partial System.Text.RegularExpressions.Regex PaperNameBoundaryRegex();
 
         /// <summary>
         /// Composes the sheet sequence and spools it from a dedicated STA thread that owns its own

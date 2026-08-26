@@ -3,8 +3,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using KillerPDF.Services;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
+using KillerPdf.Engine.Authoring;
+using KillerPdf.Engine.Editing;
+using KillerPdf.Engine.Filters;
+using KillerPdf.Engine.Objects;
+using EngineDocument = KillerPdf.Engine.Documents.PdfDocument;
 using Xunit;
 
 namespace KillerPDF.Tests;
@@ -24,31 +27,36 @@ public sealed class PdfBurnRotationTests
     private static string BurnHighlightContent(int nativeRotate, Dictionary<int, int>? rotations,
         double pageW, double pageH, int renderW, int renderH, Rect bounds)
     {
-        using var doc = new PdfDocument();
-        doc.Options.NoCompression = true;
-        var page = doc.AddPage();
-        page.MediaBox = new PdfRectangle(new XPoint(0, 0), new XPoint(pageW, pageH));
-        if (nativeRotate != 0) page.Rotate = nativeRotate;
+        byte[] source = new PdfDocumentBuilder().AddBlankPage(pageW, pageH).Build();
+        if (nativeRotate != 0)
+            source = new PdfIncrementalPageEditor(EngineDocument.Open(source))
+                .SetRotation(0, nativeRotate).Build();
 
         var annots = new Dictionary<int, List<PageAnnotation>>
         {
             [0] = [new HighlightAnnotation { PageIndex = 0, Bounds = bounds, Style = HighlightStyle.Fill }],
         };
         var dims = new Dictionary<int, (int w, int h)> { [0] = (renderW, renderH) };
-        PdfBurn.DrawAnnotationsIntoDoc(doc, annots, dims, null, rotations);
-        return SaveToText(doc);
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-burn-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, source);
+            PdfEngineBurn.Burn(path, annots, dims, null, null, rotations);
+            return AllDecodedStreams(path);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
     }
 
-    private static string SaveToText(PdfDocument doc)
+    private static string AllDecodedStreams(string path)
     {
-        using var ms = new MemoryStream();
-        doc.Save(ms, false);
-
-        // PdfSharpCore may Flate-compress content streams even when NoCompression is set;
-        // that option governs document structure, not every page stream. Inspect the decoded
-        // page content instead of depending on the writer's storage choice.
-        var content = doc.Pages[0].Contents.CreateSingleContent();
-        return Encoding.GetEncoding("ISO-8859-1").GetString(content.Stream.UnfilteredValue);
+        EngineDocument document = EngineDocument.Open(File.ReadAllBytes(path));
+        var text = new StringBuilder();
+        foreach (int objectNumber in document.CrossReferences.Keys)
+            if (document.Resolve(objectNumber) is PdfStream stream)
+                try { text.AppendLine(Encoding.GetEncoding("ISO-8859-1").GetString(
+                    PdfStreamDecoder.Decode(stream, document.Resolve))); }
+                catch { }
+        return text.ToString();
     }
 
     // Every `x y w h re` operator in the saved file, as (w, h).
@@ -89,9 +97,9 @@ public sealed class PdfBurnRotationTests
         string pdf = BurnHighlightContent(0, null, 612, 792, 1224, 1584, new Rect(100, 200, 300, 60));
 
         var rects = RectSizes(pdf);
-        var r = Assert.Single(rects);
-        Assert.Equal(150, r.w, 2);
-        Assert.Equal(30, r.h, 2);
+        var (w, h) = Assert.Single(rects);
+        Assert.Equal(150, w, 2);
+        Assert.Equal(30, h, 2);
         Assert.False(HasQuarterTurnCm(pdf));
     }
 
@@ -108,9 +116,9 @@ public sealed class PdfBurnRotationTests
         string pdf = BurnHighlightContent(rotate, null, BoxW, BoxH, 2382, 1684, new Rect(200, 400, 300, 60));
 
         var rects = RectSizes(pdf);
-        var r = Assert.Single(rects);
-        Assert.Equal(150, r.w, 2);
-        Assert.Equal(30, r.h, 2);
+        var (w, h) = Assert.Single(rects);
+        Assert.Equal(150, w, 2);
+        Assert.Equal(30, h, 2);
         Assert.True(HasQuarterTurnCm(pdf), "rotated burn emitted no quarter-turn cm - content will land turned 90 degrees");
     }
 
@@ -123,9 +131,9 @@ public sealed class PdfBurnRotationTests
         string pdf = BurnHighlightContent(0, rotations, BoxW, BoxH, 2382, 1684, new Rect(200, 400, 300, 60));
 
         var rects = RectSizes(pdf);
-        var r = Assert.Single(rects);
-        Assert.Equal(150, r.w, 2);
-        Assert.Equal(30, r.h, 2);
+        var (w, h) = Assert.Single(rects);
+        Assert.Equal(150, w, 2);
+        Assert.Equal(30, h, 2);
         Assert.True(HasQuarterTurnCm(pdf));
     }
 
@@ -136,9 +144,9 @@ public sealed class PdfBurnRotationTests
         string pdf = BurnHighlightContent(180, null, BoxW, BoxH, 1684, 2382, new Rect(200, 400, 300, 60));
 
         var rects = RectSizes(pdf);
-        var r = Assert.Single(rects);
-        Assert.Equal(150, r.w, 2);
-        Assert.Equal(30, r.h, 2);
+        var (w, h) = Assert.Single(rects);
+        Assert.Equal(150, w, 2);
+        Assert.Equal(30, h, 2);
         // A half turn is (-1 0 0 -1) pre-flip; composed with the base flip it is axis-aligned,
         // so assert on the rect numbers plus the annotation surviving - not on the cm shape.
     }
@@ -148,16 +156,82 @@ public sealed class PdfBurnRotationTests
     {
         // Stamps share the visual-frame helpers; the original #169 gap was the stamp burn never
         // receiving the angle at all, so preview and output disagreed.
-        using var doc = new PdfDocument();
-        doc.Options.NoCompression = true;
-        var page = doc.AddPage();
-        page.MediaBox = new PdfRectangle(new XPoint(0, 0), new XPoint(BoxW, BoxH));
-        page.Rotate = 90;
+        byte[] source = new PdfIncrementalPageEditor(EngineDocument.Open(
+            new PdfDocumentBuilder().AddBlankPage(BoxW, BoxH).Build()))
+            .SetRotation(0, 90).Build();
 
         var spec = new StampSpec { NumbersEnabled = true, Format = "{n} / {N}" };
-        PdfBurn.DrawStampsIntoDoc(doc, spec);
-
-        string pdf = SaveToText(doc);
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-stamp-{Guid.NewGuid():N}.pdf");
+        File.WriteAllBytes(path, source);
+        PdfEngineBurn.Burn(path, new Dictionary<int, List<PageAnnotation>>(),
+            new Dictionary<int, (int w, int h)>(), spec);
+        string pdf = AllDecodedStreams(path);
+        File.Delete(path);
         Assert.True(HasQuarterTurnCm(pdf), "stamp burn on a rotated page emitted no quarter-turn cm");
+    }
+
+    [Fact]
+    public void EngineBurn_WritesTypedMarkupResourcesAndReopens()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-typed-burn-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder().AddBlankPage(612, 792).Build());
+            var annotations = new Dictionary<int, List<PageAnnotation>>
+            {
+                [0] =
+                [
+                    new HighlightAnnotation { PageIndex = 0, Bounds = new Rect(20, 30, 80, 14) },
+                    new InkAnnotation
+                    {
+                        PageIndex = 0, Points = [new Point(10, 10), new Point(40, 50)],
+                        StrokeWidth = 3
+                    },
+                    new ImageAnnotation
+                    {
+                        PageIndex = 0, Position = new Point(50, 60), SourceWidth = 10,
+                        SourceHeight = 10, Scale = 1,
+                        ImageData = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2pGQAAAAASUVORK5CYII="
+                    }
+                ]
+            };
+            PdfEngineBurn.Burn(path, annotations,
+                new Dictionary<int, (int w, int h)> { [0] = (612, 792) });
+
+            EngineDocument reopened = EngineDocument.Open(File.ReadAllBytes(path));
+            Assert.Single(KillerPdf.Engine.Documents.PdfPageInformation.Read(reopened));
+            string streams = AllDecodedStreams(path);
+            Assert.Contains(" gs", streams);
+            Assert.Contains("1 J", streams);
+            Assert.Contains(" Do", streams);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
+    public void TextBurn_WritesLetterSpacingOperator()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-letter-spacing-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder().AddBlankPage(612, 792).Build());
+            var text = new TextAnnotation
+            {
+                PageIndex = 0,
+                Position = new Point(20, 30),
+                Content = "A1B2C3",
+                FontName = "Segoe UI",
+                FontSize = 14,
+                LetterSpacing = 3,
+                Width = 200,
+                Height = 30
+            };
+            PdfEngineBurn.Burn(path,
+                new Dictionary<int, List<PageAnnotation>> { [0] = [text] },
+                new Dictionary<int, (int w, int h)> { [0] = (612, 792) });
+
+            Assert.Contains("3 Tc", AllDecodedStreams(path));
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
     }
 }

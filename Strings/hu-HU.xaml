@@ -312,6 +312,7 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Ocr_SearchablePdf">Kereshető PDF készítése...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">Összes szöveg kinyerése...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">Nyelv</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">Űrlapérzékeny OCR</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Először nyisson meg egy PDF-et</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - hamarosan</sys:String>
     <sys:String x:Key="Str_Ctx_SelectTool">Kijelölő eszköz</sys:String>
@@ -466,6 +467,7 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Bar_Color">Szín:</sys:String>
     <sys:String x:Key="Str_Bar_Fill">Kitöltés:</sys:String>
     <sys:String x:Key="Str_Bar_Size">Méret:</sys:String>
+    <sys:String x:Key="Str_Bar_LetterSpacing">Betűköz:</sys:String>
     <sys:String x:Key="Str_Bar_Opacity">Átlátszatlanság:</sys:String>
     <sys:String x:Key="Str_Bar_FillOpacity">Kitöltés átlátszatlansága:</sys:String>
     <sys:String x:Key="Str_Bar_Font">Betűtípus:</sys:String>
@@ -483,12 +485,26 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Sign_Desc">Lezárja a(z) {0} fájlt egy tanúsítvánnyal, és aláírt másolatot ment.</sys:String>
     <sys:String x:Key="Str_Sign_Certificate">Tanúsítvány</sys:String>
     <sys:String x:Key="Str_Sign_FromFile">Fájlból (.pfx / .p12)</sys:String>
-    <sys:String x:Key="Str_Sign_FromStore">A Windows tanúsítványtárolójából</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">A Windows tanúsítványtárolójából / USB token</sys:String>
     <sys:String x:Key="Str_Sign_Browse">Tallózás...</sys:String>
     <sys:String x:Key="Str_Sign_Password">Jelszó</sys:String>
     <sys:String x:Key="Str_Sign_Reason">Indok (nem kötelező)</sys:String>
     <sys:String x:Key="Str_Sign_Location">Hely (nem kötelező)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">Kapcsolattartó (nem kötelező)</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">Látható aláírás megjelenítése</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">Aláírás szövege</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">Digitálisan aláírta: {name}&#10;Dátum: {date}&#10;Indok: {reason}&#10;Hely: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_Page">Page</sys:String>
+    <sys:String x:Key="Str_Sign_Position">Position</sys:String>
+    <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
+    <sys:String x:Key="Str_Sign_BottomRight">Bottom right</sys:String>
+    <sys:String x:Key="Str_Sign_TopLeft">Top left</sys:String>
+    <sys:String x:Key="Str_Sign_TopRight">Top right</sys:String>
+    <sys:String x:Key="Str_Sign_Width">Width</sys:String>
+    <sys:String x:Key="Str_Sign_Height">Height</sys:String>
+    <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">Tanúsítvány tulajdonosa</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">Ellenőrizze az aláírás oldalát, méreteit és a szöveg méretét.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">Aláírt másolat mentése másként</sys:String>
     <sys:String x:Key="Str_Sign_Sign">Aláírás</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">Mégse</sys:String>
@@ -529,6 +545,13 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Tf_LevelsBlack">Fekete pont</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Fehér pont</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Középtónusok</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <sys:String x:Key="Str_Tf_CorrectPerspective">Trapéz alakú torzítás javítása</sys:String>
     <sys:String x:Key="Str_Tf_PerspectiveHint">Húzza a négy sarkot a lefényképezett oldal körvonalára. Az Alkalmaz téglalappá egyenesíti.</sys:String>
     <sys:String x:Key="Str_Tf_ResetCorners">Sarkok visszaállítása</sys:String>
@@ -540,6 +563,7 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Tf_Warn">Egy oldal átalakítása (forgatás vagy méretezés) raszterizálja azt: az oldal képként mentődik újra, így a rajta lévő kijelölhető szöveg elvész. Utána OCR-t futtatva ismét kereshetővé teheti.</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">Ne figyelmeztessen újra</sys:String>
     <sys:String x:Key="Str_Tf_Done">{0}. oldal átalakítva</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">{0} oldal átalakítva</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">Az oldal nem jeleníthető meg - próbálja újra egy pillanat múlva.</sys:String>
     <sys:String x:Key="Str_Tf_Failed">Az átalakítás sikertelen: {0}</sys:String>
 

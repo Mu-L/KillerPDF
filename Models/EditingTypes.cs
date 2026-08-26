@@ -4,7 +4,7 @@ using System.Windows.Media;
 
 namespace KillerPDF
 {
-    public enum EditTool { Select, Text, Highlight, Strikethrough, Underline, Draw, Signature, Image, Crop, Line, Rotate, Shape }
+    public enum EditTool { Select, Text, FormField, Highlight, Strikethrough, Underline, Draw, Signature, Image, Crop, Line, Rotate, Shape }
 
     /// <summary>Sub-mode of the Shapes tool (#127 Phase 3): drag a rectangle or ellipse, or click
     /// out a free-form polygon vertex by vertex.</summary>
@@ -48,6 +48,9 @@ namespace KillerPDF
         public Point Position { get; set; }
         public string Content { get; set; } = "";
         public double FontSize { get; set; } = 14;
+        // Additional distance between adjacent characters, in canvas units. Zero preserves text
+        // created before the letter-spacing control was introduced.
+        public double LetterSpacing { get; set; }
         // Typeface and style. FontName is a font-family name (any installed system font). Bold/Italic/Strike
         // apply to the whole box. Defaults keep text placed before these existed rendering as plain Segoe UI.
         public string FontName { get; set; } = "Segoe UI";
@@ -134,15 +137,12 @@ namespace KillerPDF
         public Rect DrawRect()
         {
             double t = Math.Max(2.0, Bounds.Height * 0.10);
-            switch (Style)
+            return Style switch
             {
-                case HighlightStyle.Strikethrough:
-                    return new Rect(Bounds.X, Bounds.Y + Bounds.Height / 2 - t / 2, Bounds.Width, t);
-                case HighlightStyle.Underline:
-                    return new Rect(Bounds.X, Bounds.Y + Bounds.Height - t, Bounds.Width, t);
-                default:
-                    return Bounds;
-            }
+                HighlightStyle.Strikethrough => new Rect(Bounds.X, Bounds.Y + Bounds.Height / 2 - t / 2, Bounds.Width, t),
+                HighlightStyle.Underline => new Rect(Bounds.X, Bounds.Y + Bounds.Height - t, Bounds.Width, t),
+                _ => Bounds,
+            };
         }
     }
 

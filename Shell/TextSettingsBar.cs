@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -45,6 +42,51 @@ namespace KillerPDF
             tb.FontWeight = _textBold ? FontWeights.Bold : FontWeights.Normal;
             tb.FontStyle = _textItalic ? FontStyles.Italic : FontStyles.Normal;
             tb.TextDecorations = BuildDecorations(_textUnderline, _textStrike);
+            ApplyLetterSpacing(tb, tb.Text, CanvasLetterSpacing(tb.Tag is int page ? page : PageList.SelectedIndex));
+            tb.TextChanged -= ActiveTextBox_TextChanged;
+            tb.TextChanged += ActiveTextBox_TextChanged;
+        }
+
+        private void ActiveTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (sender is TextBox tb)
+                ApplyLetterSpacing(tb, tb.Text,
+                    CanvasLetterSpacing(tb.Tag is int page ? page : PageList.SelectedIndex));
+        }
+
+        private double CanvasLetterSpacing(int pageIndex)
+        {
+            double spacing = _textLetterSpacing;
+            if (_doc is not null && pageIndex >= 0 && _renderDims.TryGetValue(pageIndex, out var rd) && rd.h > 0)
+            {
+                double sy = EnsureEngineDocumentSession().Pages[pageIndex].Height / rd.h;
+                if (sy > 0) spacing /= sy;
+            }
+            return spacing;
+        }
+
+        private static void ApplyLetterSpacing(DependencyObject control, string text, double spacing)
+        {
+            var effects = new TextEffectCollection();
+            if (Math.Abs(spacing) >= .01)
+            {
+                int column = 0;
+                var elements = System.Globalization.StringInfo.GetTextElementEnumerator(text);
+                while (elements.MoveNext())
+                {
+                    string current = elements.GetTextElement();
+                    int index = elements.ElementIndex;
+                    if (current is "\r" or "\n") { column = 0; continue; }
+                    effects.Add(new TextEffect
+                    {
+                        PositionStart = index,
+                        PositionCount = current.Length,
+                        Transform = new TranslateTransform(column * spacing, 0)
+                    });
+                    column++;
+                }
+            }
+            control.SetValue(TextBlock.TextEffectsProperty, effects);
         }
 
         private void ApplyTextStyleToActiveBox()
@@ -57,7 +99,7 @@ namespace KillerPDF
             double fontCanvas = _textFontSize;
             if (_doc is not null && pg >= 0 && _renderDims.TryGetValue(pg, out var rd) && rd.h > 0)
             {
-                double sy = _doc.Pages[pg].Height.Point / rd.h;
+                double sy = EnsureEngineDocumentSession().Pages[pg].Height / rd.h;
                 if (sy > 0) fontCanvas = _textFontSize / sy;
             }
             _activeTextBox.FontSize = fontCanvas;
@@ -110,9 +152,10 @@ namespace KillerPDF
                 ta.Italic = _textItalic;
                 ta.Strike = _textStrike;
                 ta.Underline = _textUnderline;
+                ta.LetterSpacing = CanvasLetterSpacing(ta.PageIndex);
                 double sy = 1.0;
                 if (_doc is not null && _renderDims.TryGetValue(ta.PageIndex, out var rd) && rd.h > 0)
-                    sy = _doc.Pages[ta.PageIndex].Height.Point / rd.h;
+                    sy = EnsureEngineDocumentSession().Pages[ta.PageIndex].Height / rd.h;
                 if (sy > 0 && _textFontSize > 0) ta.FontSize = _textFontSize / sy;
                 touched.Add(ta.PageIndex);
             }
@@ -428,6 +471,39 @@ namespace KillerPDF
             sizeStack.Children.Add(sizeBox);
             sizeStack.Children.Add(ptLabel);
 
+            var spacingStack = Group();
+            spacingStack.Children.Add(DimLabel(Loc("Str_Bar_LetterSpacing"), 0));
+            var spacingSlider = new Slider
+            {
+                Minimum = -2,
+                Maximum = 20,
+                Value = _textLetterSpacing,
+                Width = 90,
+                TickFrequency = .25,
+                IsSnapToTickEnabled = true,
+                VerticalAlignment = VerticalAlignment.Center,
+                Style = (Style)FindResource("DarkSlider")
+            };
+            var spacingLabel = new TextBlock
+            {
+                Text = $"{_textLetterSpacing:0.##} pt",
+                Width = 48,
+                FontFamily = UiKit.MonoFont,
+                FontSize = 11,
+                Margin = new Thickness(4, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Right
+            };
+            spacingLabel.SetResourceReference(TextBlock.ForegroundProperty, "MutedTextBrush");
+            spacingSlider.ValueChanged += (_, e) =>
+            {
+                _textLetterSpacing = Math.Round(e.NewValue, 2);
+                spacingLabel.Text = $"{_textLetterSpacing:0.##} pt";
+                ApplyTextStyleToSelection();
+            };
+            spacingStack.Children.Add(spacingSlider);
+            spacingStack.Children.Add(spacingLabel);
+
             // Font group: typeface selector + Bold / Italic / Strikethrough / Underline.
             // A small square toggle whose glyph previews its own effect (bold B, italic I, struck-through S).
             Border StyleToggle(string glyph, string tip, bool active, FontWeight fw, FontStyle fs, TextDecorationCollection? deco, Action onClick)
@@ -566,6 +642,7 @@ namespace KillerPDF
             var fontPair = new StackPanel();
             fontPair.Children.Add(fontStack);
             fontPair.Children.Add(sizeStack);
+            fontPair.Children.Add(spacingStack);
 
             var colorPair = new StackPanel();
             colorPair.Children.Add(grpColor);
@@ -692,7 +769,7 @@ namespace KillerPDF
             if (_doc is null) return;
             int pageIdx = PageList.SelectedIndex;
             if (pageIdx < 0) pageIdx = 0;
-            if (pageIdx >= _doc.PageCount) return;
+            if (pageIdx >= EnsureEngineDocumentSession().PageCount) return;
 
             double pw = _renderDims.TryGetValue(pageIdx, out var rd) ? rd.w : 2048.0;
             double ph = _renderDims.TryGetValue(pageIdx, out var rd2) ? rd2.h : 2048.0;
@@ -740,7 +817,7 @@ namespace KillerPDF
 
                     // Convert the point size to the page's canvas units (see PlaceTextBox).
                     double fontCanvas = _textFontSize;
-                    double sy = _doc.Pages[pageIdx].Height.Point / Math.Max(1.0, ph);
+                    double sy = EnsureEngineDocumentSession().Pages[pageIdx].Height / Math.Max(1.0, ph);
                     if (sy > 0) fontCanvas = _textFontSize / sy;
 
                     var ta = new TextAnnotation
@@ -748,7 +825,8 @@ namespace KillerPDF
                         PageIndex = pageIdx,
                         Position = new Point(pw * 0.25, ph * 0.45),
                         Content = content,
-                        FontSize = fontCanvas
+                        FontSize = fontCanvas,
+                        LetterSpacing = CanvasLetterSpacing(pageIdx)
                     };
                     ta.SetColor(_textColor);
                     SetTool(EditTool.Select);

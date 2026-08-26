@@ -68,7 +68,7 @@ namespace KillerPDF
         void IAboutHost.SetVersion(string version)
         {
             AboutVersionBlock.Inlines.Clear();
-            AboutVersionBlock.Inlines.Add(AccentLink($"v{version}", () => About.OpenReleaseNotes()));
+            AboutVersionBlock.Inlines.Add(AccentLink($"v{version}", () => AboutController.OpenReleaseNotes()));
         }
 
         /// <summary>The AKA line. Null hides it entirely.</summary>

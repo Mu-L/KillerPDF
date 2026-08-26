@@ -36,15 +36,13 @@ namespace KillerPDF
         /// <summary>The list's view of the table: sections in KsGroups order, rows in declaration
         /// order. Caps are ignored here; they only matter to the keyboard map.</summary>
         private static KsSection[] KsColumn(bool right) =>
-            ShortcutTable.KsGroups.Where(g => g.Right == right)
+            [.. ShortcutTable.KsGroups.Where(g => g.Right == right)
                 .Select(g => new KsSection
                 {
                     TitleKey = g.TitleKey,
                     Cat = g.Cat,
-                    Rows = ShortcutTable.KsAll.Where(b => b.Cat == g.Cat)
-                                              .Select(b => new KsRow(b.Keys, b.LabelKey)).ToArray(),
-                })
-                .ToArray();
+                    Rows = [.. ShortcutTable.KsAll.Where(b => b.Cat == g.Cat).Select(b => new KsRow(b.Keys, b.LabelKey))],
+                })];
 
         private static readonly KsSection[] KsLeftColumn  = KsColumn(right: false);
         private static readonly KsSection[] KsRightColumn = KsColumn(right: true);
@@ -93,13 +91,13 @@ namespace KillerPDF
                     .FirstOrDefault();
                 if (resourceKey == null) { pos = start + 1; continue; }   // unknown, leave as text
 
-                if (start > pos) target.Inlines.Add(new System.Windows.Documents.Run(text.Substring(pos, start - pos)));
+                if (start > pos) target.Inlines.Add(new System.Windows.Documents.Run(text[pos..start]));
                 var run = new System.Windows.Documents.Run();
                 run.SetResourceReference(System.Windows.Documents.Run.TextProperty, resourceKey);
                 target.Inlines.Add(run);
                 pos = end + 1;
             }
-            if (pos < text.Length) target.Inlines.Add(new System.Windows.Documents.Run(text.Substring(pos)));
+            if (pos < text.Length) target.Inlines.Add(new System.Windows.Documents.Run(text[pos..]));
         }
 
         // Fill the two overlay columns from the tables above. Called once from the constructor; the
@@ -134,8 +132,9 @@ namespace KillerPDF
                 header.SetResourceReference(TextBlock.TextProperty, section.TitleKey);
                 // Category color, the same KsCat* brushes the keyboard map lights its keys with,
                 // so a section reads as the same color in both views (KillerShell's layout).
-                header.SetResourceReference(TextBlock.ForegroundProperty,
-                    section.Cat.Length > 0 ? "KsCat" + section.Cat : "PrimaryBrush");
+                // Category color remains visible on the keyboard border and bar. List headings use
+                // the theme's readable text foreground so every family has consistent contrast.
+                header.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
                 host.Children.Add(header);
 
                 for (int r = 0; r < section.Rows.Length; r++)

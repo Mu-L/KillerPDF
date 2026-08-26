@@ -4,6 +4,10 @@ using Docnet.Core;
 
 namespace KillerPDF.Services
 {
+    // PDFium uses cdecl callbacks, mutable byte buffers, and native structs across one audited
+    // runtime-marshalling boundary. LibraryImport does not cover every signature in this bridge,
+    // so keep one consistent DllImport surface rather than mixing incompatible stub strategies.
+#pragma warning disable SYSLIB1054
     // ============================================================
     // Direct PDFium P/Invoke - the ONE home for every direct
     // pdfium.dll call in the app (KillerUI refactor; formerly split
@@ -30,10 +34,12 @@ namespace KillerPDF.Services
 
         // ---- Document / page lifecycle -------------------------------------------------------
 
+#pragma warning disable CA2101 // PDFium requires UTF-8 narrow strings, explicitly declared below.
         [DllImport("pdfium.dll", EntryPoint = "FPDF_LoadDocument", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr FPDF_LoadDocumentRaw(
-            [MarshalAs(UnmanagedType.LPStr)] string filePath,
-            [MarshalAs(UnmanagedType.LPStr)] string? password);
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string filePath,
+            [MarshalAs(UnmanagedType.LPUTF8Str)] string? password);
+#pragma warning restore CA2101
         internal static IntPtr FPDF_LoadDocument(string filePath, string? password)
         { lock (PdfiumLock) return FPDF_LoadDocumentRaw(filePath, password); }
 
@@ -115,11 +121,15 @@ namespace KillerPDF.Services
         [DllImport("pdfium.dll", EntryPoint = "FPDFAnnot_SetFlags", CallingConvention = CallingConvention.Cdecl)]
         private static extern int FPDFAnnot_SetFlagsRaw(IntPtr annot, int flags);
 
+        [DllImport("pdfium.dll", EntryPoint = "FPDFAnnot_GetFormFieldFlags", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int FPDFAnnot_GetFormFieldFlagsRaw(IntPtr formHandle, IntPtr annot);
+
         private const int FPDFBitmapBgra = 4;
         private const int FpdfAnnot = 0x01;
         private const int FpdfLcdText = 0x02;
         private const int FpdfAnnotSubtypeWidget = 20;   // fpdf_annot.h FPDF_ANNOT_WIDGET
         private const int FpdfAnnotFlagHidden = 1 << 1;  // fpdf_annot.h FPDF_ANNOT_FLAG_HIDDEN
+        private const int FpdfFormFlagPushButton = 1 << 16;  // fpdf_annot.h FPDF_FORMFLAG_BUTTON_PUSHBUTTON
 
         // Marks every WIDGET annotation on the loaded page hidden so the FPDF_ANNOT render pass
         // does not paint form-field appearances, and returns each widget's original flags by
@@ -127,8 +137,14 @@ namespace KillerPDF.Services
         // In-memory only: this renderer's document is a one-shot load that is closed right after,
         // never saved. EntryPointNotFound (an older bundled PDFium without the annot API) returns
         // null and degrades to leaving the fields baked in.
-        private static System.Collections.Generic.Dictionary<int, int>? HideWidgetAnnotations(IntPtr page)
+        // sawPushButton reports whether this page carried one. Push buttons are the only
+        // widgets left without a live overlay, so they are the only reason the viewer needs
+        // FFLDraw at all, and the caller uses this to skip that call on every page that has
+        // none. False whenever the annot API was unavailable, which is the safe direction.
+        private static System.Collections.Generic.Dictionary<int, int>? HideWidgetAnnotations(
+            IntPtr page, IntPtr formHandle, out bool sawPushButton)
         {
+            sawPushButton = false;
             try
             {
                 var saved = new System.Collections.Generic.Dictionary<int, int>();
@@ -141,9 +157,17 @@ namespace KillerPDF.Services
                     {
                         if (FPDFAnnot_GetSubtypeRaw(annot) == FpdfAnnotSubtypeWidget)
                         {
+                            // Push buttons have no live WPF editor overlay. Leave their authored
+                            // appearance in the page bitmap so interactive viewing cannot erase them.
+                            int formFlags = FormFieldFlags(formHandle, annot);
+                            if ((formFlags & FpdfFormFlagPushButton) != 0)
+                            {
+                                sawPushButton = true;
+                                continue;
+                            }
                             int flags = FPDFAnnot_GetFlagsRaw(annot);
                             saved[i] = flags;
-                            FPDFAnnot_SetFlagsRaw(annot, flags | FpdfAnnotFlagHidden);
+                            _ = FPDFAnnot_SetFlagsRaw(annot, flags | FpdfAnnotFlagHidden);
                         }
                     }
                     finally { FPDFPage_CloseAnnotRaw(annot); }
@@ -151,6 +175,13 @@ namespace KillerPDF.Services
                 return saved;
             }
             catch { return null; /* annot API unavailable: fields stay baked, no crash */ }
+        }
+
+        private static int FormFieldFlags(IntPtr formHandle, IntPtr annotation)
+        {
+            if (formHandle == IntPtr.Zero) return 0;
+            try { return FPDFAnnot_GetFormFieldFlagsRaw(formHandle, annotation); }
+            catch (EntryPointNotFoundException) { return 0; }
         }
 
         // Puts back the widget flags HideWidgetAnnotations saved, so FFLDraw sees the original
@@ -165,7 +196,7 @@ namespace KillerPDF.Services
                 {
                     IntPtr annot = FPDFPage_GetAnnotRaw(page, kv.Key);
                     if (annot == IntPtr.Zero) continue;
-                    try { FPDFAnnot_SetFlagsRaw(annot, kv.Value); }
+                    try { _ = FPDFAnnot_SetFlagsRaw(annot, kv.Value); }
                     finally { FPDFPage_CloseAnnotRaw(annot); }
                 }
             }
@@ -225,9 +256,10 @@ namespace KillerPDF.Services
                                 // whenever the /AP layout and FFLDraw's (NeedAppearances) layout
                                 // disagreed. If the output path has no form environment to draw
                                 // with, the widgets stay visible so the static pass still shows them.
+                                bool sawPushButton = false;
                                 var savedWidgetFlags = includeFormFields && form == IntPtr.Zero
                                     ? null
-                                    : HideWidgetAnnotations(page);
+                                    : HideWidgetAnnotations(page, form, out sawPushButton);
                                 IntPtr bitmap = FPDFBitmap_CreateExRaw(
                                     width, height, FPDFBitmapBgra, pinned.AddrOfPinnedObject(), stride);
                                 if (bitmap == IntPtr.Zero) return null;
@@ -237,9 +269,30 @@ namespace KillerPDF.Services
                                         transparentBackground ? 0x00000000 : 0xFFFFFFFF);
                                     FPDF_RenderPageBitmapRaw(bitmap, page, 0, 0, width, height, 0,
                                         FpdfAnnot | FpdfLcdText);
-                                    if (includeFormFields && form != IntPtr.Zero)
+                                    // Push buttons have no live overlay, and the static pass above
+                                    // does not paint them: it is byte-identical in both modes, yet
+                                    // they only ever appear on the output path, so FFLDraw is what
+                                    // draws them. The viewer therefore needs FFLDraw too.
+                                    //
+                                    // Output mode restores every widget first so FFLDraw paints them
+                                    // all, exactly as before. Viewer mode leaves the hidden flags on,
+                                    // so FFLDraw paints only what HideWidgetAnnotations deliberately
+                                    // skipped - the push buttons. Text, choice and check fields stay
+                                    // hidden, so the ghosted-value regression from 1.7.2 cannot return.
+                                    //
+                                    // The viewer takes that second pdfium call only on a page that
+                                    // actually holds a push button, so a document without any renders
+                                    // through the same single pass it always did.
+                                    //
+                                    // If hiding was unavailable (an older bundled PDFium returns null
+                                    // from HideWidgetAnnotations), the viewer skips FFLDraw rather
+                                    // than painting every field over its own overlay.
+                                    if (form != IntPtr.Zero
+                                        && (includeFormFields
+                                            || (savedWidgetFlags is not null && sawPushButton)))
                                     {
-                                        RestoreWidgetAnnotationFlags(page, savedWidgetFlags);
+                                        if (includeFormFields)
+                                            RestoreWidgetAnnotationFlags(page, savedWidgetFlags);
                                         FPDF_FFLDrawRaw(form, bitmap, page, 0, 0, width, height, 0,
                                             FpdfAnnot | FpdfLcdText);
                                     }
@@ -471,4 +524,5 @@ namespace KillerPDF.Services
             }
         }
     }
+#pragma warning restore SYSLIB1054
 }

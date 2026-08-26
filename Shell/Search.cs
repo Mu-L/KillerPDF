@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Features;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
@@ -43,7 +40,7 @@ namespace KillerPDF
 
         void ISearchHost.SetResultText(string text)
         {
-            if (_searchStatus is not null) _searchStatus.Text = text;
+            _searchStatus?.Text = text;
         }
 
         void ISearchHost.SetResultCount(string text, string? tooltip)
@@ -173,7 +170,8 @@ namespace KillerPDF
                 var searchGrip = new Border
                 {
                     Background = Brushes.Transparent,   // transparent yet hit-testable, so it can be grabbed
-                    Cursor = Cursors.SizeAll,
+                    // No Cursor here: EnablePanelDrag sets the grab hand when it wires the drag,
+                    // so the affordance has one source of truth.
                     VerticalAlignment = VerticalAlignment.Stretch,
                     Child = gripDots,
                     ToolTip = Loc("Str_Search_DragTT")
@@ -246,7 +244,7 @@ namespace KillerPDF
 
             _searchBar.Visibility = Visibility.Visible;
             _searchBox!.Text = "";
-            if (_searchStatus != null) _searchStatus.Text = "";
+            _searchStatus?.Text = "";
             FitSearchBox();
             _searchBox.Focus();
             Keyboard.Focus(_searchBox);
@@ -308,7 +306,7 @@ namespace KillerPDF
                 _searchDebounce?.Stop();
                 ClearSearchHighlights();
                 Search.ClearMatches();
-                if (_searchStatus is not null) _searchStatus.Text = "";
+                _searchStatus?.Text = "";
                 return;
             }
             // Debounce: wait for a brief pause in typing before searching, so the first keystrokes
@@ -337,13 +335,14 @@ namespace KillerPDF
         private void ApplySearchHighlights(int page, Canvas canvas)
         {
             if (_searchBar is null || _searchBar.Visibility != Visibility.Visible) return;
-            if (_doc is null || page < 0 || page >= _doc.PageCount) return;
+            if (_doc is null || page < 0 || page >= EnsureEngineDocumentSession().PageCount) return;
             if (!Search.TryGetPageRects(page, out var rects)) return;
             if (!_renderDims.TryGetValue(page, out var rd)) return;
 
             var (renderW, renderH) = rd;
-            double pdfW = _doc.Pages[page].Width.Point;
-            double pdfH = _doc.Pages[page].Height.Point;
+            var pageInfo = EnsureEngineDocumentSession().Pages[page];
+            double pdfW = pageInfo.Width;
+            double pdfH = pageInfo.Height;
             if (pdfW <= 0 || pdfH <= 0) return;
             double sx = renderW / pdfW;
             double sy = renderH / pdfH;
@@ -370,7 +369,7 @@ namespace KillerPDF
             }
         }
 
-        private void AddSearchHighlight(Canvas canvas, double left, double bottom, double right, double top,
+        private static void AddSearchHighlight(Canvas canvas, double left, double bottom, double right, double top,
             double sx, double sy, double renderH, bool isCurrent)
         {
             double cw = (right - left) * sx;

@@ -2,9 +2,13 @@
   <a href="https://killerpdf.net"><img src="docs/wordmark.png" width="640" alt="KillerPDF wordmark: a free, open-source PDF editor for Windows"></a>
 </p>
 
-KillerPDF is a free, open-source PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription. Install it or run it portable from the same Windows download. No runtime installation is required, and the app never phones home.
+KillerPDF is a free, open-source PDF editor for Windows. View, annotate, OCR, merge, split, edit text, draw, sign, fill forms, print, flatten, and open password-protected PDFs without an Adobe subscription. Choose the compact Windows installer or the self-contained portable edition. The app never phones home.
 
 Full how-tos live on the [help page](https://killerpdf.net/help.html); internals, formats, and limits on the [technical page](https://killerpdf.net/technical.html).
+
+## The KillerPDF.Engine
+
+KillerPDF 1.8 introduces The KillerPDF.Engine, an independent and reusable .NET library for PDF 2.0, PDF/A, and PDF/UA document processing. It is a first-class area of this monorepo with its own public API, tests, corpus tooling, architecture documentation, [README](engine/README.md), and release history.
 
 ## Features
 
@@ -20,7 +24,7 @@ Full how-tos live on the [help page](https://killerpdf.net/help.html); internals
 - Night-mode inversion works independently in each split pane. Thirteen themes, live accent colors, and toolbar styles provide 33 looks, while the resizable sidebar can dock on either side.
 - Localized UI in 12 languages (contribute via `TRANSLATING.md`); full keyboard shortcut overlay on F1 with list and visual keyboard views
 - Opens password-protected PDFs (prompts instead of erroring) and repairs damaged ones
-- Runs portable, or self-installs per-user (no UAC) or machine-wide (`/silent` for scripted deployment); registers as a PDF handler and uninstalls cleanly
+- Separate standard and portable downloads: the compact installer supports per-user or machine-wide deployment, while the larger portable edition includes its own runtime
 - Standards-safe saves: every release is tested against a 2,900-file veraPDF conformance corpus with a zero-regressions requirement. See [validation/RESULTS.md](validation/RESULTS.md).
 - Local-only: no account, no telemetry, no phone-home
 
@@ -53,7 +57,8 @@ Full reference on the [help page](https://killerpdf.net/help.html).
 ## Requirements
 
 - Windows 10 or 11 (x64)
-- No runtime install. Everything needed is inside the EXE (targets .NET Framework 4.8, which ships with every supported Windows release).
+- The standard installer uses the .NET 10 Desktop Runtime and offers to install it when needed.
+- The portable package includes the runtime and works offline without installation.
 
 ## Download
 
@@ -69,7 +74,8 @@ Chocolately:
 choco install killerpdf
 ```
 
-- Prebuilt binary: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF.exe>
+- Standard installer: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF-Setup.exe>
+- Portable edition: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF-Portable.exe>
 - Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.7.5/KillerPDF-1.7.5-src.zip>
 
 ## Build from source
@@ -80,11 +86,11 @@ cd KillerPDF
 dotnet publish -c Release
 ```
 
-Output lands in `bin/Release/net48/publish/`. Normal publishing produces the development single-file build plus a versioned `KillerPDF-<version>-src.zip`. The release pipeline builds a verified multi-file payload and packs it into one portable `KillerPDF.exe`; installed shortcuts launch the inner app directly for faster startup.
+Output lands in `bin/Release/net10.0-windows/publish/`. Normal publishing produces the development build plus a versioned `KillerPDF-<version>-src.zip`. The release pipeline builds `KillerPDF-Setup.exe`, a compact framework-dependent installer, and `KillerPDF-Portable.exe`, a self-contained offline edition. Installed shortcuts launch the inner app directly for faster startup.
 
-Requires the .NET 8 SDK or later to build (even though the output targets .NET Framework 4.8).
+The current 1.8 development branch requires the .NET 10 SDK. Both the reusable engine and the Windows application now target .NET 10, with the application using `net10.0-windows`.
 
-The PDF write engine (PdfSharpCore, MIT) is vendored under `third_party/PdfSharpCore/` and builds as part of the solution; it carries six standards-conformance patches, each marked `KillerPDF patch` in the source. Origin commit and details are recorded in `third_party/PdfSharpCore/VENDORED.txt`.
+The desktop document pipeline now uses The KillerPDF.Engine for document parsing, writing, editing, repair, forms, annotations, signatures, and preservation-sensitive page operations. PDFium remains the rendering backend, while PdfPig handles text extraction.
 
 ## Translations
 
@@ -92,7 +98,7 @@ UI strings live in `Strings/` (one XAML `ResourceDictionary` per locale). To add
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md).
+See the [KillerPDF application changelog](CHANGELOG.md) and [The KillerPDF.Engine changelog](engine/CHANGELOG.md).
 
 ## License
 

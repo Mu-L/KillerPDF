@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using PdfSharpCore.Pdf;
+using KillerPDF.Services;
 
 namespace KillerPDF.Controls
 {
@@ -35,7 +35,7 @@ namespace KillerPDF.Controls
         // unchanged. Still nested, so it is only reachable as MainWindow.DocumentSession.
         internal sealed class DocumentSession : System.ComponentModel.INotifyPropertyChanged
         {
-            public PdfDocument? Doc;
+            public PdfWorkingDocument? Doc;
             public string? CurrentFile;
             public string? OriginalFile;
             // Set on a restored tab that hasn't been loaded yet (lazy tabs): Doc stays null until the
@@ -68,10 +68,12 @@ namespace KillerPDF.Controls
             // which killed the background render tasks (vanishing thumbnails after invert).
             public readonly System.Collections.Concurrent.ConcurrentDictionary<(int page, int bucket, int rot), long> RenderCacheSize = new();
             public Dictionary<int, int> PageRotations = [];
-            public Dictionary<int, string> FormTextValues = [];
-            public Dictionary<int, bool> FormCheckValues = [];
+            public Dictionary<string, string> FormTextValues = [];
+            public Dictionary<string, string> FormChoiceValues = [];
+            public Dictionary<string, IReadOnlyList<string>> FormMultiChoiceValues = [];
+            public Dictionary<string, bool> FormCheckValues = [];
             public Dictionary<string, string> FormRadioValues = [];
-            public Dictionary<int, double> FormFontSizes = [];
+            public Dictionary<string, double> FormFontSizes = [];
             public Stack<UndoEntry> UndoStack = new();
             public Stack<UndoEntry> RedoStack = new();
             public Dictionary<int, List<(double left, double bottom, double right, double top)>> AllSearchRects = [];
@@ -205,6 +207,8 @@ namespace KillerPDF.Controls
             s.RenderDims       = _renderDims;
             s.PageRotations    = _pageRotations;
             s.FormTextValues   = _formTextValues;
+            s.FormChoiceValues = _formChoiceValues;
+            s.FormMultiChoiceValues = _formMultiChoiceValues;
             s.FormCheckValues  = _formCheckValues;
             s.FormRadioValues  = _formRadioValues;
             s.FormFontSizes    = _formFontSizes;
@@ -230,7 +234,7 @@ namespace KillerPDF.Controls
         // recent first, capped. '|' and newline are both illegal in Windows paths, so they're safe delimiters.
         private const int DocStatesMax = 40;
 
-        private void SaveDocState(string? path, FitMode fit, double zoom, ViewMode view, int page)
+        private static void SaveDocState(string? path, FitMode fit, double zoom, ViewMode view, int page)
         {
             if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return;   // skip Untitled/imported
             string entry = string.Join("|", path,
@@ -253,7 +257,7 @@ namespace KillerPDF.Controls
             App.SetSetting("DocStates", string.Join("\n", lines));
         }
 
-        private bool TryGetDocState(string? path, out FitMode fit, out double zoom, out ViewMode view, out int page)
+        private static bool TryGetDocState(string? path, out FitMode fit, out double zoom, out ViewMode view, out int page)
         {
             fit = FitMode.None; zoom = 1.0; view = ViewMode.Continuous; page = 0;
             if (string.IsNullOrEmpty(path)) return false;
@@ -263,11 +267,11 @@ namespace KillerPDF.Controls
             {
                 var p = line.Split('|');
                 if (p.Length < 5 || !string.Equals(p[0], path, StringComparison.OrdinalIgnoreCase)) continue;
-                Enum.TryParse(p[1], out fit);
-                double.TryParse(p[2], System.Globalization.NumberStyles.Float,
+                _ = Enum.TryParse(p[1], out fit);
+                _ = double.TryParse(p[2], System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out zoom);
-                Enum.TryParse(p[3], out view);
-                int.TryParse(p[4], out page);
+                _ = Enum.TryParse(p[3], out view);
+                _ = int.TryParse(p[4], out page);
                 if (zoom <= 0) zoom = 1.0;
                 return true;
             }
@@ -280,11 +284,9 @@ namespace KillerPDF.Controls
             _doc            = s.Doc;
             _currentFile    = s.CurrentFile;
             _originalFile   = s.OriginalFile;
-            // The cached PDFium link handle belongs to the file we're switching AWAY from. This is the one
-            // chokepoint every active-doc swap funnels through (tab switch, close-tab, close-all), so drop
-            // it here and it can never outlive its document; the next link extraction reopens it lazily for
-            // the new file (see EnsureLinkPdfiumDoc). CloseLinkPdfiumDoc is idempotent and cheap.
-            CloseLinkPdfiumDoc();
+            // The immutable engine view belongs to the file we are switching away from. This is the
+            // chokepoint for every active-document swap, so it cannot outlive its serialized source.
+            CloseEngineDocumentSession();
             _zoomLevel      = s.ZoomLevel;
             _lastRenderZoom = s.LastRenderZoom;
             _fitMode        = s.Fit;
@@ -299,6 +301,8 @@ namespace KillerPDF.Controls
             _renderDims       = s.RenderDims;
             _pageRotations    = s.PageRotations;
             _formTextValues   = s.FormTextValues;
+            _formChoiceValues = s.FormChoiceValues;
+            _formMultiChoiceValues = s.FormMultiChoiceValues;
             _formCheckValues  = s.FormCheckValues;
             _formRadioValues  = s.FormRadioValues;
             _formFontSizes    = s.FormFontSizes;
@@ -415,7 +419,7 @@ namespace KillerPDF.Controls
         }
 
         // Drop a tab's cached bitmaps after an edit that changes page pixels or page order.
-        private void InvalidateRenderCache(DocumentSession? s)
+        private static void InvalidateRenderCache(DocumentSession? s)
         {
             s?.RenderCache.Clear();
             s?.RenderCacheSize.Clear();
@@ -447,6 +451,31 @@ namespace KillerPDF.Controls
             HideDrawSettings();
             HideTextSettings();
             HideSignaturePopup();
+        }
+
+        // Stop every deferred or background renderer owned by this pane before its live document
+        // fields are replaced. Each callback already observes its token; canceling them together
+        // prevents pixels and thumbnails from the departing document reaching the incoming view.
+        private void CancelRenderWork()
+        {
+            _rerenderTimer?.Stop();
+
+            CancelAndRelease(_secondaryRenderCts);
+            _secondaryRenderCts = null;
+            CancelAndRelease(_continuousRenderCts);
+            _continuousRenderCts = null;
+            CancelAndRelease(_continuousSharpenCts);
+            _continuousSharpenCts = null;
+
+            _thumbCts?.Cancel();
+            _thumbCts?.Dispose();
+            _thumbCts = null;
+        }
+
+        private static void CancelAndRelease(System.Threading.CancellationTokenSource? source)
+        {
+            source?.Cancel();
+            source?.Dispose();
         }
 
         // ============================================================
@@ -484,7 +513,8 @@ namespace KillerPDF.Controls
             if (_doc is null) return;
             if (_viewMode == ViewMode.Continuous)
             {
-                _continuousSharpenCts?.Cancel();
+                CancelAndRelease(_continuousSharpenCts);
+                _continuousSharpenCts = null;
                 _continuousSharpPages.Clear();
                 foreach (var child in _continuousPanel.Children)
                     if (child is Border b && b.Child is Grid g
@@ -527,9 +557,9 @@ namespace KillerPDF.Controls
         // does not close the document or touch session bookkeeping (callers handle that).
         private void ShowEmptyState()
         {
+            CancelRenderWork();
             _activeTextBox = null;
             RemoveTextEditHandles();
-            _thumbCts?.Cancel();
             Host?.ClearSidebarPages(this);
             PageImage.Source = null;
             _annotationCanvas.Children.Clear();
@@ -547,7 +577,6 @@ namespace KillerPDF.Controls
                 Host.CloseFileEnabled = false;
                 Host.PageJumpEnabled = false;
             }
-            _continuousRenderCts?.Cancel();
             _continuousPanel.Children.Clear();
             _continuousTops.Clear();
             if (Host != null)
@@ -574,6 +603,7 @@ namespace KillerPDF.Controls
             EnsureInitialSession();
             CommitActiveTextBox();
             CancelTransientForSwitch();
+            CancelRenderWork();
             prev = _active;
             if (_active != null) CaptureSessionState(_active);
 
@@ -691,6 +721,7 @@ namespace KillerPDF.Controls
             Host?.FocusViewer(this);
             CommitActiveTextBox();
             CancelTransientForSwitch();
+            CancelRenderWork();
             if (_active != null) CaptureSessionState(_active);
             SetActiveSession(target);
             ApplySessionState(target);
@@ -794,6 +825,7 @@ namespace KillerPDF.Controls
                 if (res != MessageBoxResult.Yes) { RebuildTabStrip(); return; }
             }
 
+            CancelRenderWork();
             try { _doc?.Close(); } catch { }
             _doc = null;
 
@@ -842,6 +874,7 @@ namespace KillerPDF.Controls
                 if (res != MessageBoxResult.Yes) { RebuildTabStrip(); return; }
             }
 
+            CancelRenderWork();
             foreach (var s in docTabs) { try { s.Doc?.Close(); } catch { } }
             try { _doc?.Close(); } catch { }
             _doc = null;

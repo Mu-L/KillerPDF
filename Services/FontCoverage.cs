@@ -4,12 +4,12 @@ namespace KillerPDF.Services
     // Glyph coverage + the fallback chain (#168).
     //
     // The editor is WPF, which falls back per character across every installed
-    // font, so anything typed looks right on screen. PdfSharpCore resolves ONE
+    // font, so anything typed looks right on screen. The save path embeds ONE
     // face and emits .notdef (a box) for anything that face lacks. So before
     // drawing, ask which family can actually carry this text.
     //
     // Coverage is read from the font's own 'cmap' table rather than from a
-    // helper library: the bytes are already in hand (KillerFontResolver hands
+    // helper library: the bytes are already in hand (InstalledFontCatalog hands
     // back a standalone face, collections included), and parsing the table is
     // deterministic across font-library versions.
     //
@@ -112,7 +112,7 @@ namespace KillerPDF.Services
         // ── Coverage ──────────────────────────────────────────────────────────────────────────
 
         private static readonly Dictionary<string, CmapCoverage?> Cache = new(StringComparer.OrdinalIgnoreCase);
-        private static readonly object Gate = new();
+        private static readonly Lock Gate = new();
 
         private static bool Covers(string family, string text)
         {
@@ -135,7 +135,7 @@ namespace KillerPDF.Services
                 CmapCoverage? cov = null;
                 try
                 {
-                    var bytes = KillerFontResolver.RegularFaceBytes(family);
+                    var bytes = InstalledFontCatalog.RegularFaceBytes(family);
                     if (bytes is not null) cov = CmapCoverage.Parse(bytes);
                 }
                 catch { cov = null; }

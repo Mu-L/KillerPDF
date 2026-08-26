@@ -19,12 +19,12 @@ namespace KillerPDF.Services
     // others apply a small overlay dictionary that recolors only the accent-family keys.
     internal enum DarkAccent { Green, Red, Blue, Purple, Orange, Teal }
 
-    internal static class ThemeManager
+    internal static partial class ThemeManager
     {
         // ── P/Invoke ──────────────────────────────────────────────────────
 
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmSetWindowAttribute(
+        [LibraryImport("dwmapi.dll")]
+        private static partial int DwmSetWindowAttribute(
             IntPtr hwnd, int attr, ref int attrValue, int attrSize);
 
         private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
@@ -675,7 +675,7 @@ namespace KillerPDF.Services
             try
             {
                 int value = dark ? 1 : 0;
-                DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref value, sizeof(int));
+                _ = DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref value, sizeof(int));
 
                 // Tint the Win11 1px frame border to the theme's pane border so the
                 // window outline follows the palette instead of staying system gray.
@@ -685,7 +685,7 @@ namespace KillerPDF.Services
                 {
                     // COLORREF is 0x00BBGGRR
                     int colorref = b.Color.R | (b.Color.G << 8) | (b.Color.B << 16);
-                    DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref colorref, sizeof(int));
+                    _ = DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref colorref, sizeof(int));
                 }
             }
 

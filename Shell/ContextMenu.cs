@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -296,24 +293,20 @@ namespace KillerPDF
             menu.Items.Add(book);
         }
 
-        // Deep-copies page pageIdx and inserts the copy right after it. AddPage on a same-document page
-        // would share the reference rather than duplicate, so the page is re-imported from an in-memory
-        // copy of the document (the same round-trip the undo snapshot uses).
+        // Deep-copies page pageIdx and inserts the copy right after it. The engine imports the complete
+        // reachable page graph into a new page identity instead of sharing the original page reference.
         private void DuplicatePage(int pageIdx)
         {
             if (_doc is null || pageIdx < 0 || pageIdx >= _doc.PageCount) return;
-            var doc = _doc;
             try
             {
-                using var ms = new MemoryStream();
-                doc.Save(ms, false);
-                ms.Position = 0;
-                using var src = PdfReader.Open(ms, PdfDocumentOpenMode.Import);
-                var copy = doc.AddPage(src.Pages[pageIdx]);   // imported copy, appended at the end
-                doc.Pages.RemoveAt(doc.PageCount - 1);
-                doc.Pages.Insert(pageIdx + 1, copy);
-                SaveTempAndReload();
-                PageList.SelectedIndex = pageIdx + 1;
+                SaveTempAndReload(
+                    finalizeSavedFile: path =>
+                        PdfEngineIntegration.DuplicatePage(path, pageIdx),
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterPageDuplication(
+                            rotations, pageIdx),
+                    selectedPageAfterReload: pageIdx + 1);
                 SetStatus(string.Format(Loc("Str_St_DuplicatedPage"), pageIdx + 1));
             }
             catch (Exception ex)
@@ -326,7 +319,7 @@ namespace KillerPDF
         // z-order list from a's index. Returns its list index, or -1 if nothing overlaps in that direction.
         // "Layer" order is judged by what actually sits on top of / under a at its location, so Raise/Lower
         // step past only the things stacked with it - not unrelated annotations elsewhere on the page.
-        private int OverlapNeighbor(List<PageAnnotation> list, int i, PageAnnotation a, int dir)
+        private static int OverlapNeighbor(List<PageAnnotation> list, int i, PageAnnotation a, int dir)
         {
             var ab = AnnotBounds(a);
             if (dir > 0)
@@ -569,19 +562,32 @@ namespace KillerPDF
             // (rotate, move, delete) only make sense on a thumbnail; the empty area gets the page-agnostic
             // menu (same one the gray area around the page uses). With no document open the menu still
             // opens, carrying only the sidebar-side section appended at the bottom.
-            bool onThumb = false;
+            ListBoxItem? clickedItem = null;
             if (_doc is not null)
                 for (var d = e.OriginalSource as DependencyObject; d != null; d = VisualTreeHelper.GetParent(d))
-                    if (d is ListBoxItem) { onThumb = true; break; }
+                    if (d is ListBoxItem item) { clickedItem = item; break; }
+
+            bool onThumb = clickedItem is not null;
+            int clickedPage = -1;
+            if (clickedItem?.DataContext is PageThumbnailVm clickedThumbnail)
+            {
+                clickedPage = clickedThumbnail.PageIndex;
+                // WPF does not select a ListBoxItem on right-click. Make page actions target the
+                // thumbnail that opened the menu, while preserving an existing multi-selection.
+                if (!PageList.SelectedItems.Contains(clickedThumbnail))
+                    PageList.SelectedItem = clickedThumbnail;
+            }
 
             var menu = MakeThemedMenu();
             if (onThumb)
             {
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_InsertBlank"), (s, ev) => InsertBlankPage_Click(s!, ev), glyph: ""));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DuplicatePage"), (s, ev) => DuplicatePage(PageList.SelectedIndex), glyph: ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_Merge"), async (s, ev) => await MergeAtIndex(clickedPage + 1), glyph: ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DuplicatePage"), (s, ev) => DuplicatePage(clickedPage), glyph: ""));
                 menu.Items.Add(new Separator());
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCWShort"), (s, ev) => RotatePages_Click(90), glyph: ""));
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCCWShort"), (s, ev) => RotatePages_Click(-90), glyph: ""));
+                menu.Items.Add(MakeMenuItem(Loc("Str_Tf_Suffix"), (s, ev) => OpenTransformWindow(), glyph: ""));
                 menu.Items.Add(new Separator());
                 menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_MoveUp"), (s, ev) => MoveUp_Click(s!, ev), glyph: ""));
                 menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_MoveDown"), (s, ev) => MoveDown_Click(s!, ev), glyph: ""));

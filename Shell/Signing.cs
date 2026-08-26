@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -85,9 +82,7 @@ namespace KillerPDF
             {
                 _pendingSignField = (initials, objNum, pageIndex, x, y, w, h);
                 ShowSignaturePopup();
-                SetStatus(initials
-                    ? "Choose initials - they will be reused for every initials field"
-                    : "Choose a signature - it will be reused for every signature field");
+                SetStatus(initials ? Loc("Str_Sig_Initials") : Loc("Str_Sig_Signatures"));
                 return;
             }
             DropSignatureInField(objNum, choice, pageIndex, x, y, w, h);
@@ -198,7 +193,7 @@ namespace KillerPDF
         /// top-right inset when nothing is stored. Always clamped inside <paramref name="bounds"/>.
         /// Must run after layout so the panel's ActualWidth/Height are known.
         /// </summary>
-        private void ApplySavedPanelPosition(FrameworkElement panel, FrameworkElement bounds, string keyPrefix,
+        private static void ApplySavedPanelPosition(FrameworkElement panel, FrameworkElement bounds, string keyPrefix,
                                              double fallbackRightInset, double fallbackTop)
         {
             double w = panel.ActualWidth > 0 ? panel.ActualWidth : (double.IsNaN(panel.Width) ? 0 : panel.Width);
@@ -221,20 +216,24 @@ namespace KillerPDF
         /// Makes <paramref name="handle"/> drag <paramref name="panel"/> within <paramref name="bounds"/>,
         /// clamped to stay inside, and persists the resulting position under <paramref name="keyPrefix"/>.
         /// </summary>
-        private void EnablePanelDrag(FrameworkElement handle, FrameworkElement panel, FrameworkElement bounds,
+        private static void EnablePanelDrag(FrameworkElement handle, FrameworkElement panel, FrameworkElement bounds,
                                      string keyPrefix)
         {
-            handle.Cursor = Cursors.SizeAll;
+            handle.Cursor = DragCursors.Open;
             Point start = default;
             Thickness orig = default;
             bool dragging = false;
 
+            // A capture lost to an alt-tab or a dialog never reaches the button-up handler, which
+            // would strand the closed hand on screen for the rest of the session.
+            handle.LostMouseCapture += (s, e) => { dragging = false; DragCursors.EndDrag(); };
             handle.MouseLeftButtonDown += (s, e) =>
             {
                 dragging = true;
                 start = e.GetPosition(bounds);
                 orig  = panel.Margin;
                 handle.CaptureMouse();
+                DragCursors.BeginDrag();
                 e.Handled = true;
             };
             handle.MouseMove += (s, e) =>
@@ -251,13 +250,14 @@ namespace KillerPDF
                 if (!dragging) return;
                 dragging = false;
                 handle.ReleaseMouseCapture();
+                DragCursors.EndDrag();
                 App.SetSetting(keyPrefix + "Left", ((int)panel.Margin.Left).ToString());
                 App.SetSetting(keyPrefix + "Top",  ((int)panel.Margin.Top).ToString());
                 e.Handled = true;
             };
         }
 
-        private void RenderSignaturePreview(Canvas canvas, SavedSignature sig, double targetW, double targetH)
+        private static void RenderSignaturePreview(Canvas canvas, SavedSignature sig, double targetW, double targetH)
         {
             double scaleX = targetW / sig.CanvasWidth;
             double scaleY = targetH / sig.CanvasHeight;

@@ -232,7 +232,7 @@ namespace KillerPDF
         }
 
         // ---------- Page Numbers section ----------
-        private FrameworkElement BuildNumbersSection()
+        private StackPanel BuildNumbersSection()
         {
             var wrap = new StackPanel();
             _numBody = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
@@ -287,7 +287,7 @@ namespace KillerPDF
         }
 
         // ---------- Watermark section ----------
-        private FrameworkElement BuildWatermarkSection()
+        private StackPanel BuildWatermarkSection()
         {
             var wrap = new StackPanel();
             _wmBody = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
@@ -363,7 +363,7 @@ namespace KillerPDF
         }
 
         // ---------- shared builders ----------
-        private CheckBox SectionToggle(string text, bool on)
+        private static CheckBox SectionToggle(string text, bool on)
         {
             var cb = UiKit.CheckBox(text);
             cb.IsChecked = on;
@@ -375,7 +375,7 @@ namespace KillerPDF
 
         // Collapsible section header. The enable checkbox itself expands (checked) or collapses (unchecked)
         // the body; the chevron is just a non-clickable indicator of that state.
-        private FrameworkElement SectionHeaderRow(CheckBox enable, StackPanel body)
+        private static StackPanel SectionHeaderRow(CheckBox enable, StackPanel body)
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
             var chevron = new TextBlock
@@ -398,7 +398,7 @@ namespace KillerPDF
         }
 
         // A slider paired with a small numeric input box (two-way synced), e.g. font size.
-        private FrameworkElement SliderBoxRow(string label, double min, double max, double value, out Slider slider, out TextBox box)
+        private StackPanel SliderBoxRow(string label, double min, double max, double value, out Slider slider, out TextBox box)
         {
             var panel = new StackPanel { Margin = new Thickness(0, 2, 0, 8) };
             panel.Children.Add(UiKit.GroupLabel(label));
@@ -434,14 +434,14 @@ namespace KillerPDF
             return combo;
         }
 
-        private RadioButton MakeRadio(string text, bool isChecked)
+        private static RadioButton MakeRadio(string text, bool isChecked)
         {
             var rb = UiKit.Radio(text);
             rb.IsChecked = isChecked;
             return rb;
         }
 
-        private FrameworkElement ColorRow(string label, Color initial, out Border swatch, Action<Color> onPick)
+        private StackPanel ColorRow(string label, Color initial, out Border swatch, Action<Color> onPick)
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8), VerticalAlignment = VerticalAlignment.Center };
             row.Children.Add(new TextBlock { Text = label, Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont, FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
@@ -479,15 +479,15 @@ namespace KillerPDF
             return row;
         }
 
-        private FrameworkElement Divider() => new Border { Height = 1, Background = R("CardBorderBrush"), Opacity = 0.6, Margin = new Thickness(0, 12, 0, 12) };
+        private static Border Divider() => new() { Height = 1, Background = R("CardBorderBrush"), Opacity = 0.6, Margin = new Thickness(0, 12, 0, 12) };
 
         private void UpdateEnabledStates()
         {
-            if (_wmTextPanel != null) _wmTextPanel.Visibility = _wmImageRadio.IsChecked == true ? Visibility.Collapsed : Visibility.Visible;
-            if (_wmImagePanel != null) _wmImagePanel.Visibility = _wmImageRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            _wmTextPanel?.Visibility = _wmImageRadio.IsChecked == true ? Visibility.Collapsed : Visibility.Visible;
+            _wmImagePanel?.Visibility = _wmImageRadio.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             // Nothing to apply unless at least one section is enabled - EXCEPT when the document
             // already has stamps: applying with both sections off is how they are removed (#145).
-            if (_applyBtn != null) _applyBtn.IsEnabled = _hadExisting
+            _applyBtn?.IsEnabled = _hadExisting
                 || _numEnable?.IsChecked == true || _wmEnable?.IsChecked == true;
         }
 
@@ -530,7 +530,7 @@ namespace KillerPDF
 
         // ---------- preview ----------
         // ---------- Preview page stepper ----------
-        private FrameworkElement BuildPageNav()
+        private StackPanel BuildPageNav()
         {
             _prevArrow = MakeNavArrow("", () => GoToPage(_pageIndex - 1));   // ChevronLeft
             _nextArrow = MakeNavArrow("", () => GoToPage(_pageIndex + 1));   // ChevronRight
@@ -554,7 +554,7 @@ namespace KillerPDF
         }
 
         // Same chrome as the print preview stepper (UiKit.Make), so the two windows share one button style.
-        private Button MakeNavArrow(string glyph, Action onClick)
+        private static Button MakeNavArrow(string glyph, Action onClick)
         {
             var b = UiKit.Make(glyph, false);
             b.FontFamily = UiKit.IconFont;
@@ -751,10 +751,13 @@ namespace KillerPDF
         {
             _overlay.IsHitTestVisible = true;
             el.IsHitTestVisible = true;
-            el.Cursor = Cursors.SizeAll;
+            el.Cursor = DragCursors.Open;
             bool dragging = false;
-            el.MouseLeftButtonDown += (_, e) => { dragging = true; el.CaptureMouse(); e.Handled = true; };
-            el.MouseLeftButtonUp   += (_, _2) => { dragging = false; el.ReleaseMouseCapture(); };
+            el.MouseLeftButtonDown += (_, e) => { dragging = true; el.CaptureMouse(); DragCursors.BeginDrag(); e.Handled = true; };
+            el.MouseLeftButtonUp   += (_, _2) => { dragging = false; el.ReleaseMouseCapture(); DragCursors.EndDrag(); };
+            // A capture lost to an alt-tab or a dialog never reaches the button-up handler, which
+            // would strand the closed hand on screen for the rest of the session.
+            el.LostMouseCapture    += (_, _2) => { dragging = false; DragCursors.EndDrag(); };
             el.MouseMove += (_, e) =>
             {
                 if (!dragging) return;

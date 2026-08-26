@@ -12,7 +12,7 @@ public sealed class TextRunServiceTests
     [InlineData("טקסט עברי", true)]
     [InlineData("1234", false)]
     public void DetectsLineDirection(string text, bool expected)
-        => Assert.Equal(expected, TextRunService.IsRightToLeftText(new[] { text }));
+        => Assert.Equal(expected, TextRunService.IsRightToLeftText([text]));
 
     [Fact]
     public void RightToLeftCaretMovesFromRightEdgeToLeftEdge()

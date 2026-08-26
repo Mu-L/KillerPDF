@@ -37,6 +37,9 @@ namespace KillerPDF.Features
         /// <summary>The '+'-joined Tesseract language string, e.g. "eng" or "eng+spa".</summary>
         string OcrLanguageString { get; }
 
+        /// <summary>Whether OCR should use existing AcroForm geometry and field constraints.</summary>
+        bool FormAwareOcr { get; }
+
         /// <summary>Makes sure the selected language models are on disk, downloading behind a
         /// heads-up dialog if not. False when the user declined or the download failed.</summary>
         Task<bool> EnsureOcrModelsReadyAsync();

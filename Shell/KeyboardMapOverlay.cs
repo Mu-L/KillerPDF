@@ -25,8 +25,8 @@ namespace KillerPDF
         private TextBlock? _kbDetail;
         private TextBlock? _kbHoverAct;   // caption of the key under the mouse (marquee restart on layer switch)
         private string? _kbHoverId;
-        private readonly Dictionary<string, (Border Cap, TextBlock Act, Rectangle Bar)> _kbKeys = new();
-        private readonly Dictionary<KbLayer, Button> _kbLayerBtns = new();
+        private readonly Dictionary<string, (Border Cap, TextBlock Act, Rectangle Bar)> _kbKeys = [];
+        private readonly Dictionary<KbLayer, Button> _kbLayerBtns = [];
 
         private const string KsViewSetting = "ShortcutView";   // "list" (default) | "keyboard"
 
@@ -66,6 +66,23 @@ namespace KillerPDF
             (KbLayer.Shift, "SHIFT"), (KbLayer.Alt, "ALT"),
         ];
 
+        private static string? KbCapResource(string id) => id switch
+        {
+            "Ctrl" or "RCtrl" => "Str_Key_Ctrl",
+            "Alt" or "RAlt" => "Str_Key_Alt",
+            "Shift" or "RShift" => "Str_Key_Shift",
+            "Del" => "Str_Key_Delete",
+            "Enter" => "Str_Key_Enter",
+            "Esc" => "Str_Key_Esc",
+            "Menu" => "Str_Key_Menu",
+            "Home" => "Str_Key_Home",
+            "End" => "Str_Key_End",
+            "PgUp" => "Str_Key_PgUp",
+            "PgDn" => "Str_Key_PgDn",
+            "Tab" => "Str_Key_Tab",
+            _ => null,
+        };
+
         // Modifier keycaps that light up per layer (they define it rather than carry a binding).
         private static readonly Dictionary<KbLayer, string[]> KbLayerMods = new()
         {
@@ -93,7 +110,7 @@ namespace KillerPDF
             if (keyboard && !_kbBuilt) BuildKeyboardView();
             ShortcutListHost.Visibility     = keyboard ? Visibility.Collapsed : Visibility.Visible;
             ShortcutKeyboardHost.Visibility = keyboard ? Visibility.Visible : Visibility.Collapsed;
-            ShortcutCardGrid.MaxWidth       = keyboard ? 1080 : 640;
+            ShortcutCardGrid.MaxWidth       = keyboard ? 1120 : 760;
             KsViewListBtn.SetResourceReference(ForegroundProperty, keyboard ? "MutedTextBrush" : "PrimaryBrush");
             KsViewKeyboardBtn.SetResourceReference(ForegroundProperty, keyboard ? "PrimaryBrush" : "MutedTextBrush");
             if (keyboard) SetKbLayer(KbLayer.Base);
@@ -157,6 +174,9 @@ namespace KillerPDF
                         FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 5, 0, 0),
                     };
+                    string? capResource = KbCapResource(id);
+                    if (capResource is not null)
+                        capText.SetResourceReference(TextBlock.TextProperty, capResource);
                     capText.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
                     var act = new TextBlock
                     {
@@ -204,7 +224,7 @@ namespace KillerPDF
                     key.MouseLeave += (_, _2) =>
                     {
                         _kbHoverAct = null; _kbHoverId = null;
-                        if (_kbDetail is not null) _kbDetail.Text = " ";
+                        _kbDetail?.Text = " ";
                         lift.BeginAnimation(TranslateTransform.YProperty, new DoubleAnimation(0, TimeSpan.FromMilliseconds(130)));
                         KbMarqueeStop(act);
                     };
@@ -244,7 +264,7 @@ namespace KillerPDF
 
         /// <summary>Scrolls a truncated caption back and forth inside its clipped host while the
         /// key is hovered. No-op when the full text already fits.</summary>
-        private void KbMarqueeStart(TextBlock act)
+        private static void KbMarqueeStart(TextBlock act)
         {
             if (act.Visibility != Visibility.Visible || act.Parent is not Border host) return;
             // Measure with a probe TextBlock, NOT FormattedText: the probe inherits the same
@@ -279,7 +299,7 @@ namespace KillerPDF
                 { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, BeginTime = TimeSpan.FromMilliseconds(350) });
         }
 
-        private void KbMarqueeStop(TextBlock act)
+        private static void KbMarqueeStop(TextBlock act)
         {
             var tt = (TranslateTransform)act.RenderTransform;
             tt.BeginAnimation(TranslateTransform.XProperty, null);
@@ -299,23 +319,26 @@ namespace KillerPDF
             _kbLayer = layer;
             if (!_kbBuilt) return;
             var map = KbMap[layer];
-            foreach (var kv in _kbKeys)   // no KeyValuePair deconstruction on net48
+            foreach (var kv in _kbKeys)
             {
-                var vis = kv.Value;
+                var (Cap, Act, Bar) = kv.Value;
                 if (map.TryGetValue(kv.Key, out var b))
                 {
-                    vis.Cap.SetResourceReference(Border.BorderBrushProperty, "KsCat" + b.Cat);
-                    vis.Bar.SetResourceReference(Shape.FillProperty, "KsCat" + b.Cat);
-                    vis.Bar.Visibility = Visibility.Visible;
-                    vis.Act.SetResourceReference(TextBlock.TextProperty, b.Label);
-                    vis.Act.SetResourceReference(TextBlock.ForegroundProperty, "KsCat" + b.Cat);
-                    vis.Act.Visibility = Visibility.Visible;
+                    Cap.SetResourceReference(Border.BorderBrushProperty, "KsCat" + b.Cat);
+                    Bar.SetResourceReference(Shape.FillProperty, "KsCat" + b.Cat);
+                    Bar.Visibility = Visibility.Visible;
+                    Act.SetResourceReference(TextBlock.TextProperty, b.Label);
+                    // The border and category bar carry the category color. Keep the action text on
+                    // the theme's guaranteed readable foreground, since several neon families have
+                    // one category color that is too dark against their keyboard face (#230).
+                    Act.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
+                    Act.Visibility = Visibility.Visible;
                 }
                 else
                 {
-                    vis.Cap.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
-                    vis.Bar.Visibility = Visibility.Collapsed;
-                    vis.Act.Visibility = Visibility.Collapsed;
+                    Cap.SetResourceReference(Border.BorderBrushProperty, "CardBorderBrush");
+                    Bar.Visibility = Visibility.Collapsed;
+                    Act.Visibility = Visibility.Collapsed;
                 }
             }
             // Modifier caps that define the layer glow accent; the layer captions follow suit.
@@ -324,7 +347,7 @@ namespace KillerPDF
                 if (_kbKeys.TryGetValue(m, out var vis))
                     vis.Cap.SetResourceReference(Border.BorderBrushProperty,
                         System.Array.IndexOf(KbLayerMods[layer], m) >= 0 ? "PrimaryBrush" : "CardBorderBrush");
-            foreach (var kv in _kbLayerBtns)   // no KeyValuePair deconstruction on net48
+            foreach (var kv in _kbLayerBtns)
             {
                 kv.Value.SetResourceReference(ForegroundProperty, kv.Key == layer ? "PrimaryBrush" : "MutedTextBrush");
                 kv.Value.SetResourceReference(BorderBrushProperty, kv.Key == layer ? "PrimaryBrush" : "CardBorderBrush");

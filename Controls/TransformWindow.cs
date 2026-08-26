@@ -18,6 +18,9 @@ namespace KillerPDF
     /// </summary>
     internal sealed class TransformWindow : Window
     {
+        internal sealed record PagePreview(BitmapSource Source, double WidthPoints,
+            double HeightPoints, int DocumentPageNumber);
+
         public bool Applied { get; private set; }
         public double Angle { get; private set; }     // total = quarter turns + fine
         public double Scale { get; private set; } = 1.0;
@@ -28,11 +31,17 @@ namespace KillerPDF
         public int    LevelBlack { get; private set; }
         public int    LevelWhite { get; private set; } = 255;
         public double LevelGamma { get; private set; } = 1.0;
+        public PageColorMode ColorMode { get; private set; }
+        public int BlackWhiteThreshold { get; private set; } = 160;
+        public int OutputDpi { get; private set; }
+        public bool UseJpegCompression { get; private set; }
+        public int JpegQuality { get; private set; } = 85;
 
         public Point[] PerspectiveCorners { get; private set; } =
             [new(0, 0), new(1, 0), new(1, 1), new(0, 1)];
 
-        private readonly BitmapSource _src;
+        private readonly IReadOnlyList<PagePreview> _pages;
+        private BitmapSource _src;
         private readonly Image _preview = new()
         {
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -42,10 +51,14 @@ namespace KillerPDF
             { Color = Colors.Black, BlurRadius = 14, ShadowDepth = 3, Direction = 270, Opacity = 0.45 }
         };
         private readonly Border _previewArea = null!;
-        private readonly double _srcW;
-        private readonly double _srcH;
-        private readonly double _pageWpt;
-        private readonly double _pageHpt;
+        private double _srcW;
+        private double _srcH;
+        private double _pageWpt;
+        private double _pageHpt;
+        private int _previewPageIndex;
+        private readonly TextBlock _pageCounter = null!;
+        private readonly Button _previousPage = null!;
+        private readonly Button _nextPage = null!;
         private readonly TextBlock _sizeReadout = null!;
         private int _quarter;        // 0..3 quarter turns clockwise
         private double _fine;        // fine deskew, degrees
@@ -55,7 +68,10 @@ namespace KillerPDF
         private readonly TextBlock _scaleReadout = null!;
         private readonly Slider _rotSlider = null!;
         private readonly Slider _scaleSlider = null!;
-        private Slider _lvlBlack = null!, _lvlWhite = null!, _lvlGamma = null!;   // #174
+        private readonly Slider _lvlBlack = null!, _lvlWhite = null!, _lvlGamma = null!;   // #174
+        private readonly ComboBox _colorMode = null!;
+        private readonly Slider _bwThreshold = null!, _dpiSlider = null!, _jpegSlider = null!;
+        private readonly CheckBox _setDpi = null!, _useJpeg = null!;
         private readonly RadioButton _resizeRadio = null!;
         private bool _flipH;
         private bool _flipV;
@@ -78,13 +94,16 @@ namespace KillerPDF
         private static SolidColorBrush R(string key) => (SolidColorBrush)Application.Current.Resources[key];
         private static string S(string key) => Application.Current.TryFindResource(key) as string ?? key;
 
-        public TransformWindow(Window owner, BitmapSource src, double pageWpt, double pageHpt)
+        public TransformWindow(Window owner, IReadOnlyList<PagePreview> pages)
         {
-            _src = src;
-            _srcW = src.PixelWidth;
-            _srcH = src.PixelHeight;
-            _pageWpt = pageWpt;
-            _pageHpt = pageHpt;
+            ArgumentNullException.ThrowIfNull(pages);
+            if (pages.Count == 0) throw new ArgumentException("At least one page preview is required.", nameof(pages));
+            _pages = pages;
+            _src = pages[0].Source;
+            _srcW = _src.PixelWidth;
+            _srcH = _src.PixelHeight;
+            _pageWpt = pages[0].WidthPoints;
+            _pageHpt = pages[0].HeightPoints;
             Title = "KillerPDF - " + S("Str_Tf_Suffix");
             Width = 980;
             Height = 720;
@@ -126,6 +145,7 @@ namespace KillerPDF
                 _resizeRadio.IsChecked = true; _flipHCheck.IsChecked = false; _flipVCheck.IsChecked = false;
                 ResetPerspective();
                 ResetLevels();   // #174
+                ResetQuality();
             };
             bottom.Children.Add(resetAll);
             var actionRow = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
@@ -134,7 +154,7 @@ namespace KillerPDF
             cancelBtn.Click += (_, _2) => { Applied = false; Close(); };
             cancelBtn.IsCancel = true;   // Esc
             actionRow.Children.Add(cancelBtn);
-            var applyBtn = UiKit.Make(S("Str_Tf_Apply"), true);
+            var applyBtn = UiKit.Make(pages.Count == 1 ? S("Str_Tf_Apply") : $"{S("Str_Tf_Apply")} ({pages.Count})", true);
             applyBtn.Click += (_, _2) => CommitAndClose();
             applyBtn.IsDefault = true;   // Enter
             actionRow.Children.Add(applyBtn);
@@ -158,7 +178,7 @@ namespace KillerPDF
 
             _rotSlider = new Slider { Minimum = -45, Maximum = 45, Value = 0, TickFrequency = 1, SmallChange = 0.1, LargeChange = 1, Margin = new Thickness(0, 2, 0, 2) };
             if (darkSlider != null) _rotSlider.Style = darkSlider;
-            _rotSlider.ValueChanged += (_, ev) => { _fine = Math.Round(ev.NewValue, 1); if (_rotReadout != null) _rotReadout.Text = $"{Total:0.0}°"; SchedulePreview(); };
+            _rotSlider.ValueChanged += (_, ev) => { _fine = Math.Round(ev.NewValue, 1); _rotReadout?.Text = $"{Total:0.0}°"; SchedulePreview(); };
             stack.Children.Add(_rotSlider);
             stack.Children.Add(ValueRow(S("Str_Tf_Angle"), "0.0°", out _rotReadout, out var rotReset));
             rotReset.Click += (_, _2) => { _quarter = 0; _rotSlider.Value = 0; UpdatePreview(); };
@@ -278,6 +298,90 @@ namespace KillerPDF
             stack.Children.Add(levelsReset);
             WrapSection(stack, levelsStart, S("Str_Tf_Levels"), expanded: false);
 
+            // #173: output quality applies after geometry and levels. Defaults preserve the
+            // existing lossless, automatic-resolution Transform behavior.
+            stack.Children.Add(Divider());
+            int qualityStart = stack.Children.Count;
+            stack.Children.Add(SliderLabel(S("Str_Tf_ColorMode")));
+            _colorMode = new ComboBox
+            {
+                ItemsSource = new[]
+                {
+                    S("Str_Print_Color"), S("Str_Tf_Grayscale"), S("Str_Tf_BlackWhite")
+                },
+                SelectedIndex = 0,
+                Margin = new Thickness(0, 3, 0, 3)
+            };
+            _colorMode.SelectionChanged += (_, _) =>
+            {
+                ColorMode = (PageColorMode)Math.Max(0, _colorMode.SelectedIndex);
+                _bwThreshold.IsEnabled = ColorMode == PageColorMode.BlackAndWhite;
+                SchedulePreview();
+            };
+            stack.Children.Add(_colorMode);
+            stack.Children.Add(SliderLabel(S("Str_Tf_Threshold")));
+            _bwThreshold = new Slider
+            {
+                Minimum = 0, Maximum = 255, Value = 160, IsEnabled = false,
+                TickFrequency = 5, SmallChange = 1, LargeChange = 10,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+            if (darkSlider != null) _bwThreshold.Style = darkSlider;
+            _bwThreshold.ValueChanged += (_, ev) =>
+            {
+                BlackWhiteThreshold = (int)Math.Round(ev.NewValue);
+                SchedulePreview();
+            };
+            stack.Children.Add(_bwThreshold);
+
+            _setDpi = MakeCheck(S("Str_Tf_SetDpi"));
+            _setDpi.Checked += (_, _) => { OutputDpi = (int)Math.Round(_dpiSlider.Value); _dpiSlider.IsEnabled = true; };
+            _setDpi.Unchecked += (_, _) => { OutputDpi = 0; _dpiSlider.IsEnabled = false; };
+            stack.Children.Add(_setDpi);
+            var dpiValue = SliderLabel("300 DPI");
+            dpiValue.HorizontalAlignment = HorizontalAlignment.Right;
+            _dpiSlider = new Slider
+            {
+                Minimum = 72, Maximum = 600, Value = 300, IsEnabled = false,
+                TickFrequency = 25, SmallChange = 1, LargeChange = 25,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+            if (darkSlider != null) _dpiSlider.Style = darkSlider;
+            _dpiSlider.ValueChanged += (_, ev) =>
+            {
+                dpiValue.Text = $"{ev.NewValue:0} DPI";
+                if (_setDpi.IsChecked == true) OutputDpi = (int)Math.Round(ev.NewValue);
+            };
+            stack.Children.Add(_dpiSlider);
+            stack.Children.Add(dpiValue);
+
+            _useJpeg = MakeCheck(S("Str_Tf_UseJpeg"));
+            _useJpeg.Checked += (_, _) => { UseJpegCompression = true; _jpegSlider.IsEnabled = true; };
+            _useJpeg.Unchecked += (_, _) => { UseJpegCompression = false; _jpegSlider.IsEnabled = false; };
+            stack.Children.Add(_useJpeg);
+            var jpegValue = SliderLabel("85%");
+            jpegValue.HorizontalAlignment = HorizontalAlignment.Right;
+            _jpegSlider = new Slider
+            {
+                Minimum = 25, Maximum = 100, Value = 85, IsEnabled = false,
+                TickFrequency = 5, SmallChange = 1, LargeChange = 5,
+                Margin = new Thickness(0, 2, 0, 2)
+            };
+            if (darkSlider != null) _jpegSlider.Style = darkSlider;
+            _jpegSlider.ValueChanged += (_, ev) =>
+            {
+                JpegQuality = (int)Math.Round(ev.NewValue);
+                jpegValue.Text = $"{ev.NewValue:0}%";
+            };
+            stack.Children.Add(_jpegSlider);
+            stack.Children.Add(jpegValue);
+            var qualityReset = UiKit.Make(S("Str_Tf_Reset"), false);
+            qualityReset.Margin = new Thickness(0, 7, 0, 0);
+            qualityReset.HorizontalAlignment = HorizontalAlignment.Left;
+            qualityReset.Click += (_, _) => ResetQuality();
+            stack.Children.Add(qualityReset);
+            WrapSection(stack, qualityStart, S("Str_Tf_Quality"), expanded: false);
+
             side.Children.Add(new ScrollViewer
             {
                 Content = stack,
@@ -348,7 +452,7 @@ namespace KillerPDF
                 var handle = new Ellipse
                 {
                     Width = 18, Height = 18, Fill = R("PrimaryBrush"), Stroke = Brushes.White,
-                    StrokeThickness = 2, Cursor = Cursors.SizeAll, Tag = i,
+                    StrokeThickness = 2, Cursor = DragCursors.Open, Tag = i,
                 };
                 handle.PreviewMouseLeftButtonDown += PerspectiveHandle_Down;
                 _perspectiveHandles[i] = handle;
@@ -358,23 +462,93 @@ namespace KillerPDF
                 new MouseEventHandler(PerspectiveCanvas_Move), true);
             _perspectiveCanvas.AddHandler(Mouse.PreviewMouseUpEvent,
                 new MouseButtonEventHandler(PerspectiveCanvas_Up), true);
-            _perspectiveCanvas.LostMouseCapture += (_, _2) => _dragPerspective = -1;
+            // A capture lost to an alt-tab or a dialog never reaches the up handler, which would
+            // strand the closed hand on screen for the rest of the session.
+            _perspectiveCanvas.LostMouseCapture += (_, _2) => { _dragPerspective = -1; DragCursors.EndDrag(); };
             previewGrid.Children.Add(_perspectiveCanvas);
 
             previewWrap.Child = previewGrid;
             _previewArea = previewWrap;
             previewWrap.SizeChanged += (_, _2) => SizePreviewImage();
+
+            var previewColumn = new DockPanel();
+            if (pages.Count > 1)
+            {
+                var navigation = new Grid { Height = 38, Margin = new Thickness(8, 0, 8, 8) };
+                navigation.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                navigation.ColumnDefinitions.Add(new ColumnDefinition());
+                navigation.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                _previousPage = UiKit.Make("‹", false);
+                _previousPage.Width = 44;
+                _previousPage.ToolTip = S("Str_Kb_PrevPage");
+                _previousPage.Click += (_, _2) => ShowPreviewPage(_previewPageIndex - 1);
+                Grid.SetColumn(_previousPage, 0);
+                navigation.Children.Add(_previousPage);
+                _pageCounter = new TextBlock
+                {
+                    FontFamily = UiKit.MonoFont,
+                    FontSize = 12,
+                    Foreground = R("TextBrush"),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                Grid.SetColumn(_pageCounter, 1);
+                navigation.Children.Add(_pageCounter);
+                _nextPage = UiKit.Make("›", false);
+                _nextPage.Width = 44;
+                _nextPage.ToolTip = S("Str_Kb_NextPage");
+                _nextPage.Click += (_, _2) => ShowPreviewPage(_previewPageIndex + 1);
+                Grid.SetColumn(_nextPage, 2);
+                navigation.Children.Add(_nextPage);
+                DockPanel.SetDock(navigation, Dock.Bottom);
+                previewColumn.Children.Add(navigation);
+            }
             // Family shadow under the content pane, like the main window (flat on 98SE).
-            root.Children.Add(UiKit.PaneWithShadow(previewWrap));
+            previewColumn.Children.Add(UiKit.PaneWithShadow(previewWrap));
+            root.Children.Add(previewColumn);
 
             Content = DialogChrome.Frame(this, Owner, "KillerPDF - " + S("Str_Tf_Suffix"), () => { Applied = false; Close(); }, root);
             UpdatePreview();   // populate the output-size readout at the original dimensions
+            UpdatePageNavigation();
 
-            // Esc-to-close is wired by DialogChrome.Frame; Enter commits.
-            KeyDown += (_, e) => { if (e.Key == Key.Enter) CommitAndClose(); };
+            // Esc-to-close is wired by DialogChrome.Frame; Enter commits. Arrow keys flip through
+            // batch previews unless a slider currently owns the key press.
+            KeyDown += (_, e) =>
+            {
+                if (e.Key == Key.Enter) CommitAndClose();
+                else if (_pages.Count > 1 && e.OriginalSource is not Slider && e.Key == Key.Left)
+                { ShowPreviewPage(_previewPageIndex - 1); e.Handled = true; }
+                else if (_pages.Count > 1 && e.OriginalSource is not Slider && e.Key == Key.Right)
+                { ShowPreviewPage(_previewPageIndex + 1); e.Handled = true; }
+            };
         }
 
         private double Total => _quarter * 90 + _fine;
+
+        private void ShowPreviewPage(int index)
+        {
+            if (index < 0 || index >= _pages.Count || index == _previewPageIndex) return;
+            _previewPageIndex = index;
+            PagePreview page = _pages[index];
+            _src = page.Source;
+            _srcW = _src.PixelWidth;
+            _srcH = _src.PixelHeight;
+            _pageWpt = page.WidthPoints;
+            _pageHpt = page.HeightPoints;
+            _alignLine.Visibility = Visibility.Collapsed;
+            _lineCoords.Text = "";
+            UpdatePreview();
+            UpdatePageNavigation();
+        }
+
+        private void UpdatePageNavigation()
+        {
+            if (_pages.Count <= 1 || _pageCounter is null) return;
+            PagePreview page = _pages[_previewPageIndex];
+            _pageCounter.Text = $"{_previewPageIndex + 1} / {_pages.Count}    #{page.DocumentPageNumber}";
+            _previousPage.IsEnabled = _previewPageIndex > 0;
+            _nextPage.IsEnabled = _previewPageIndex + 1 < _pages.Count;
+        }
 
         private void CommitAndClose()
         {
@@ -384,7 +558,7 @@ namespace KillerPDF
             FixedPage = _fixedPage;
             FlipH = _flipH;
             FlipV = _flipV;
-            PerspectiveCorners = PerspectiveCorners.ToArray();
+            PerspectiveCorners = [.. PerspectiveCorners];
             Close();
         }
 
@@ -423,6 +597,7 @@ namespace KillerPDF
             if (sender is not Ellipse { Tag: int index }) return;
             _dragPerspective = index;
             Mouse.Capture(_perspectiveCanvas, CaptureMode.SubTree);
+            DragCursors.BeginDrag();
             e.Handled = true;
         }
 
@@ -442,6 +617,7 @@ namespace KillerPDF
         {
             _dragPerspective = -1;
             if (ReferenceEquals(Mouse.Captured, _perspectiveCanvas)) Mouse.Capture(null);
+            DragCursors.EndDrag();
             e.Handled = true;
         }
 
@@ -546,7 +722,23 @@ namespace KillerPDF
             _lvlBlack.Value = 0; _lvlWhite.Value = 255; _lvlGamma.Value = 1.0;
         }
 
-        private TextBlock SliderLabel(string text) => new()
+        private void ResetQuality()
+        {
+            _colorMode.SelectedIndex = 0;
+            _bwThreshold.Value = 160;
+            _setDpi.IsChecked = false;
+            _dpiSlider.Value = 300;
+            _useJpeg.IsChecked = false;
+            _jpegSlider.Value = 85;
+            ColorMode = PageColorMode.Color;
+            BlackWhiteThreshold = 160;
+            OutputDpi = 0;
+            UseJpegCompression = false;
+            JpegQuality = 85;
+            SchedulePreview();
+        }
+
+        private static TextBlock SliderLabel(string text) => new()
         {
             Text = text, Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont,
             FontSize = 10, Margin = new Thickness(0, 6, 0, 0),
@@ -555,13 +747,16 @@ namespace KillerPDF
         private void UpdatePreview()
         {
             double total = Total;
-            if (_rotReadout != null) _rotReadout.Text = $"{total:0.0}°";
+            _rotReadout?.Text = $"{total:0.0}°";
             _preview.Source = (total == 0 && _scale == 1.0 && !_flipH && !_flipV)
                 ? _src
                 : MainWindow.ComposeTransform(_src, total, _scale, _fixedPage, _flipH, _flipV);
             // #174: levels ride on top of whatever geometry the preview shows.
             if (_preview.Source is BitmapSource lvlSrc && !LevelsIdentity(LevelBlack, LevelWhite, LevelGamma))
                 _preview.Source = ApplyLevels(lvlSrc, LevelBlack, LevelWhite, LevelGamma);
+            if (_preview.Source is BitmapSource colorSrc && ColorMode != PageColorMode.Color)
+                _preview.Source = PageQualityConverter.ApplyColorMode(
+                    colorSrc, ColorMode, BlackWhiteThreshold);
 
             if (_sizeReadout != null && _preview.Source is BitmapSource b && _srcW > 0 && _pageWpt > 0)
             {
@@ -590,13 +785,13 @@ namespace KillerPDF
             Dispatcher.BeginInvoke(new Action(UpdatePerspectiveOverlay), DispatcherPriority.Loaded);
         }
 
-        private TextBlock SectionHeader(string text) => new()
+        private static TextBlock SectionHeader(string text) => new()
         {
             Text = text, Foreground = R("MutedTextBrush"), FontFamily = UiKit.UiFont,
             FontSize = 10, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 4)
         };
 
-        private void WrapSection(StackPanel host, int start, string title, bool expanded)
+        private static void WrapSection(StackPanel host, int start, string title, bool expanded)
         {
             var children = host.Children.Cast<UIElement>().Skip(start).ToList();
             while (host.Children.Count > start) host.Children.RemoveAt(start);
@@ -627,14 +822,14 @@ namespace KillerPDF
             host.Children.Add(body);
         }
 
-        private Border Divider()
+        private static Border Divider()
         {
             var b = new Border { Height = 1, Margin = new Thickness(0, 14, 0, 12) };
             b.SetResourceReference(Border.BackgroundProperty, "CardBorderBrush");
             return b;
         }
 
-        private DockPanel ValueRow(string label, string value, out TextBlock valueBlock, out Button reset)
+        private static DockPanel ValueRow(string label, string value, out TextBlock valueBlock, out Button reset)
         {
             var row = new DockPanel { Margin = new Thickness(0, 2, 0, 0) };
             reset = UiKit.Make(S("Str_Tf_Reset"), false);
@@ -658,7 +853,7 @@ namespace KillerPDF
             return row;
         }
 
-        private RadioButton MakeRadio(string text, bool isChecked, Style? style)
+        private static RadioButton MakeRadio(string text, bool isChecked, Style? style)
         {
             var rb = new RadioButton
             {
@@ -670,7 +865,7 @@ namespace KillerPDF
             return rb;
         }
 
-        private CheckBox MakeCheck(string text)
+        private static CheckBox MakeCheck(string text)
         {
             var cb = UiKit.CheckBox(text);
             cb.Margin = new Thickness(0, 3, 0, 0);

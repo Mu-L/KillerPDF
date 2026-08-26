@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -32,6 +29,7 @@ namespace KillerPDF
         internal static Cursor CursorForTool(EditTool tool) => tool switch
         {
             EditTool.Text => Cursors.IBeam,
+            EditTool.FormField => Cursors.Cross,
             EditTool.Highlight => Cursors.Cross,
             EditTool.Strikethrough => Cursors.Cross,
             EditTool.Underline => Cursors.Cross,
@@ -63,11 +61,13 @@ namespace KillerPDF
             CancelShapePolygon();   // abandon an in-progress polygon when switching tools
             if (tool != EditTool.Draw) HideBrushPreview();   // drop the brush cursor when leaving Draw
             _currentTool = tool;
+            ActiveViewer.RefreshFormDesignMode();
 
             var map = new (Button btn, EditTool t)[]
             {
                 (_toolSelectBtn, EditTool.Select),
                 (_toolTextBtn, EditTool.Text),
+                (_toolFormFieldBtn, EditTool.FormField),
                 (_toolHighlightBtn, EditTool.Highlight),
                 (_toolUnderlineBtn, EditTool.Line),          // the old Underline button is now the Line tool
                 (_toolDrawBtn, EditTool.Draw),
@@ -142,7 +142,8 @@ namespace KillerPDF
         {
             var map = new (Button mi, EditTool t)[]
             {
-                (MiText, EditTool.Text), (MiUnderline, EditTool.Line), (MiHighlight, EditTool.Highlight),
+                (MiText, EditTool.Text), (MiFormField, EditTool.FormField),
+                (MiUnderline, EditTool.Line), (MiHighlight, EditTool.Highlight),
                 (MiDraw, EditTool.Draw), (MiImage, EditTool.Image), (MiCrop, EditTool.Crop),
                 (MiSignature, EditTool.Signature),
             };
@@ -357,8 +358,7 @@ namespace KillerPDF
 
         private void SyncSidebarToDocState(bool hasDoc, bool startup)
         {
-            if (PageControlsRow != null)
-                PageControlsRow.Visibility = (hasDoc && !_sidebarShowingOutlines)
+            PageControlsRow?.Visibility = (hasDoc && !_sidebarShowingOutlines)
                     ? Visibility.Visible : Visibility.Collapsed;
 
             _sidebarAutoToggling = true;

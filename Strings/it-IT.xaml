@@ -3,7 +3,7 @@
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
 
     <!-- ================================================================
-         KillerPDF  -  IItalian (it-IT) strings - Revised: 26.08.2026 
+         KillerPDF  -  Italian (it-IT) strings - Revised: 26.08.2026
          ================================================================ -->
 
     <!-- ── Toolbar tooltips ─────────────────────────────────────────── -->
@@ -39,9 +39,9 @@
     <sys:String x:Key="Str_TT_Search">Cerca (Ctrl+F)</sys:String>
     <sys:String x:Key="Str_TT_UndoLast">Annulla ultima operazione (Ctrl+Z)</sys:String>
     <sys:String x:Key="Str_TT_MultiPageGrid">Visualizzazione griglia multi pagina (F8)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomOut">Zoom + (Ctrl+-)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomOut">Zoom - (Ctrl+-)</sys:String>
     <sys:String x:Key="Str_TT_ZoomLevel">Livello zoom (Ctrl+scroll · Ctrl+=/- · Ctrl+0=ripristino)</sys:String>
-    <sys:String x:Key="Str_TT_ZoomIn">Zoom - (Ctrl+=)</sys:String>
+    <sys:String x:Key="Str_TT_ZoomIn">Zoom + (Ctrl+=)</sys:String>
     <sys:String x:Key="Str_TT_GoToPage">Vai alla pagina (Invio per navigare)</sys:String>
     <sys:String x:Key="Str_TT_CollapseSidebar">Riduci barra laterale (F9)</sys:String>
     <sys:String x:Key="Str_TT_ExpandSidebar">Espandi barra laterale (F9)</sys:String>
@@ -58,7 +58,7 @@
 
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">PAGINE</sys:String>
-    <sys:String x:Key="Str_TabOutlines">BORDI</sys:String>
+    <sys:String x:Key="Str_TabOutlines">STRUTTURA</sys:String>
     <sys:String x:Key="Str_PageLabel">Pagina {0}</sys:String>
     <sys:String x:Key="Str_Outline_Untitled">(senza titolo)</sys:String>
 
@@ -174,16 +174,16 @@
     <sys:String x:Key="Str_ExportImg_Dpi">Risoluzione (DPI)</sys:String>
     <sys:String x:Key="Str_ExportImg_Export">Esporta</sys:String>
     <sys:String x:Key="Str_ExportImg_Done">Esportate {0} pagine in {1}</sys:String>
-    <sys:String x:Key="Str_Print_AllPages">Tutte el pagine</sys:String>
+    <sys:String x:Key="Str_Print_AllPages">Tutte le pagine</sys:String>
     <sys:String x:Key="Str_Print_OddOnly">Solo pagine dispari</sys:String>
-    <sys:String x:Key="Str_Print_EvenOnly">Anche solo pagine</sys:String>
+    <sys:String x:Key="Str_Print_EvenOnly">Solo pagine pari</sys:String>
     <sys:String x:Key="Str_DocInvertSetting">Inverti colori documento</sys:String>
     <sys:String x:Key="Str_TT_DocInvert">Inverti colori documento (N)</sys:String>
     <sys:String x:Key="Str_TT_SplitPane">Riquadro diviso: due documenti affiancati (F10)</sys:String>
     <sys:String x:Key="Str_TT_CloseTab">Chiudi scheda</sys:String>
     <sys:String x:Key="Str_TT_TabOverflow">Tutte le schede aperte</sys:String>
     <sys:String x:Key="Str_InvertImagesToo">Inverti anche le immagini</sys:String>
-    <sys:String x:Key="Str_Font_NoGlyphs" xml:space="preserve">Nessun font in questo PC può disegnare questi caratteri, quindi appariranno come caselle nel PDF salvato:&#10;{0}&#10;&#10;Installa una font che li includa o scegli per questo testo un a font diversa.</sys:String>
+    <sys:String x:Key="Str_Font_NoGlyphs" xml:space="preserve">Nessun font in questo PC può disegnare questi caratteri, quindi appariranno come caselle nel PDF salvato:&#10;{0}&#10;&#10;Installa un font che li includa o scegli per questo testo un font diverso.</sys:String>
     <sys:String x:Key="Str_TT_AppSize">Scorri per ridimensionare l'intera app (Ctrl+Maiusc+=/-/0)</sys:String>
     <sys:String x:Key="Str_St_AppSize">Dim. app {0}%</sys:String>
     <sys:String x:Key="Str_KS_AppSize">Zoom sull'intera app (accessibilità)</sys:String>
@@ -205,10 +205,10 @@ Il salvataggio sovrascrive il file e le modifiche andranno perse. se desideri ma
     <sys:String x:Key="Str_Dlg_InstallTitle">Installa KillerPDF</sys:String>
     <sys:String x:Key="Str_Dlg_InstallMsg" xml:space="preserve">Vuoi installare KillerPDF in questo computer?
 
-KillerPDF verrà copiato nella cartella dei programmi e verrà aggiunta una voce al menu Start.&#10;Questa copia del file exe viene lasciata dov'è e puoi disinstallarla in qualsiasi momento tramite Aggiungi/Rimuovi programmi.</sys:String>
+KillerPDF verrà copiato nella cartella dei programmi e verrà aggiunta una voce al menu Start.&#10;Questa copia dell'exe viene lasciata dov'è e puoi disinstallarla in qualsiasi momento tramite Aggiungi/Rimuovi programmi.</sys:String>
     <sys:String x:Key="Str_Dlg_UpdateMachineMsg" xml:space="preserve">Vuoi aggiornare l'installazione esistente di KillerPDF per tutti gli utenti?
 
-Verrà sostituirà la copia in Programmi con la versione multi-file più veloce.&#10;Qualsiasi copia precedente per utente viene rimossa in modo che KillerPDF venga visualizzato solo una volta. Successivamente potrai conservare o eliminare questo file portatile.</sys:String>
+Verrà sostituita la copia in Programmi con la versione multi-file più veloce.&#10;Qualsiasi copia precedente per utente viene rimossa in modo che KillerPDF venga visualizzato solo una volta. Successivamente potrai conservare o eliminare questo file portatile.</sys:String>
     <sys:String x:Key="Str_Dlg_UpdateUserMsg" xml:space="preserve">Vuoi aggiornare l'installazione esistente di KillerPDF?
 
 Verrà sostituita la copia installata con la versione multi-file più veloce.&#10;Successivamente potrai conservare o eliminare questo file portatile.</sys:String>
@@ -255,7 +255,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Zoom_FitWidth">Adatta larghezza</sys:String>
     <sys:String x:Key="Str_Zoom_FitPage">Adatta pagina</sys:String>
     <sys:String x:Key="Str_FitWidth">Pagina {0} / {1} - Adatta larghezza ({2}%)</sys:String>
-    <sys:String x:Key="Str_FitPage">Pagina{0} / {1} - Adatta pagina ({2}%)</sys:String>
+    <sys:String x:Key="Str_FitPage">Pagina {0} / {1} - Adatta pagina ({2}%)</sys:String>
 
     <!-- ── KS overlay font size (sys:Double) ──────────────────────────── -->
     <sys:Double x:Key="Str_KS_FontSize">11</sys:Double>
@@ -312,6 +312,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Ocr_SearchablePdf">Abilita ricerca nel PDF...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">Estrai tutto il testo...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">Lingua</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">OCR sensibile ai moduli</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Prima apri un PDF</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - prossimamente</sys:String>
     <sys:String x:Key="Str_Ctx_SelectTool">Strumento selezione</sys:String>
@@ -427,7 +428,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Drop_TooMany">Questa cartella o archivio contiene {0} file. KillerPDF aprirà solo il primo {1}. Vuoi continuare?</sys:String>
     <sys:String x:Key="Str_Status_Merged">Uniti {0} file: non ancora salvati</sys:String>
     <sys:String x:Key="Str_Drop_Merging">Unione file...</sys:String>
-    <sys:String x:Key="Str_Drop_MergeCancelled">Unione annullata</sys:String>
+    <sys:String x:Key="Str_Drop_MergeCanceled">Unione annullata</sys:String>
     <sys:String x:Key="Str_Dlg_UnsavedCloseAll">Vuoi chiudere tutti i documenti? Le modifiche non salvate andranno perse.</sys:String>
     <sys:String x:Key="Str_Msg_OpenFirst">Prima apri un file PDF.</sys:String>
     <sys:String x:Key="Str_Dlg_SaveBeforeZip">Vuoi salvare le modifiche prima di comprimerle in ZIP?</sys:String>
@@ -466,6 +467,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Bar_Color">Colore:</sys:String>
     <sys:String x:Key="Str_Bar_Fill">Riempi:</sys:String>
     <sys:String x:Key="Str_Bar_Size">Dimensione:</sys:String>
+    <sys:String x:Key="Str_Bar_LetterSpacing">Spaziatura:</sys:String>
     <sys:String x:Key="Str_Bar_Opacity">Opacità:</sys:String>
     <sys:String x:Key="Str_Bar_FillOpacity">Opacità riempimento:</sys:String>
     <sys:String x:Key="Str_Bar_Font">Font:</sys:String>
@@ -483,12 +485,26 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Sign_Desc">Sigilla {0} con un certificato e salva una copia firmata.</sys:String>
     <sys:String x:Key="Str_Sign_Certificate">Certificato</sys:String>
     <sys:String x:Key="Str_Sign_FromFile">Da un file (.pfx / .p12)</sys:String>
-    <sys:String x:Key="Str_Sign_FromStore">Dall'archivio certificati di Windows</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">Dall'archivio certificati di Windows / USB token</sys:String>
     <sys:String x:Key="Str_Sign_Browse">Sfoglia...</sys:String>
     <sys:String x:Key="Str_Sign_Password">Password</sys:String>
     <sys:String x:Key="Str_Sign_Reason">Motivo (opzionale)</sys:String>
     <sys:String x:Key="Str_Sign_Location">Luogo (opzionale)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">Contatto (opzionale)</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">Mostra una firma visibile</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">Testo della firma</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">Firmato digitalmente da {name}&#10;Data: {date}&#10;Motivo: {reason}&#10;Luogo: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_Page">Page</sys:String>
+    <sys:String x:Key="Str_Sign_Position">Position</sys:String>
+    <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
+    <sys:String x:Key="Str_Sign_BottomRight">Bottom right</sys:String>
+    <sys:String x:Key="Str_Sign_TopLeft">Top left</sys:String>
+    <sys:String x:Key="Str_Sign_TopRight">Top right</sys:String>
+    <sys:String x:Key="Str_Sign_Width">Width</sys:String>
+    <sys:String x:Key="Str_Sign_Height">Height</sys:String>
+    <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">Titolare del certificato</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">Controlla la pagina della firma, le dimensioni e la dimensione del testo.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">Salva copia firmata con nome</sys:String>
     <sys:String x:Key="Str_Sign_Sign">Firma</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">Annulla</sys:String>
@@ -529,6 +545,13 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Tf_LevelsBlack">Punto di nero</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Punto di bianco</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Mezzitoni</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <sys:String x:Key="Str_Tf_CorrectPerspective">Correggi distorsione trapezoidale</sys:String>
     <sys:String x:Key="Str_Tf_PerspectiveHint">Trascina i quattro angoli sul contorno della pagina fotografata. Applica il raddrizzamento nel rettangolo.</sys:String>
     <sys:String x:Key="Str_Tf_ResetCorners">Ripristina angoli</sys:String>
@@ -540,6 +563,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Tf_Warn">La trasformazione di una pagina (rotazione o ridimensionamento) la rasterizza: la pagina viene salvata nuovamente come immagine, quindi qualsiasi testo selezionabile in essa verrà perso. Successivamente è possibile eseguire l'OCR per renderlo nuovamente ricercabile.</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">Non avvisarmi più</sys:String>
     <sys:String x:Key="Str_Tf_Done">Pagina trasformata {0}</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">Trasformate {0} pagine</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">Impossibile renderizzare la pagina: riprova tra qualche istante.</sys:String>
     <sys:String x:Key="Str_Tf_Failed">Trasformazione non riuscita: {0}</sys:String>
 
@@ -640,14 +664,14 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_St_Redone">Rifatto</sys:String>
     <sys:String x:Key="Str_St_NothingToRedo">Nessuna attività da rifare</sys:String>
     <sys:String x:Key="Str_KS_FirstLast">Prima / ultima pagina</sys:String>
-    <sys:String x:Key="Str_KS_BackForward">Indietro / avanti (cronologia salti)</sys:String>
-    <sys:String x:Key="Str_KS_ZoomPresets">Dimensioni reali / adatta larghezza / adatta pagina</sys:String>
+    <sys:String x:Key="Str_KS_BackForward">Indietro / avanti (cronologia dei salti)</sys:String>
+    <sys:String x:Key="Str_KS_ZoomPresets">Dimensione reale / adatta larghezza / adatta pagina</sys:String>
     <sys:String x:Key="Str_KS_ContextMenu">Menu contestuale alla selezione</sys:String>
 
     <sys:String x:Key="Str_KS_ViewList">ELENCO</sys:String>
     <sys:String x:Key="Str_KS_ViewKeyboard">TASTIERA</sys:String>
-    <sys:String x:Key="Str_KS_HoldHint">Tieni premuto Ctrl, Maiusc o Alt per l'anteprima del livello - passa il mouse su un tasto illuminato per la sua azione</sys:String>
-    <sys:String x:Key="Str_Zoom_ActualSize">Dimensioni reali</sys:String>
+    <sys:String x:Key="Str_KS_HoldHint">Tieni premuto Ctrl, Maiusc o Alt per l'anteprima del layer - passa il mouse su un tasto illuminato per la sua azione</sys:String>
+    <sys:String x:Key="Str_Zoom_ActualSize">Dimensione reale</sys:String>
     <sys:String x:Key="Str_KS_PrevTab">Scheda precedente</sys:String>
 
     <sys:String x:Key="Str_Kb_PrevPage">Pagina precedente</sys:String>
@@ -741,8 +765,8 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Color_SwatchUseTT">Fai clic per usare questo colore</sys:String>
     <sys:String x:Key="Str_Search_DragTT">Trascina per spostare</sys:String>
     <sys:String x:Key="Str_Sign_Name">Firma digitale</sys:String>
-    <sys:String x:Key="Str_Sign_ChooseCert">Scegli un certificato per la firma</sys:String>
-    <sys:String x:Key="Str_Sign_ImportImage">Importa immagine firma</sys:String>
+    <sys:String x:Key="Str_Sign_ChooseCert">Scegli un certificato di firma</sys:String>
+    <sys:String x:Key="Str_Sign_ImportImage">Importa immagine della firma</sys:String>
     <sys:String x:Key="Str_Filter_Pdf">File PDF</sys:String>
     <sys:String x:Key="Str_Filter_Cert">File certificati</sys:String>
     <sys:String x:Key="Str_Filter_Text">File testo</sys:String>
@@ -759,10 +783,10 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Dlg_InsertImage">Inserisci immagine</sys:String>
     <sys:String x:Key="Str_Dlg_InstallShortcut">Crea collegamento programma sul desktop</sys:String>
     <sys:String x:Key="Str_Stamp_DefaultText">BOZZA</sys:String>
-    <sys:String x:Key="Str_Sign_NeedCertFile">Prima seleziona un file di certificato (.pfx / .p12).</sys:String>
-    <sys:String x:Key="Str_Sign_NoStoreCert">Nessun certificato firma disponibile nell'archivio di Windows.</sys:String>
-    <sys:String x:Key="Str_Sign_NeedOutput">Seleziona dove salvare la copia firmata.</sys:String>
-    <sys:String x:Key="Str_Sign_BadCert" xml:space="preserve">Impossibile aprire il certificato.&#10;&#10;La password potrebbe essere errata oppure il file non è un certificato .pfx / .p12 valido.</sys:String>
+    <sys:String x:Key="Str_Sign_NeedCertFile">Scegli prima un file di certificato (.pfx / .p12).</sys:String>
+    <sys:String x:Key="Str_Sign_NoStoreCert">Nessun certificato di firma disponibile nell'archivio certificati di Windows.</sys:String>
+    <sys:String x:Key="Str_Sign_NeedOutput">Scegli dove salvare la copia firmata.</sys:String>
+    <sys:String x:Key="Str_Sign_BadCert" xml:space="preserve">Impossibile aprire il certificato.&#10;&#10;La password potrebbe non essere corretta oppure il file non è un certificato .pfx / .p12 valido.</sys:String>
     <sys:String x:Key="Str_Sign_CertLoadFailed">Impossibile caricare il certificato:</sys:String>
     <sys:String x:Key="Str_Sign_Failed">Firma non riuscita:</sys:String>
     <sys:String x:Key="Str_St_ShapeHint">Fai clic per aggiungere punti: fai clic sul primo punto o fai doppio clic per chiudere, 'Esc' per annullare, 'Backspace' per rimuove l'ultimo punto</sys:String>
@@ -877,8 +901,8 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Ocr_SuffixDownload">(download)</sys:String>
     <sys:String x:Key="Str_Ocr_SuffixDownloadHq">(download HQ)</sys:String>
     <sys:String x:Key="Str_Dlg_SearchableSaved" xml:space="preserve">PDF ricercabile salvato:&#10;{0}&#10;&#10;{1} pagine elaborate, {2} parole riconosciute.</sys:String>
-    <sys:String x:Key="Str_Dlg_Repaired" xml:space="preserve">'{0}' è stato correttamente riparato.&#10;&#10;Segnalibri, moduli, e altre funzionalità interattive potrebbero essere andate perse.#10;Usa 'Salva con nome' per salvare il file riparato in una nuova posizione.</sys:String>
-    <sys:String x:Key="Str_Dlg_RepairedRaster" xml:space="preserve">'{0}' è stato riparato rasterizzandolo con PDFium.&#10;&#10;Il testo non è selezionabile nella copia riparata.#10;Usa 'Salva con nome' per salvare il file riparato in una nuova posizione.</sys:String>
+    <sys:String x:Key="Str_Dlg_Repaired" xml:space="preserve">'{0}' è stato correttamente riparato.&#10;&#10;Segnalibri, moduli, e altre funzionalità interattive potrebbero essere andate perse.&#10;Usa 'Salva con nome' per salvare il file riparato in una nuova posizione.</sys:String>
+    <sys:String x:Key="Str_Dlg_RepairedRaster" xml:space="preserve">'{0}' è stato riparato rasterizzandolo con PDFium.&#10;&#10;Il testo non è selezionabile nella copia riparata.&#10;Usa 'Salva con nome' per salvare il file riparato in una nuova posizione.</sys:String>
     <sys:String x:Key="Str_Dlg_RepairAsk" xml:space="preserve">'{0}' ha una struttura danneggiata e non è stato possibile aggiungerlo.&#10;&#10;Vuoi che KillerPDF tenti una riparazione?&#10;Verrà creata una copia riparata: il file originale non verrà modificato.&#10;&#10;Nota: nei file riparati potrebbero mancare segnalibri, moduli e altre funzionalità interattive.</sys:String>
     <sys:String x:Key="Str_Dlg_LangDownloadAsk" xml:space="preserve">Per poter eseguire l'OCR verrà scaricato un modello lingua ({0}).&#10;&#10;Puoi aggiungere più lingue o passare a modelli in qualità superiore in qualsiasi momento dal menu OCR.</sys:String>
     <sys:String x:Key="Str_Bar_More">Altre impostazioni</sys:String>
@@ -926,6 +950,6 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Search_CloseTT">Chiudi (Esc)</sys:String>
     <sys:String x:Key="Str_Busy_FlattenPage">Semplificazione pagina {0} / {1}...</sys:String>
     <sys:String x:Key="Str_Busy_ExportPage">Esportazione pagina {0} / {1}...</sys:String>
-    <sys:String x:Key="Str_Busy_CancelHint">('Esc' per annullare)</sys:String>
+    <sys:String x:Key="Str_Busy_CancelHint">(Esc per annullare)</sys:String>
     <sys:String x:Key="Str_Busy_DownloadingMany">Download {0} - {1} / {2} -</sys:String>
 </ResourceDictionary>

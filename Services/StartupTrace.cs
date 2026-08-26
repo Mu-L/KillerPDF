@@ -13,7 +13,7 @@ namespace KillerPDF.Services
     internal static class StartupTrace
     {
         private const string TraceEnvironmentVariable = "KILLERPDF_STARTUP_TRACE";
-        private static readonly object Gate = new object();
+        private static readonly Lock Gate = new();
         private static readonly Stopwatch Clock = Stopwatch.StartNew();
         private static readonly string? OutputPath = Environment.GetEnvironmentVariable(TraceEnvironmentVariable);
         private static bool _headerWritten;

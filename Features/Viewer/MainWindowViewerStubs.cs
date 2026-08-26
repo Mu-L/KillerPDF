@@ -3,7 +3,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using PdfSharpCore.Pdf;
+
+using KillerPDF.Services;
 
 namespace KillerPDF
 {
@@ -34,12 +35,12 @@ namespace KillerPDF
         private void ClearTextSelection() => ActiveViewer.ClearTextSelection();
         private SolidColorBrush AccentBrush(byte alpha = 255) => ActiveViewer.AccentBrush(alpha);
         private void AddAnnotation(PageAnnotation a) => ActiveViewer.AddAnnotationExt(a);
-        private Rect AnnotBounds(PageAnnotation a) => ActiveViewer.AnnotBoundsExt(a);
+        private static Rect AnnotBounds(PageAnnotation a) => Controls.PdfViewer.AnnotBoundsExt(a);
         private static Point AnnotGetPos(PageAnnotation a) => Controls.PdfViewer.AnnotGetPosExt(a);
         private static void AnnotSetPos(PageAnnotation a, Point pos) => Controls.PdfViewer.AnnotSetPosExt(a, pos);
         private Point ClampAnnotPos(PageAnnotation a) => ActiveViewer.ClampAnnotPosExt(a);
-        private bool HitTestAnnotation(PageAnnotation a, Point pos, out Rect bounds)
-            => ActiveViewer.HitTestAnnotationExt(a, pos, out bounds);
+        private static bool HitTestAnnotation(PageAnnotation a, Point pos, out Rect bounds)
+            => Controls.PdfViewer.HitTestAnnotationExt(a, pos, out bounds);
         private static bool IsDraggable(PageAnnotation a) => Controls.PdfViewer.IsDraggableExt(a);
         private void SelectAnnotation(PageAnnotation a, Rect bounds) => ActiveViewer.SelectAnnotationExt(a, bounds);
         private void ToggleMultiSelect(PageAnnotation a, Rect bounds, Canvas canvas)
@@ -86,16 +87,16 @@ namespace KillerPDF
         private void RebuildCropBarForLocale() => ActiveViewer.RebuildCropBarForLocaleExt();
 
         // ── Links ────────────────────────────────────────────────────────────────────────────
-        private void CloseLinkPdfiumDoc() => ActiveViewer.CloseLinkPdfiumDocExt();
+        private void CloseEngineDocumentSession() => ActiveViewer.CloseEngineDocumentSessionExt();
+        private PdfEngineDocumentSession EnsureEngineDocumentSession() =>
+            ActiveViewer.EnsureEngineDocumentSessionExt();
         private void AddLinkMenuItems(ContextMenu menu, object target, int annotIndex, int pageIndex)
             => ActiveViewer.AddLinkMenuItemsExt(menu, target, annotIndex, pageIndex);
-        private int? ResolveDest(PdfItem? destItem) => ActiveViewer.ResolveDestExt(destItem);
         private const double LinkHitPad = Controls.PdfViewer.LinkHitPadShared;
         internal const string ConfirmLinksSetting = Controls.PdfViewer.ConfirmLinksSetting;
 
         // ── Save paths ───────────────────────────────────────────────────────────────────────
-        private void DrawAnnotationsOnDocument(int? onlyPage = null) => ActiveViewer.DrawAnnotationsOnDocumentExt(onlyPage);
-        private void WriteFormValuesToDocument() => ActiveViewer.WriteFormValuesToDocumentExt();
+        private void WriteFormValuesToDocument(string path) => ActiveViewer.WriteFormValuesToDocumentExt(path);
 
         // ── Bound from MainWindow.xaml - see the class comment, these are load-bearing ───────
         private void Undo_Click(object sender, RoutedEventArgs e) => ActiveViewer.UndoClickExt(sender, e);

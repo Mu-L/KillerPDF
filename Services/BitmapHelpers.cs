@@ -117,8 +117,8 @@ namespace KillerPDF.Services
             for (int y = 0; y < height; y++)
             {
                 spans.Clear();
-                foreach (var b in px)
-                    if (y >= b.y0 && y < b.y1) spans.Add((b.x0, b.x1));
+                foreach (var (x0, y0, x1, y1) in px)
+                    if (y >= y0 && y < y1) spans.Add((x0, x1));
                 if (spans.Count == 0) continue;
                 spans.Sort((a, b) => a.x0.CompareTo(b.x0));
 

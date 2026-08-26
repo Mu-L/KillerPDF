@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -39,6 +36,12 @@ namespace KillerPDF.Controls
         // internal: PdfViewer's XAML binds this and forwards to it.
         internal void PagePreview_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
+            // A form field list keeps the wheel while it still has rows to reach. Its overlay
+            // sits inside PagePreviewPanel, so this tunnelling handler would otherwise scroll
+            // the page out from under a list the user is reading, and a field taller than its
+            // box could never be scrolled at all.
+            if (FieldListWantsWheel(e.OriginalSource as DependencyObject, e.Delta)) return;
+
             // #209: match the standard Windows/browser gesture and reuse the same path as a
             // physical tilt wheel. Wheel-down moves right; wheel-up moves left.
             if (Keyboard.Modifiers == ModifierKeys.Shift)
@@ -121,6 +124,24 @@ namespace KillerPDF.Controls
             ScrollWheel(e);
         }
 
+        // True when the wheel sits over a scrollable control inside the page overlay that still
+        // has somewhere to go in this direction. The walk stops at PagePreviewPanel, which is
+        // itself a ScrollViewer and owns the wheel from that point up.
+        private bool FieldListWantsWheel(DependencyObject? source, int delta)
+        {
+            for (DependencyObject? node = source;
+                 node is not null && !ReferenceEquals(node, PagePreviewPanel);
+                 node = node is Visual or System.Windows.Media.Media3D.Visual3D
+                     ? VisualTreeHelper.GetParent(node) : null)
+            {
+                if (node is not ScrollViewer inner || inner.ScrollableHeight <= 0) continue;
+                return delta > 0
+                    ? inner.VerticalOffset > 0
+                    : inner.VerticalOffset < inner.ScrollableHeight;
+            }
+            return false;
+        }
+
         // Zoom ratio per full wheel notch (e.Delta = 120) for Ctrl+scroll. 1.1 lands close to the
         // old additive step at 100% zoom but stays a constant 10% everywhere on the range.
         private const double WheelZoomFactor = 1.1;
@@ -174,6 +195,7 @@ namespace KillerPDF.Controls
 
         private void ScrollWheel(MouseWheelEventArgs e)
         {
+            _sidebarSelectionPinned = -1;
             e.Handled = true;
             PagePreviewPanel.ScrollToVerticalOffset(
                 PagePreviewPanel.VerticalOffset - e.Delta * (48.0 / 120.0) * WheelScrollFactor);
@@ -205,6 +227,7 @@ namespace KillerPDF.Controls
 
         internal void PagePreviewPanel_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
+            _sidebarSelectionPinned = -1;
             // A press that lands on the document scrollbar must reach the scrollbar itself (thumb drag,
             // track paging). The pan/crop/marquee handling below otherwise claims the press first and sets
             // e.Handled, so the thumb could never be grabbed. Let scrollbar presses fall through untouched.
@@ -219,7 +242,7 @@ namespace KillerPDF.Controls
                 _panScrollH = PagePreviewPanel.HorizontalOffset;
                 _panScrollV = PagePreviewPanel.VerticalOffset;
                 PagePreviewPanel.CaptureMouse();
-                PagePreviewPanel.Cursor = Cursors.SizeAll;
+                PagePreviewPanel.Cursor = DragCursors.Closed;
                 e.Handled = true;
             }
             // Crop: allow starting the selection OUTSIDE the page - catch margin clicks, route them to the
@@ -260,6 +283,13 @@ namespace KillerPDF.Controls
         // actually on a page (left to that page's own surface). Shared by off-page crop and marquee starts.
         private Canvas? ResolveMarginOverlay(MouseButtonEventArgs e)
         {
+            // A press inside a form field is the field's own interaction, never a margin gesture.
+            // This includes a choice field's dropdown items: the popup floats outside every page
+            // overlay's visual tree, so without this check the press reads as a margin click, the
+            // marquee (or crop) starts, and taking the mouse capture closes the dropdown and
+            // discards the click.
+            if (e.OriginalSource is DependencyObject fieldSrc && IsFormFieldElement(fieldSrc))
+                return null;
             if (_viewMode == ViewMode.Continuous)
             {
                 if (e.OriginalSource is DependencyObject osc && IsWithinPageOverlay(osc)) return null;
@@ -352,7 +382,9 @@ namespace KillerPDF.Controls
             if (e.ChangedButton != MouseButton.Middle && e.ChangedButton != MouseButton.Left) return;
             _isPanning = false;
             PagePreviewPanel.ReleaseMouseCapture();
-            PagePreviewPanel.Cursor = _spaceHeld ? Cursors.Hand : Cursors.Arrow;
+            // Still holding space means still armed to pan, so it drops back to the open hand
+            // rather than the arrow - the fingers release, the hand stays.
+            PagePreviewPanel.Cursor = _spaceHeld ? DragCursors.Open : Cursors.Arrow;
             e.Handled = true;
         }
     }

@@ -38,6 +38,7 @@ namespace KillerPDF.Controls
         // ── Text (typewriter) tool ───────────────────────────────────────────────────────────
         private TextBox? _activeTextBox;
         private double _textFontSize = 24;
+        private double _textLetterSpacing;
         private string _textFontName = "Segoe UI";
         private bool _textBold;
         private bool _textItalic;
@@ -96,13 +97,15 @@ namespace KillerPDF.Controls
         private bool _updatingCropInputs;
 
         // ── Form filling ─────────────────────────────────────────────────────────────────────
-        private Dictionary<int, string> _formTextValues = [];
-        private Dictionary<int, bool> _formCheckValues = [];
+        private Dictionary<string, string> _formTextValues = [];
+        private Dictionary<string, string> _formChoiceValues = [];
+        private Dictionary<string, IReadOnlyList<string>> _formMultiChoiceValues = [];
+        private Dictionary<string, bool> _formCheckValues = [];
         private Dictionary<string, string> _formRadioValues = [];
-        private Dictionary<int, double> _formFontSizes = [];
+        private Dictionary<string, double> _formFontSizes = [];
         private Border? _formSizeBar;
         private TextBox? _activeFormTb;
-        private int _activeFormObj;
+        private string _activeFormName = string.Empty;
         private double _activeFormScale = 1;
         private const string FormOverlayTag = "FormFieldOverlay";
 
@@ -154,8 +157,13 @@ namespace KillerPDF.Controls
         // ── Methods still on the window ──────────────────────────────────────────────────────
         private void MarkDirty(bool dirty = true) => Host!.MarkDirty(dirty);
         private void SetTool(EditTool t) => Host!.SetTool(t);
-        private void SaveTempAndReload(bool keepAnnotations = false, bool preserveZoom = false)
-            => Host!.SaveTempAndReload(keepAnnotations, preserveZoom);
+        private void SaveTempAndReload(bool keepAnnotations = false, bool preserveZoom = false,
+            Action<string>? finalizeSavedFile = null,
+            Action<Dictionary<int, int>>? remapRotations = null,
+            int? selectedPageAfterReload = null)
+            => Host!.SaveTempAndReload(
+                keepAnnotations, preserveZoom, finalizeSavedFile, remapRotations,
+                selectedPageAfterReload);
         private void RecordNavJump() => Host!.RecordNavJump();
         private PageAnnotation? CloneAnnotation(PageAnnotation a) => Host!.CloneAnnotation(a);
         private PageAnnotation? PairPartner(PageAnnotation a) => Host!.PairPartner(a);
@@ -191,7 +199,6 @@ namespace KillerPDF.Controls
         private void ShowShortcutsOverlayExclusive() => Host!.ShowShortcutsOverlayExclusive();
         private void FadeOverlayOut(UIElement el) => Host!.FadeOverlayOut(el);
         private void FadeOutAndRemoveBar(Border? bar) => Host!.FadeOutAndRemoveBar(bar);
-        private PdfSharpCore.Pdf.PdfItem DerefItem(PdfSharpCore.Pdf.PdfItem item) => Host!.DerefItem(item);
         private string WordsToText(IEnumerable<UglyToad.PdfPig.Content.Word> src) => Host!.WordsToText(src);
         private MenuItem MakeMenuItem(string header, RoutedEventHandler click,
                                       string? gesture = null, string? glyph = null)

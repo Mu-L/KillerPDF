@@ -37,7 +37,7 @@
 - Print with a real in-app preview (scale, position, margins, pages-per-sheet, two-sided); Save Flattened to make a page uneditable
 - Six themes with per-theme accent colors; localized in ten languages
 - Keyboard shortcut overlay (F1) with a list view and a visual keyboard view, color-coded by category
-- Single Windows EXE, ~16 MB, no runtime install; self-installs per-user, machine-wide, or runs portable
+- Separate compact installer and self-contained portable downloads; the installed build uses the .NET 10 Desktop Runtime
 - GPLv3, local-only, no account, no telemetry
     </description>
     <releaseNotes>https://github.com/SteveTheKiller/KillerPDF/releases/tag/vREPLACE_VERSION</releaseNotes>

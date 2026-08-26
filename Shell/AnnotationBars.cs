@@ -14,9 +14,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -61,7 +58,7 @@ namespace KillerPDF
         // Wraps a floating annotation bar's content with the app's film-grain layer so these bars
         // carry the same texture as the Settings / signature / dialog surfaces. The grain extends
         // under the host border's 4px padding (negative margin) and matches its bottom corners.
-        private Grid GrainWrap(UIElement content)
+        private static Grid GrainWrap(UIElement content)
         {
             var g = new Grid();
             // SetResourceReference, not a FindResource snapshot: these hosts are built once and
@@ -100,7 +97,7 @@ namespace KillerPDF
 
         // Wraps an annotate bar's content with a film-grain layer (always visible, even minimized) and a
         // hidden grip-dots strip (the same dots the sidebar splitter uses) revealed when minimized.
-        private FrameworkElement BuildBarHost(FrameworkElement content)
+        private Grid BuildBarHost(FrameworkElement content)
         {
             var host = new Grid();
 
@@ -163,6 +160,19 @@ namespace KillerPDF
         // the document area, with the X position remembered (shared across the draw/text bars).
         private void EnableBarSlide(FrameworkElement grip, Border bar, FrameworkElement bounds, bool backgroundOnly = false)
         {
+            if (backgroundOnly)
+            {
+                // The content panel's children are sliders, swatches and combos - real controls that
+                // are NOT draggable. Cursor resolution walks UP the tree, so setting the hand on the
+                // panel would put it on all of them; instead it is switched per move, on exactly the
+                // same "did this hit the panel's own background" test the drag itself uses.
+                grip.MouseMove += (s, e) =>
+                    grip.Cursor = ReferenceEquals(e.OriginalSource, grip) ? DragCursors.Open : null;
+            }
+            else grip.Cursor = DragCursors.Open;
+            // A capture lost to an alt-tab or a dialog never reaches the button-up handler, which
+            // would strand the closed hand on screen for the rest of the session.
+            grip.LostMouseCapture += (s, e) => DragCursors.EndDrag();
             grip.MouseLeftButtonDown += (s, e) =>
             {
                 // When wired on a content panel, only act on clicks that hit the panel's OWN background
@@ -183,6 +193,7 @@ namespace KillerPDF
                 bar.Margin = new Thickness(curLeft, bar.Margin.Top, 0, 0);
                 bar.Tag = (e.GetPosition(bounds).X, curLeft);   // (startX, origLeft)
                 grip.CaptureMouse();
+                DragCursors.BeginDrag();
                 e.Handled = true;
             };
             grip.MouseMove += (s, e) =>
@@ -204,6 +215,7 @@ namespace KillerPDF
             {
                 if (!grip.IsMouseCaptured) return;
                 grip.ReleaseMouseCapture();
+                DragCursors.EndDrag();
                 double w = bar.ActualWidth;
                 double left = bar.Margin.Left;
                 // Measure the right gap from the scrollbar's left edge (the usable content edge), so a
@@ -379,7 +391,7 @@ namespace KillerPDF
         // Shared overflow chevron + popup for the annotate bars: an E712 "More" button whose popup
         // (anchored to the button - flyouts anchor to their own button, always) stacks whatever
         // groups WireBarOverflow sheds.
-        private Border MakeBarOverflow(out Popup popup, out StackPanel stack)
+        private static Border MakeBarOverflow(out Popup popup, out StackPanel stack)
         {
             var s = new StackPanel { Margin = new Thickness(10, 6, 10, 6) };
             // Family flyout rule: the film grain is the LAST child, OVER the items, non-hit-testable.
@@ -920,7 +932,7 @@ namespace KillerPDF
                 WireBarWrapAdaptation(panel, drawGrip, colorGroup, previewArea);
                 var drawGroups = sizeGroupRef is null
                     ? new StackPanel[] { colorGroup, dOpacityUnit }
-                    : new StackPanel[] { colorGroup, sizeGroupRef, dOpacityUnit };
+                    : [colorGroup, sizeGroupRef, dOpacityUnit];
                 int[] drawShed = sizeGroupRef is null ? [1] : [2, 1];   // opacity unit first, then size; color anchored
                 WireBarOverflow(panel, drawOverflowBtn, drawOverflowPopup, drawOverflowStack, drawGroups, drawShed, previewArea);
                 PlaceAnnotationBar(_drawSettingsBar, drawGrip, fadeIn: appearing);

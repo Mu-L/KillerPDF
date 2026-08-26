@@ -13,10 +13,9 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
+using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Writing;
 // CliParsePageRange moved out with the CLI runner but is used here too (Export Images'
 // range box); its encoder sibling is now Services/BitmapHelpers.EncodeJpeg.
 using static KillerPDF.Features.CliRunner;
@@ -59,8 +58,8 @@ namespace KillerPDF
 
             try
             {
-                if (_doc is not null) { _doc.Close(); _doc = null; }
-                _doc = PdfReader.Open(srcPath, PdfDocumentOpenMode.Modify);
+                _doc?.Close();
+                _doc = null; _doc = PdfWorkingDocument.Open(srcPath);
                 // PdfSharp cannot save modified encrypted PDFs - it copies unmodified encrypted
                 // stream bytes verbatim but fails when it has to re-serialize a dirty object.
                 // Strip encryption silently at open time via Import so all edits work correctly.
@@ -94,13 +93,10 @@ namespace KillerPDF
                 if (pw is null) return;
                 try
                 {
-                    if (_doc is not null) { _doc.Close(); _doc = null; }
-                    _doc = PdfReader.Open(srcPath, pw, PdfDocumentOpenMode.Modify);
-                    // Save a decrypted temp copy so Docnet can render without needing the password
-                    var tempDec = App.MakeTempFile("dec");
-                    _doc.Save(tempDec);
-                    _doc.Close();
-                    _doc = PdfReader.Open(tempDec, PdfDocumentOpenMode.Modify);
+                    _doc?.Close();
+                    _doc = null; var tempDec = App.MakeTempFile("dec");
+                    PdfEngineIntegration.RemoveEncryption(srcPath, tempDec, pw);
+                    _doc = PdfWorkingDocument.Open(tempDec);
                     _currentFile = tempDec;
                     FinishOpenFile(path, tempDec);
                     _openedFromProtected = true;   // #149: unlocked with the user's password
@@ -116,8 +112,8 @@ namespace KillerPDF
                 // open in Modify mode. Fall back to ReadOnly; if that also fails, offer repair.
                 try
                 {
-                    if (_doc is not null) { _doc.Close(); _doc = null; }
-                    _doc = PdfReader.Open(srcPath, PdfDocumentOpenMode.ReadOnly);
+                    _doc?.Close();
+                    _doc = null; _doc = PdfWorkingDocument.Open(srcPath, isReadOnly: true);
                     _currentFile = srcPath;
                     FinishOpenFile(path, srcPath);
                     SetStatus(string.Format(Loc("Str_OpenedReadOnlyXRef"), System.IO.Path.GetFileName(path), _doc.PageCount));
@@ -167,7 +163,11 @@ namespace KillerPDF
             FileNameLabel.Text = System.IO.Path.GetFileName(displayPath);
             _annotations.Clear();
             _continuousLinks.Clear();   // drop the previous document's cached link rects
-            CloseLinkPdfiumDoc();       // and release the cached PDFium link handle for the old file
+            CloseEngineDocumentSession();
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
+            int pageCount = engineSession.Pages.Count;
+            if (pageCount == 0)
+                throw new InvalidOperationException("The PDF contains no pages.");
             _undoStack.Clear();
             _redoStack.Clear();
             // The map belongs to the previous document. Native rotations in a newly opened PDF
@@ -177,6 +177,7 @@ namespace KillerPDF
             _navForward.Clear();
             _renderDims.Clear();
             _formTextValues.Clear();
+            _formChoiceValues.Clear();
             _formCheckValues.Clear();
             _formFontSizes.Clear();
             _formRadioValues.Clear();
@@ -194,7 +195,7 @@ namespace KillerPDF
                 _viewMode  = sview;
                 _fitMode   = preferredFit ?? sfit;
                 _zoomLevel = szoom;
-                int pg = Math.Max(0, Math.Min(spage, _doc!.PageCount - 1));
+                int pg = Math.Max(0, Math.Min(spage, pageCount - 1));
                 BootstrapDocumentView(pg, autoFit: false, restoreFitMode: true);
             }
             else
@@ -206,7 +207,7 @@ namespace KillerPDF
                 }
                 else BootstrapDocumentView(0, autoFit: true);
             }
-            SetStatus(string.Format(Loc("Str_Opened"), System.IO.Path.GetFileName(displayPath), _doc!.PageCount));
+            SetStatus(string.Format(Loc("Str_Opened"), System.IO.Path.GetFileName(displayPath), pageCount));
             SyncSidebarToDocState(hasDoc: true, startup: false);   // a document is up: open the rail, show page controls
         }
 
@@ -228,8 +229,8 @@ namespace KillerPDF
             try
             {
                 // Release any open document before the worker reads the source file.
-                if (_doc is not null) { _doc.Close(); _doc = null; }
-
+                _doc?.Close();
+                _doc = null;
                 string? repairedPath = null;
                 bool raster = false;
 
@@ -272,7 +273,7 @@ namespace KillerPDF
                 }
 
                 // Open and render the repaired copy on the UI thread.
-                _doc = PdfReader.Open(repairedPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(repairedPath);
                 _currentFile = repairedPath;
                 FinishOpenFile(path, repairedPath);
                 MarkDirty(true); // repaired copy lives in temp - user must Save As
@@ -308,10 +309,21 @@ namespace KillerPDF
             var busy = ShowBusyOverlay(busyMessage ?? Loc("Str_Busy_Opening"));
             try
             {
-                if (_doc is not null) { _doc.Close(); _doc = null; }
-                var repairedPath = App.MakeTempFile("repaired");
+                _doc?.Close();
+                _doc = null; var repairedPath = App.MakeTempFile("repaired");
                 bool ok = await System.Threading.Tasks.Task.Run(() =>
-                    PdfiumInterop.TryPdfiumStripEncryption(srcPath, repairedPath) || PdfImport.TryImportRepairToPath(srcPath, repairedPath));
+                {
+                    try
+                    {
+                        PdfEngineIntegration.RemoveEncryption(srcPath, repairedPath, string.Empty);
+                        return true;
+                    }
+                    catch
+                    {
+                        return PdfiumInterop.TryPdfiumStripEncryption(srcPath, repairedPath)
+                            || PdfImport.TryImportRepairToPath(srcPath, repairedPath);
+                    }
+                });
                 if (ct.IsCancellationRequested) { HideBusyOverlay(busy); _asyncOpenPending = false; SetStatus(Loc("Str_St_Canceled")); EndCancellableOp(); return; }
                 if (!ok)
                 {
@@ -319,7 +331,7 @@ namespace KillerPDF
                     TryRepairAndOpen(srcPath);   // re-registers the cancellable op; repair finalizes the tab
                     return;
                 }
-                _doc = PdfReader.Open(repairedPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(repairedPath);
                 _currentFile = repairedPath;
                 FinishOpenFile(displayPath, repairedPath);
                 _openedFromProtected = true;   // #149: source carried encryption, silently stripped above
@@ -369,7 +381,7 @@ namespace KillerPDF
             _doc.Close();
             _doc = null;
             _currentFile = null;
-            CloseLinkPdfiumDoc();   // release the cached PDFium link handle for the closed file
+            CloseEngineDocumentSession();
             App.RemoveSetting("LastFile");   // don't reopen a manually-closed file on next launch (Issue #75)
             _activeTextBox = null;   // cancel any in-progress typewriter edit before canvas clear
             RemoveTextEditHandles();
@@ -380,6 +392,7 @@ namespace KillerPDF
             _navForward.Clear();
             _renderDims.Clear();
             _formTextValues.Clear();
+            _formChoiceValues.Clear();
             _formCheckValues.Clear();
             _formFontSizes.Clear();
             _formRadioValues.Clear();
@@ -398,7 +411,7 @@ namespace KillerPDF
             HideTextSettings();
             HideSignaturePopup();
             SetTool(EditTool.Select);
-            if (_closeFileBtnRef != null) _closeFileBtnRef.IsEnabled = false;
+            _closeFileBtnRef?.IsEnabled = false;
             _pageJumpBox.IsEnabled = false;
             _continuousRenderCts?.Cancel();
             _continuousPanel.Children.Clear();
@@ -427,14 +440,10 @@ namespace KillerPDF
             var target = BeginTabLoad(out var prev, out bool createdNew);
             try
             {
-                var newDoc = new PdfDocument();
-                newDoc.AddPage(); // one blank A4 page
-
                 var tempPath = App.MakeTempFile("new");
-                newDoc.Save(tempPath);
-                newDoc.Close();
+                File.WriteAllBytes(tempPath, PdfEngineIntegration.CreateBlankDocument());
 
-                _doc = PdfReader.Open(tempPath, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempPath);
                 FinishOpenFile("Untitled.pdf", tempPath);
                 SetStatus(Loc("Str_KS_NewBlank"));
                 CaptureSessionState(_active!);
@@ -760,42 +769,71 @@ namespace KillerPDF
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
-            var dlg = new DocumentInfoDialog(this, _doc, _originalFile ?? _currentFile);
+            string? path = _originalFile ?? _currentFile;
+            KillerPdf.Engine.Documents.PdfDocumentInformation info =
+                KillerPdf.Engine.Documents.PdfDocumentInformation.Read(
+                    EnsureEngineDocumentSession().Document);
+            KillerPdf.Engine.Authoring.PdfDocumentMetadata? editedMetadata = null;
+            var dlg = new DocumentInfoDialog(this, info, metadata => editedMetadata = metadata, path);
             dlg.ShowDialog();   // fade-close dialogs don't reliably return true; rely on the Saved flag
-            if (dlg.Saved)
+            if (dlg.Saved && editedMetadata is not null)
             {
-                MarkDirty();
+                var completeMetadata = editedMetadata with
+                {
+                    Language = info.Language,
+                    CreationDate = info.CreationDate,
+                    ModificationDate = info.ModificationDate,
+                    Trapped = info.Trapped
+                };
+                PushDocUndo();
+                SaveTempAndReload(
+                    keepAnnotations: true,
+                    finalizeSavedFile: target =>
+                        PdfEngineIntegration.ApplyDocumentMetadata(target, completeMetadata));
                 SetStatus(Loc("Str_St_DocInfoUpdated"));
             }
         }
 
-        private void Merge_Click(object sender, RoutedEventArgs e)
+        private async void Merge_Click(object sender, RoutedEventArgs e)
+            => await MergeAtIndex(null);
+
+        private async Task MergeAtIndex(int? insertionIndex)
         {
             if (_doc is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
-            var doc = _doc;
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Open)
                           { Filter = Loc("Str_Filter_Pdf") + "|*.pdf", Title = Loc("Str_Dlg_SelectMerge"), Multiselect = true };
             if (dlg.ShowDialog(this) != true) return;
             try
             {
+                var imports = new List<PdfEngineIntegration.ImportedDocument>();
                 foreach (var file in dlg.FileNames)
                 {
-                    int pageOffset = doc.PageCount;
+                    string importPath = file;
+                    try
+                    {
+                        PdfEngineIntegration.ValidateDocument(importPath);
+                    }
+                    catch
+                    {
+                        string? repaired = await RepairPdfForImportAsync(file);
+                        if (repaired is null) return;
+                        importPath = repaired;
+                        PdfEngineIntegration.ValidateDocument(importPath);
+                    }
 
-                    // Open twice: Import mode for AddPage, ReadOnly for catalog access.
-                    using var srcRead = PdfReader.Open(file, PdfDocumentOpenMode.ReadOnly);
-                    var namedDestMap = PdfImport.BuildNamedDestMap(srcRead);
-
-                    using var src = PdfReader.Open(file, PdfDocumentOpenMode.Import);
-                    for (int i = 0; i < src.PageCount; i++)
-                        doc.AddPage(src.Pages[i]);
-
-                    // Rewrite named-destination links in the newly added pages so they
-                    // resolve correctly after the catalog is not imported.
-                    if (namedDestMap.Count > 0)
-                        PdfImport.RewriteNamedDestLinks(doc, pageOffset, namedDestMap);
+                    IReadOnlyList<KillerPdf.Engine.Documents.PdfPageInformation> pages =
+                        PdfEngineIntegration.ReadPageInformation(importPath);
+                    imports.Add(new PdfEngineIntegration.ImportedDocument(importPath,
+                        [.. pages.Select(page => page.Rotation)]));
                 }
-                SaveTempAndReload();
+                int insertAt = insertionIndex ?? _doc.PageCount;
+                SaveTempAndReload(
+                    finalizeSavedFile: path =>
+                        PdfEngineIntegration.InsertDocuments(path, imports, insertAt),
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterDocumentInsertion(
+                            rotations, imports, insertAt),
+                    selectedPageAfterReload: insertionIndex);
                 SetStatus(string.Format(Loc("Str_St_Merged"), dlg.FileNames.Length, _doc?.PageCount));
             }
             catch (Exception ex)
@@ -803,12 +841,6 @@ namespace KillerPDF
                 KillerDialog.Show(this, Loc("Str_Err_MergeFailed") + "\n" + ex.Message, "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-        // The named-destination helpers (BuildNamedDestMap, RewriteNamedDestLinks and their
-        // private walkers) live in Services/PdfImport.cs (KillerUI refactor).
-
-        // DerefItemStatic, RectNum and the pre-save scrubs live in Services/PdfScrub.cs
-        // (KillerUI refactor) - pure functions shared by the GUI saves, TempReload and the CLI.
 
         // ============================================================
         // Adobe page-size guard
@@ -821,84 +853,22 @@ namespace KillerPDF
         // file looks normal in KillerPDF and only fails in Adobe.
         // Min/MaxAdobePageDim live in Services/PdfImport.cs (shared with the image importer).
 
-        private static bool PageOutOfAdobeRange(PdfPage p)
-        {
-            double w = p.Width.Point, h = p.Height.Point;
-            return w < PdfImport.MinAdobePageDim || w > PdfImport.MaxAdobePageDim || h < PdfImport.MinAdobePageDim || h > PdfImport.MaxAdobePageDim;
-        }
-
         // Called at the top of every user-facing save. If any page is outside Adobe's supported
         // range, offers a proportional rescale (content, page boxes, and annotations all scale
         // by the same factor, so pages look identical at their new size). Declining saves as-is.
         private void OfferRescaleOutOfRangePages()
         {
             if (_doc is null) return;
-            int bad = 0;
-            for (int i = 0; i < _doc.PageCount; i++)
-                if (PageOutOfAdobeRange(_doc.Pages[i])) bad++;
-            if (bad == 0) return;
-            var res = KillerDialog.Show(this, string.Format(Loc("Str_Dlg_PageOutOfRange"), bad),
+            PdfEngineDocumentSession session = EnsureEngineDocumentSession();
+            IReadOnlyList<int> pages = PdfPageDimensionNormalizer.FindPagesOutsideRange(
+                session.Document, PdfImport.MinAdobePageDim, PdfImport.MaxAdobePageDim);
+            if (pages.Count == 0) return;
+            var res = KillerDialog.Show(this, string.Format(Loc("Str_Dlg_PageOutOfRange"), pages.Count),
                 "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (res != MessageBoxResult.Yes) return;
-            for (int i = 0; i < _doc.PageCount; i++)
-                if (PageOutOfAdobeRange(_doc.Pages[i]))
-                    RescalePageToAdobeRange(_doc.Pages[i]);
-        }
-
-        // Rescales one page into Adobe's supported range: wraps the existing content in a
-        // "q <s> 0 0 <s> 0 0 cm ... Q" transform and scales the page boxes and annotation
-        // rectangles by the same factor.
-        private static void RescalePageToAdobeRange(PdfPage page)
-        {
-            double w = page.Width.Point, h = page.Height.Point;
-            double s = 1.0;
-            if (w > PdfImport.MaxAdobePageDim || h > PdfImport.MaxAdobePageDim)
-                s = Math.Min(PdfImport.MaxAdobePageDim / w, PdfImport.MaxAdobePageDim / h);
-            else if (w < PdfImport.MinAdobePageDim || h < PdfImport.MinAdobePageDim)
-                s = Math.Max(PdfImport.MinAdobePageDim / w, PdfImport.MinAdobePageDim / h);
-            if (s == 1.0) return;
-
-            string inv = s.ToString("0.########", System.Globalization.CultureInfo.InvariantCulture);
-            page.Contents.PrependContent().CreateStream(
-                System.Text.Encoding.ASCII.GetBytes($"q {inv} 0 0 {inv} 0 0 cm\n"));
-            page.Contents.AppendContent().CreateStream(
-                System.Text.Encoding.ASCII.GetBytes("\nQ\n"));
-
-            ScaleRectValue(page.Elements, "/MediaBox", s);
-            ScaleRectValue(page.Elements, "/CropBox",  s);
-            ScaleRectValue(page.Elements, "/BleedBox", s);
-            ScaleRectValue(page.Elements, "/TrimBox",  s);
-            ScaleRectValue(page.Elements, "/ArtBox",   s);
-
-            // Annotation rectangles (and link quad points) must follow so they stay on target.
-            var annotsItem = page.Elements["/Annots"];
-            if (annotsItem != null && PdfScrub.DerefItemStatic(annotsItem) is PdfArray annots)
-            {
-                foreach (var item in annots.Elements)
-                {
-                    if (PdfScrub.DerefItemStatic(item) is not PdfDictionary annot) continue;
-                    ScaleRectValue(annot.Elements, "/Rect", s);
-                    if (annot.Elements["/QuadPoints"] is PdfArray quads)
-                        for (int i = 0; i < quads.Elements.Count; i++)
-                            quads.Elements[i] = new PdfReal(PdfScrub.RectNum(quads.Elements[i]) * s);
-                }
-            }
-        }
-
-        // Multiplies a rectangle-valued dictionary entry by s in place; no-op when absent.
-        // PdfSharpCore holds these as PdfRectangle (parsed) or PdfArray, so handle both.
-        private static void ScaleRectValue(PdfDictionary.DictionaryElements elements, string key, double s)
-        {
-            var item = elements[key];
-            if (item == null) return;
-            item = PdfScrub.DerefItemStatic(item);
-            if (item is PdfRectangle rect)
-                elements.SetRectangle(key, new PdfRectangle(
-                    new XPoint(rect.X1 * s, rect.Y1 * s),
-                    new XPoint(rect.X2 * s, rect.Y2 * s)));
-            else if (item is PdfArray arr && arr.Elements.Count == 4)
-                for (int i = 0; i < 4; i++)
-                    arr.Elements[i] = new PdfReal(PdfScrub.RectNum(arr.Elements[i]) * s);
+            SaveTempAndReload(keepAnnotations: true, preserveZoom: true,
+                finalizeSavedFile: path => PdfEngineIntegration.NormalizePageDimensions(
+                    path, pages, PdfImport.MinAdobePageDim, PdfImport.MaxAdobePageDim));
         }
 
         private void SaveInPlace()
@@ -910,23 +880,14 @@ namespace KillerPDF
             if (string.IsNullOrEmpty(_originalFile)) { SaveAs_Click(this, new RoutedEventArgs()); return; }
             CommitActiveTextBox();
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
-            PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
-            PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
-            PdfScrub.ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
             string saveTarget = _originalFile!;
-            // #129: the cached PDFium link handle (EnsureLinkPdfiumDoc) can hold _currentFile open,
-            // and on a plain open _currentFile IS the user's real file - PdfSharp then can't overwrite
-            // it (sharing violation, "being used by another process"). Release it before saving; it
-            // reopens lazily on the next render sweep, re-parsing the freshly saved file.
-            CloseLinkPdfiumDoc();
+            // Drop the immutable engine view before replacing the working file. It reopens lazily
+            // on the next link or form render and therefore cannot expose stale document state.
+            CloseEngineDocumentSession();
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
-                WriteFormValuesToDocument();
-                // Always strip link annotation borders regardless of user annotation count
-                // so mailto/URI links don't appear as strikethrough lines in other viewers.
-                PdfScrub.StripLinkAnnotationBorders(_doc);
-
+                Dictionary<int, int> finalRotations = SnapshotPageRotations();
                 if (hasAnnotations || HasActiveStamps)   // #147: stamps alone must still burn
                 {
                     // Save a clean copy of the doc (without burned annotations), burn
@@ -934,13 +895,19 @@ namespace KillerPDF
                     // from the clean copy so future saves don't double-burn.
                     var tempClean = App.MakeTempFile("clean");
                     _doc.Save(tempClean);
-                    DrawStampsOnDocument();
-                    DrawAnnotationsOnDocument();
-                    _doc.Save(saveTarget);
+                    PdfEngineIntegration.RepairHarmlessSaveArtifacts(tempClean);
+                    PdfEngineIntegration.StripLinkAppearances(tempClean);
+                    System.IO.File.Copy(tempClean, saveTarget, true);
+                    PdfEngineIntegration.ClearInvalidatedSignatures(saveTarget);
+                    PdfEngineBurn.Burn(saveTarget, _annotations, _renderDims,
+                        _docStampSpec, null, _pageRotations);
+                    PdfEngineIntegration.StripLinkAppearances(saveTarget);
+                    WriteFormValuesToDocument(saveTarget);
+                    PdfEngineIntegration.ApplyPageRotations(saveTarget, finalRotations);
                     _doc.Close();
                     try
                     {
-                        _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                        _doc = PdfWorkingDocument.Open(tempClean);
                     }
                     catch (Exception saveOpenEx) when (PdfImport.IsXRefException(saveOpenEx))
                     {
@@ -949,13 +916,18 @@ namespace KillerPDF
                             && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                             throw;
                         tempClean = fixedPath;
-                        _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                        _doc = PdfWorkingDocument.Open(tempClean);
                     }
                     _currentFile = tempClean;
                 }
                 else
                 {
                     _doc.Save(saveTarget);
+                    PdfEngineIntegration.RepairHarmlessSaveArtifacts(saveTarget);
+                    PdfEngineIntegration.ClearInvalidatedSignatures(saveTarget);
+                    PdfEngineIntegration.StripLinkAppearances(saveTarget);
+                    WriteFormValuesToDocument(saveTarget);
+                    PdfEngineIntegration.ApplyPageRotations(saveTarget, finalRotations);
                 }
 
                 MarkDirty(false);
@@ -1024,29 +996,29 @@ namespace KillerPDF
             }
             catch { /* malformed seed path - just open the dialog with its defaults */ }
             if (dlg.ShowDialog(this) != true) return;
-            CloseLinkPdfiumDoc();            // #129: the target may be the open file itself - release the cached PDFium handle
+            CloseEngineDocumentSession();
             OfferRescaleOutOfRangePages();   // Adobe page-size guard
-            PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
-            PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
-            PdfScrub.ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
             try
             {
                 bool hasAnnotations = _annotations.Values.Any(list => list.Count > 0);
-                WriteFormValuesToDocument();
-                // Always strip link annotation borders regardless of user annotation count.
-                PdfScrub.StripLinkAnnotationBorders(_doc);
-
+                Dictionary<int, int> finalRotations = SnapshotPageRotations();
                 if (hasAnnotations || HasActiveStamps)   // #147: stamps alone must still burn
                 {
                     var tempClean = App.MakeTempFile("clean");
                     _doc.Save(tempClean);
-                    DrawStampsOnDocument();
-                    DrawAnnotationsOnDocument();
-                    _doc.Save(dlg.FileName);
+                    PdfEngineIntegration.RepairHarmlessSaveArtifacts(tempClean);
+                    PdfEngineIntegration.StripLinkAppearances(tempClean);
+                    System.IO.File.Copy(tempClean, dlg.FileName, true);
+                    PdfEngineIntegration.ClearInvalidatedSignatures(dlg.FileName);
+                    PdfEngineBurn.Burn(dlg.FileName, _annotations, _renderDims,
+                        _docStampSpec, null, _pageRotations);
+                    PdfEngineIntegration.StripLinkAppearances(dlg.FileName);
+                    WriteFormValuesToDocument(dlg.FileName);
+                    PdfEngineIntegration.ApplyPageRotations(dlg.FileName, finalRotations);
                     _doc.Close();
                     try
                     {
-                        _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                        _doc = PdfWorkingDocument.Open(tempClean);
                     }
                     catch (Exception saveOpenEx) when (PdfImport.IsXRefException(saveOpenEx))
                     {
@@ -1055,7 +1027,7 @@ namespace KillerPDF
                             && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                             throw;
                         tempClean = fixedPath;
-                        _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                        _doc = PdfWorkingDocument.Open(tempClean);
                     }
                     _currentFile = tempClean;
                     _originalFile = dlg.FileName;
@@ -1073,6 +1045,11 @@ namespace KillerPDF
                 else
                 {
                     _doc.Save(dlg.FileName);
+                    PdfEngineIntegration.RepairHarmlessSaveArtifacts(dlg.FileName);
+                    PdfEngineIntegration.ClearInvalidatedSignatures(dlg.FileName);
+                    PdfEngineIntegration.StripLinkAppearances(dlg.FileName);
+                    WriteFormValuesToDocument(dlg.FileName);
+                    PdfEngineIntegration.ApplyPageRotations(dlg.FileName, finalRotations);
                     _originalFile = dlg.FileName;
                     FileNameLabel.Text = System.IO.Path.GetFileName(dlg.FileName);
                     MarkDirty(false);
@@ -1092,6 +1069,13 @@ namespace KillerPDF
             }
         }
 
+        private Dictionary<int, int> SnapshotPageRotations()
+        {
+            var rotations = new Dictionary<int, int>(_pageRotations);
+            if (_doc is not null) EnsureEngineDocumentSession().CaptureRotations(rotations);
+            return rotations;
+        }
+
         private async void SaveFlattened_Click(object sender, RoutedEventArgs e)
         {
             if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
@@ -1100,11 +1084,8 @@ namespace KillerPDF
                           { Filter = Loc("Str_Filter_Pdf") + "|*.pdf", Title = Loc("Str_Dlg_SaveFlattened"),
                             CheckFileExists = false, CheckPathExists = true };
             if (dlg.ShowDialog(this) != true) return;
-            CloseLinkPdfiumDoc();            // #129: the target may be the open file itself - release the cached PDFium handle
+            CloseEngineDocumentSession();
             OfferRescaleOutOfRangePages();   // Adobe page-size guard (pageDims below must be in range)
-            PdfScrub.ScrubEmptyOutlines(_doc);        // #103: never write a dangling /Outlines reference
-            PdfScrub.ScrubDegenerateCropBoxes(_doc);  // never write a zero-size /CropBox (Adobe out-of-range)
-            PdfScrub.ScrubDeadSignatures(_doc);       // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
 
             // Burn any pending annotations into a temp source for rasterization
             // (must happen on UI thread before we go async)
@@ -1115,13 +1096,14 @@ namespace KillerPDF
                 var tempClean  = App.MakeTempFile("clean");
                 var tempBurned = App.MakeTempFile("burned");
                 _doc.Save(tempClean);
-                DrawStampsOnDocument();
-                DrawAnnotationsOnDocument();
-                _doc.Save(tempBurned);
+                PdfEngineIntegration.RepairHarmlessSaveArtifacts(tempClean);
+                System.IO.File.Copy(tempClean, tempBurned, true);
+                PdfEngineBurn.Burn(tempBurned, _annotations, _renderDims,
+                    _docStampSpec, null, _pageRotations);
                 _doc.Close();
                 try
                 {
-                    _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempClean);
                 }
                 catch (Exception saveOpenEx) when (PdfImport.IsXRefException(saveOpenEx))
                 {
@@ -1130,7 +1112,7 @@ namespace KillerPDF
                         && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                         throw;
                     tempClean = fixedPath;
-                    _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempClean);
                 }
                 _currentFile = tempClean;
                 sourcePath = tempBurned;
@@ -1139,17 +1121,19 @@ namespace KillerPDF
             {
                 var temp = App.MakeTempFile("src");
                 _doc.Save(temp);
+                PdfEngineIntegration.RepairHarmlessSaveArtifacts(temp);
                 sourcePath = temp;
             }
 
-            int pageCount = _doc.PageCount;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
+            int pageCount = engineSession.PageCount;
 
             // Snapshot per-page dimensions (CropBox-aware) before going off-thread
             var pageDims = new (double widthPt, double heightPt)[pageCount];
             for (int i = 0; i < pageCount; i++)
             {
-                var p = _doc.Pages[i];
-                pageDims[i] = (p.Width.Point, p.Height.Point);
+                PdfPageInformation p = engineSession.Pages[i];
+                pageDims[i] = (p.Width, p.Height);
             }
 
             // Show a progress overlay so the user knows we're working
@@ -1195,6 +1179,7 @@ namespace KillerPDF
         {
             if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
+            int pageCount = EnsureEngineDocumentSession().PageCount;
 
             var opts = new ExportImagesDialog(this, presetRange);
             opts.ShowDialog();   // fade-close dialogs don't reliably return true; rely on Confirmed
@@ -1203,7 +1188,7 @@ namespace KillerPDF
             List<int>? selected = null;
             if (opts.Range.Length > 0)
             {
-                selected = CliParsePageRange(opts.Range, _doc.PageCount, out string rangeErr);
+                selected = CliParsePageRange(opts.Range, pageCount, out string rangeErr);
                 if (selected is null)
                 {
                     KillerDialog.Show(this, rangeErr.Length > 0 ? rangeErr : Loc("Str_InvalidRange"),
@@ -1211,7 +1196,7 @@ namespace KillerPDF
                     return;
                 }
             }
-            selected ??= [.. Enumerable.Range(0, _doc.PageCount)];
+            selected ??= [.. Enumerable.Range(0, pageCount)];
 
             string ext = opts.Jpeg ? "jpg" : "png";
             var dlg = new Controls.FileDialog(Controls.FileDialogMode.Save)
@@ -1233,13 +1218,13 @@ namespace KillerPDF
                 var tempClean  = App.MakeTempFile("clean");
                 var tempBurned = App.MakeTempFile("burned");
                 _doc.Save(tempClean);
-                DrawStampsOnDocument();
-                DrawAnnotationsOnDocument();
-                _doc.Save(tempBurned);
+                System.IO.File.Copy(tempClean, tempBurned, true);
+                PdfEngineBurn.Burn(tempBurned, _annotations, _renderDims,
+                    _docStampSpec, null, _pageRotations);
                 _doc.Close();
                 try
                 {
-                    _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempClean);
                 }
                 catch (Exception saveOpenEx) when (PdfImport.IsXRefException(saveOpenEx))
                 {
@@ -1248,7 +1233,7 @@ namespace KillerPDF
                         && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                         throw;
                     tempClean = fixedPath;
-                    _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                    _doc = PdfWorkingDocument.Open(tempClean);
                 }
                 _currentFile = tempClean;
                 sourcePath = tempBurned;
@@ -1262,12 +1247,12 @@ namespace KillerPDF
 
             // In-app rotations live outside the file (the working copy has /Rotate stripped -
             // BitmapHelpers), so snapshot them and rotate the pixels like the render path does.
-            var rotSnapshot = new int[_doc.PageCount];
+            var rotSnapshot = new int[pageCount];
             for (int i = 0; i < rotSnapshot.Length; i++)
                 if (_pageRotations.TryGetValue(i, out int r)) rotSnapshot[i] = r;
 
             var overlay = ShowFlattenProgress(selected.Count, Loc("Str_Busy_ExportPage"));
-            int digits  = Math.Max(3, _doc.PageCount.ToString().Length);
+            int digits  = Math.Max(3, pageCount.ToString().Length);
             bool jpeg   = opts.Jpeg;
             double dpi  = opts.Dpi;
             var pages   = selected;
@@ -1375,28 +1360,13 @@ namespace KillerPDF
 
                 // Flatten the annotations onto a throwaway COPY on a background thread. The live _doc is never
                 // touched (no close/reopen), so the UI stays responsive and the editing session keeps its
-                // overlay annotations. DrawAnnotationsIntoDoc is static, so it can't reach UI state.
+                // overlay annotations. The engine burn service is static, so it cannot reach UI state.
                 bool burned = await Task.Run(() =>
                 {
                     try
                     {
-                        PdfDocument burnDoc;
-                        try { burnDoc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify); }
-                        catch (Exception ex) when (PdfImport.IsXRefException(ex))
-                        {
-                            // PdfSharpCore can write a snapshot its own reader then chokes on; repair via
-                            // Import then PDFium, same as the save/undo paths.
-                            var fixedPath = App.MakeTempFile("printfixed");
-                            if (!PdfImport.TryImportRepairToPath(tempClean, fixedPath) && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
-                                return false;
-                            burnDoc = PdfReader.Open(fixedPath, PdfDocumentOpenMode.Modify);
-                        }
-                        using (burnDoc)
-                        {
-                            PdfBurn.DrawStampsIntoDoc(burnDoc, stampSnap, null, rotSnap);   // stamps sit beneath annotations
-                            PdfBurn.DrawAnnotationsIntoDoc(burnDoc, annotsSnap, dimsSnap, null, rotSnap);
-                            burnDoc.Save(burnPath);
-                        }
+                        System.IO.File.Copy(tempClean, burnPath, true);
+                        PdfEngineBurn.Burn(burnPath, annotsSnap, dimsSnap, stampSnap, null, rotSnap);
                         return true;
                     }
                     catch { return false; }
@@ -1412,7 +1382,8 @@ namespace KillerPDF
             }
 
             if (_doc is null) return;   // re-check after the await (the doc was untouched, this satisfies flow analysis)
-            int pageCount = _doc.PageCount;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
+            int pageCount = engineSession.PageCount;
 
             // Each page's true physical size in DIPs (96/inch) so the dialog can offer an exact
             // "actual size" / custom scale. Computed on the UI thread (PdfSharp isn't thread-safe).
@@ -1420,10 +1391,7 @@ namespace KillerPDF
             var pageDipH = new double[pageCount];
             for (int i = 0; i < pageCount; i++)
             {
-                double pw = _doc.Pages[i].Width.Point;
-                double ph = _doc.Pages[i].Height.Point;
-                if (_pageRotations.TryGetValue(i, out int rot) && (rot == 90 || rot == 270))
-                    (pw, ph) = (ph, pw);
+                var (pw, ph) = engineSession.VisualPageSize(i, _pageRotations);
                 pageDipW[i] = pw * 96.0 / 72.0;
                 pageDipH[i] = ph * 96.0 / 72.0;
             }

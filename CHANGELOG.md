@@ -4,6 +4,101 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0-beta.2] - Unreleased
+
+KillerPDF 1.8 replaces its legacy PdfSharpCore document pipeline with an independently authored .NET 10 PDF document engine. It is responsible for reading, validating, authoring, structurally editing, and writing PDF files. PDFium remains KillerPDF's rendering and display backend, while PdfPig continues to handle text extraction. This beta is a development build, not a public release.
+
+### PDF document engine
+
+KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history is maintained in [The KillerPDF.Engine changelog](engine/CHANGELOG.md).
+
+### Added
+- KillerPDF now builds separate standard and portable packages. The standard package uses a compact Dark-theme installer with the product identity rail, raised grain-textured content card, runtime detection, account scope, shortcut selection, verified installation, elevation, rollback, and launch completion.
+- The Windows application now directly references The KillerPDF.Engine after moving to .NET 10, establishing the integration boundary while PdfSharpCore is retired through tested feature slices.
+- Text boxes now support adjustable letter spacing with live preview, spacing-aware wrapping, and matching PDF output for aligning characters with preprinted form boxes (#232).
+- Multiple selected page thumbnails can now be dragged as one ordered block, with the insertion marker identifying the block's exact destination and page rotation state moving with every selected page (#233).
+- PDFs and images dropped between page thumbnails are inserted at the indicated position, and each page thumbnail's context menu can merge selected PDFs directly after that page instead of only appending them (#233).
+- Transform settings can now be previewed page by page and applied to every selected page as one undoable batch while preserving each page's own dimensions, rotation, and annotation burn-in (#204).
+- Transform now adjusts selected pages to grayscale or thresholded black and white, optionally resamples them from 72 to 600 DPI, and can use selectable JPEG compression while preserving the existing lossless automatic-resolution defaults (#173).
+- OCR can now optionally use existing form-field geometry as recognition boundaries, apply numeric character constraints, read comb fields cell by cell, honor maximum lengths, and validate close matches against choice lists. Plain OCR remains the default (#242).
+- Digital signatures can use certificates backed by Windows-compatible USB tokens and now include an editable visible layout with template fields, live preview, page placement, dimensions, and text sizing (#125).
+- Dragging a page thumbnail now shows a theme-colored insertion line at the exact before-or-after drop position in the Pages sidebar.
+- The Select tool now shows an I-beam only over selectable PDF text in every view while retaining the hand cursor over links (#221).
+- Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
+
+### Changed
+- Direct PDFium loading now uses explicit UTF-8 marshalling for document paths and passwords, preserving international characters instead of passing them through the Windows ANSI code page.
+- Engine validation failures now retain accurate public exception contracts without reporting nonexistent parameter names, and OCR downloads propagate cancellation through the response stream.
+- Portable builds identify themselves with a `PORTABLE` upgrade badge linked to the installed release instead of offering to install their temporary self-contained payload.
+- Installed-payload verification now rejects files absent from the signed manifest, preventing untrusted assemblies in the application probing path, and its tamper test now exercises a same-length SHA-256 mismatch.
+- Moving from a per-user installation to an all-users installation now removes the stale per-user `killerpdf:` protocol registration so it cannot shadow the Program Files handler.
+- Portable cleanup now validates both process identity and start time instead of trusting a reusable PID, and legacy extraction markers retain a directory only when their recorded child still runs from that directory.
+- Saving edited fillable fields now embeds a compatible font when values contain smart punctuation, currency symbols, CJK, or other Unicode text instead of rejecting the save.
+- Fillable choice fields now bind their displayed option and saved export value explicitly, so selecting another dropdown option updates the live field and persists the new value.
+- Single-page and two-page views now accept one deliberate geared-wheel notch at a page edge while still suppressing momentum from the preceding content scroll; precision-wheel deltas continue to accumulate smoothly (#205).
+- The shortcut help list is wider with more column spacing, and the visual keyboard localizes named keycaps while using guaranteed-readable action and heading text across dark themes (#230).
+- The remaining reported signature, text-editing, install, publisher-verification, and text-cover unpair messages now use the active language resources instead of hardcoded English (#227).
+- Fillable text fields now force the standard I-beam above the viewer tool cursor, keeping the insertion point and editable state visually clear while entering form text (#235).
+- The all-users installer handoff now completes once and leaves the final installed-app relaunch to the portable UI, preventing the duplicate portable restart reported in #238. Portable packaging runs a disposable install smoke test to keep that command boundary covered.
+- KillerPDF now owns its serialized desktop working state through The KillerPDF.Engine. The application, application tests, solution, portable payload, and repository no longer reference or vendor PdfSharpCore; the obsolete compatibility formatter tests and transitive payload libraries have been removed.
+- Installed font discovery and TrueType Collection face extraction are now an engine-oriented application service with no PdfSharpCore resolver contract or process-wide startup registration. Unicode burn-in and form appearance generation retain the same installed-face and glyph-coverage behavior.
+- Transform sizing now uses crop-aware visual geometry from the immutable engine session, native link removal no longer preflights the legacy annotation array, and obsolete PdfSharpCore named-destination and link-style scrub helpers have been removed after their engine replacements made them unreachable.
+- The Adobe-compatible page-size guard now detects and proportionally normalizes oversized or undersized pages through a byte-preserving KillerPDF.Engine revision, including page boundaries, content coordinates, annotation rectangles, and link quadrilaterals. Flattened export, print sizing, and saved rotation snapshots also use the immutable engine session.
+- Continuous-page layout, displayed zoom, fit-to-page calculations, and crop editing now read crop-aware physical and visual page geometry from the active immutable engine session instead of the live PdfSharpCore page collection.
+- Stamp preview, search-highlight mapping, text placement and restyling, clipboard text placement, and annotation text scaling now use the active engine session for page count and physical or visual page geometry. The stamps, search, text-settings, and text-editing components no longer import PdfSharpCore solely for document measurements.
+- Save, Save As, flattened export, and temp reload now repair empty outline roots and degenerate or out-of-media crop boxes through a byte-preserving KillerPDF.Engine sanitizer after serialization. The legacy live-document outline and crop scrubbers have been removed.
+- Save and Save As now clear invalidated signature values and certification permissions through KillerPDF.Engine after serialization, preserving empty fields for re-signing without mutating the live PdfSharpCore form tree.
+- Temp reload now captures native or application-managed page rotations from the immutable engine session and creates its zero-rotation PDFium working copy through a byte-preserving engine revision. It no longer clears and mutates every live PdfSharpCore page rotation before serialization.
+- Active documents now expose one immutable KillerPDF.Engine session shared by open finalization, page-list initialization, link discovery, and form discovery, including owned source bytes and cached crop-aware page geometry. Document reloads, saves, closes, and tab switches invalidate that session through one lifecycle boundary.
+- Save, Save As, flattened export, image export, Transform preview, and print now burn text, highlights, redactions, ink, shapes, signatures, images, page numbers, and watermarks through typed KillerPDF.Engine page content. The new path preserves visual-frame rotation, Unicode fonts and styles, transparency, multiply highlights, rounded strokes, image alpha, and stamp layering without PdfSharpCore drawing.
+- Interactive form overlays now discover widgets through The KillerPDF.Engine, including inherited hierarchical names, field types, values, flags, maximum lengths, default appearances, choice export and display values, button states, crop-aware geometry, and page rotation. The obsolete PdfSharpCore widget parser and unused legacy appearance builders have been removed from the viewer.
+- Native link overlays and hit testing now read annotation geometry, URI actions, page targets, and modern or legacy named destinations through The KillerPDF.Engine. This removes the viewer's PdfSharpCore link parser, its PDFium object-stream fallback and persistent native link handle, and the obsolete PdfSharpCore outline helper layer.
+- The bookmark sidebar now reads hierarchy, Unicode titles, stable identities, styles, colors, open state, explicit destinations, and named destinations through The KillerPDF.Engine. Adding, renaming, deleting, reordering, retargeting, and clearing bookmarks now replace the complete hierarchy through one engine revision, and the sidebar no longer retains or edits live PdfSharpCore outline objects.
+- Save and Save As now normalize native links to invisible clickable regions through The KillerPDF.Engine, removing appearance streams and colors and writing zero-width modern and legacy borders without changing link targets.
+- Rotate Left and Rotate Right now update KillerPDF's authoritative per-page rotation state during reload instead of mutating live PdfSharpCore page dictionaries; final saved rotations continue to be written through The KillerPDF.Engine.
+- Removing a native PDF link from the viewer now deletes the selected annotation through The KillerPDF.Engine as an incremental revision instead of mutating the live PdfSharpCore annotation array.
+- Headless `--batch-resave` corpus validation now uses The KillerPDF.Engine's deterministic full-document writer, skips encrypted and signed inputs rather than silently stripping protection or invalidating signatures, and retains its existing directory, CSV, and exit-code contract.
+- Import-based repair and temp-reload recovery now rebuild complete document graphs through The KillerPDF.Engine, including the rotation-stripping variant, instead of constructing replacement documents with PdfSharpCore.
+- Searchable PDF OCR now appends invisible Unicode text through The KillerPDF.Engine with embedded per-script fallback fonts, extractable ToUnicode maps, isolated page resources, and rotation-aware placement instead of resaving the document through PdfSharpCore.
+- Digital signatures now use The KillerPDF.Engine's detached CMS writer instead of the separate PDFsharp 6.2 signing package, while retaining Windows certificate-store, PFX, cloud-token, and whole-chain SHA-256 signing.
+- Last-resort PDFium raster repair now authors recovered pages through The KillerPDF.Engine, and the obsolete PdfSharpCore image-page importer has been removed.
+- New Document now authors its blank A4 page through The KillerPDF.Engine, and Transform now authors its raster replacement page through the engine before replacing the original page graph.
+- PDFs and images dropped onto an open document now append through The KillerPDF.Engine, preserving complete imported document graphs and image frames while retaining repair prompts and application rotation state.
+- Import Images and combined folder or archive imports now author image frames and import complete PDF graphs through The KillerPDF.Engine while retaining their existing skip-unreadable behavior.
+- CLI rendering preparation for image export, flattening, printing, and OCR now reads crop-aware page dimensions and rotations through The KillerPDF.Engine instead of opening a mutable PdfSharpCore document.
+- CLI merge now handles mixed PDF and image inputs entirely through The KillerPDF.Engine, including multiframe images, while both desktop and CLI flattening author rendered image pages directly through the engine without an intermediate PdfSharpCore rebuild.
+- Save and Save As now persist text, choice, checkbox, and radio form edits through The KillerPDF.Engine as one incremental revision, including hierarchical field names, choice export values, and per-field text-size overrides.
+- CLI OCR now restores native page rotations through a byte-preserving engine revision instead of reopening and resaving the completed searchable PDF through PdfSharpCore.
+- Opening password-protected PDFs now authenticates and creates the editable decrypted working copy through The KillerPDF.Engine, with the existing tolerant fallbacks retained for owner-restricted files.
+- Password-based CLI decryption and encrypted rendering preparation now authenticate and remove encryption through The KillerPDF.Engine while preserving the complete document graph.
+- CLI image export, flattening, printing, and OCR now prepare rotation-safe PDFium input through a byte-preserving engine revision instead of a PdfSharpCore resave.
+- CLI merge, extract, and split now use The KillerPDF.Engine for all-PDF workflows, preserving complete imported document structures instead of rebuilding pages through PdfSharpCore.
+- Release payloads are now self-contained .NET 10 Windows builds, so users still need no separate runtime installation.
+- Document Information now reads metadata, PDF version, and page count through The KillerPDF.Engine while retaining the existing live-document save path during staged integration.
+- Document Information edits now write complete document information and XMP through The KillerPDF.Engine in an undoable incremental revision while preserving producer, language, dates, and trapping status.
+- Save and Save As now write every page's final effective rotation through The KillerPDF.Engine as a byte-preserving incremental revision after the remaining application state is serialized.
+- Applying or removing a page crop now writes matching crop and trim boundaries through The KillerPDF.Engine as a byte-preserving incremental revision before the working document reloads.
+- Deleting pages now rebuilds the page tree through The KillerPDF.Engine while preserving the rotation state of every retained page.
+- Moving pages from the sidebar buttons or by dragging thumbnails now reorders the page tree through The KillerPDF.Engine and carries each page's rotation with it.
+- Inserting a blank A4 page after the current page or at the end of the document now rebuilds the page tree through The KillerPDF.Engine.
+- Page duplication, selected-page extraction, and complete-document PDF merging now copy page and catalog object graphs through The KillerPDF.Engine, including validated forms, tags, bookmarks, named destinations, layers, attachments, and inherited page state.
+- Transform now replaces its rasterized result page through The KillerPDF.Engine and resets that page's effective rotation while retaining its position in the document.
+
+### Fixed
+- Push-button form appearances remain visible in the interactive viewer, bounded list-box appearances stay inside their field rectangles, and multi-select choice values now load, display, edit, and save as complete selections (#245).
+- Shipped builds no longer run a dead Costura-only pdfium startup check. The new `--verify` and `/verify` commands validate every installed payload file against `payload.manifest` on demand, covering the complete installation without adding launch latency.
+- Application shortcuts such as Save, Save As, Find, Print, Open, tab commands, and F1 through F12 now remain available while a fillable form field or typewriter box has focus, while ordinary typing and standard text-editing shortcuts stay inside the field (#237).
+- Duplicating a page now keeps the new copy selected in both the sidebar and active viewer after the rebuilt page tree and deferred layout finish loading.
+- Merge now validates each input with The KillerPDF.Engine and routes unreadable PDFs through the same lossless repair, import repair, and raster recovery sequence used by Open and drag-drop.
+- Selected rows in the file dialog no longer apply a dark text-stroke effect inside the yellow selection background, keeping filenames crisp and undoubled.
+- Stream parsing now accepts qpdf-compatible files whose declared stream length includes the final line ending and therefore places `endstream` immediately after the payload. Exact declared lengths and the closing keyword still bound the binary data unambiguously.
+- Cross-reference parsing now caps each classic or stream section at one million entries and rejects oversized subsection counts or `/Index` ranges before iterating or decoding their rows.
+- Object-stream reading now rejects containers declaring more than one million compressed objects before decoding their headers or allocating object lists.
+- Page, name, and number tree readers now reject reused indirect nodes, preventing malformed shared subtrees from multiplying traversal work while preserving cycle and duplicate-key diagnostics.
+- AcroForm merge inspection and tagged page-removal traversal now reject reused indirect fields or structure elements rather than revisiting malformed shared subgraphs.
+- Link annotations now include the print flag required for PDF/A-4 annotation conformance.
+- The About card's update button now keeps readable text on hover and uses the correct beveled button treatment in the 98SE theme.
+
 ## [1.7.5] - 2026-08-22
 
 KillerPDF 1.7.5 is a small maintenance release that closes several visible annotation, scrolling, shortcut, theme, and localization regressions. It keeps the faster scrolling introduced in 1.7.4, makes Transform trustworthy with freshly placed text, and gives the text annotation toolbar a cleaner two-row layout.
@@ -19,7 +114,7 @@ KillerPDF 1.7.5 is a small maintenance release that closes several visible annot
 - The current-page span badge now casts a small shadow beneath its rectangle, while its text remains independently rendered and crisp. The 98SE theme keeps the badge flat with the rest of its classic chrome.
 
 ### Fixed
-- Rotating a page now keeps upright text boxes, images, and signatures inside the new page bounds. Their centers still follow the rotated sheet, but an item near the old long edge is clamped before it can become invisible and unrecoverable off-page (#169, thanks terada-d).
+- Rotating a page now keeps upright text boxes, images, and signatures inside the new page bounds. Their centers still follow the rotated sheet, but an item near any shrinking edge is clamped against the post-rotation frame before it can become invisible and unrecoverable off-page. Regression coverage includes both A3 orientations and both turn directions (#169, thanks terada-d).
 - Fast wheel scrolling in Single Page and Two-Page views no longer carries its remaining momentum into an accidental page change at the edge. Scrolling keeps its existing speed; changing pages requires a deliberate second wheel gesture (#205, thanks 1mk3r).
 - Transform now commits an active text box before building its preview, so text placed immediately before opening Transform is included in both the preview and the transformed page.
 - Grid zoom now updates every page seam in one layout pass, so the pages no longer resize first and then visibly settle one border at a time as their refreshed bitmaps arrive.
@@ -578,3 +673,5 @@ KillerPDF 1.6.6 is primarily a bug fix release. Most importantly, it corrects fo
 ### Added
 - Post-publish MSBuild target that automatically bundles a GPL3-compliant source zip alongside the published EXE.
 - CHANGELOG.md.
+- Added hierarchical AcroForm authoring for qualified field names across text, choice, button, and signature fields. Shared nonterminal parents use partial names and deterministic child links, terminal-versus-parent conflicts fail early, selected imports prune omitted branches, and detached signing resolves fully qualified signature fields.
+- Attachment filename validation now rejects Unicode control characters and reserved Windows device names independently of the host platform.

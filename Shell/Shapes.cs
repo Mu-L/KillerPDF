@@ -205,9 +205,8 @@ namespace KillerPDF
         {
             if (_shapePolyCanvas is null || _shapePolyRubber is null) return;
             var p = e.GetPosition(_shapePolyCanvas);
-            _shapePolyRubber.Points[_shapePolyRubber.Points.Count - 1] = p;
-            if (_shapePolySnapDot is not null)
-                _shapePolySnapDot.Visibility =
+            _shapePolyRubber.Points[^1] = p;
+            _shapePolySnapDot?.Visibility =
                     _shapePolyPoints.Count >= 3 && (p - _shapePolyPoints[0]).Length <= ShapeSnapPx
                         ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -221,7 +220,7 @@ namespace KillerPDF
 
             // Drop trailing points that repeat the last committed vertex (a double-click close adds
             // one at the same spot as the click before it).
-            while (pts.Count >= 2 && (pts[pts.Count - 1] - pts[pts.Count - 2]).Length < 2) pts.RemoveAt(pts.Count - 1);
+            while (pts.Count >= 2 && (pts[^1] - pts[^2]).Length < 2) pts.RemoveAt(pts.Count - 1);
             if (pts.Count < 3 || page < 0) return;
 
             var ink = new InkAnnotation { PageIndex = page, StrokeWidth = _drawWidth };
@@ -248,7 +247,7 @@ namespace KillerPDF
             if (_shapePolyPoints.Count == 1) { CancelShapePolygon(); return; }
             _shapePolyPoints.RemoveAt(_shapePolyPoints.Count - 1);
             _shapePolyPreview!.Points.RemoveAt(_shapePolyPreview.Points.Count - 1);
-            _shapePolyRubber!.Points[0] = _shapePolyPoints[_shapePolyPoints.Count - 1];
+            _shapePolyRubber!.Points[0] = _shapePolyPoints[^1];
         }
 
         private void ResetShapePolyState()

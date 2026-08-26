@@ -205,7 +205,7 @@ namespace KillerPDF
         /// moon beside it uses.</summary>
         private void SyncSplitRailButton()
         {
-            if (SplitPaneRailBtn != null) SplitPaneRailBtn.Tag = _isSplit ? "on" : null;
+            SplitPaneRailBtn?.Tag = _isSplit ? "on" : null;
         }
 
         private void OpenSplit()

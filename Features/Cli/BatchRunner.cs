@@ -1,10 +1,11 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
+using KillerPdf.Engine.Documents;
+using KillerPdf.Engine.Signing;
 using KillerPDF.Services;
 
 namespace KillerPDF.Features
@@ -17,10 +18,9 @@ namespace KillerPDF.Features
     //
     // Resaves one PDF (or every *.pdf under a folder tree, mirroring the
     // relative structure into the output folder) through the same pipeline a
-    // GUI save uses: PdfReader.Open(Modify), PdfScrub.ScrubEmptyOutlines,
-    // PdfScrub.ScrubDegenerateCropBoxes, PdfScrub.StripLinkAnnotationBorders, Save. No window,
-    // no dialogs, no repair fallbacks, no encryption stripping - files that
-    // cannot go through the plain Modify pipeline are reported as SKIP with a
+    // Resaves through The KillerPDF.Engine's deterministic full-document writer. No window,
+    // no dialogs, no repair fallbacks, no encryption stripping. Files that
+    // cannot go through the plain engine pipeline are reported as SKIP with a
     // reason instead of silently faking a result.
     //
     // Built for the veraPDF validation harness (validation/): baseline the
@@ -40,10 +40,13 @@ namespace KillerPDF.Features
     // the authoritative record is the --log CSV and the exit code.
     //
     // All static, never touches the window - extracted from MainWindow 2026-07-31.
-    internal static class BatchRunner
+    internal static partial class BatchRunner
     {
-        [DllImport("kernel32.dll", EntryPoint = "AttachConsole", SetLastError = true)]
-        private static extern bool BatchAttachConsole(int dwProcessId);
+        private static readonly SearchValues<char> BatchCsvSpecialCharacters =
+            SearchValues.Create([',', '"', '\r', '\n']);
+        [LibraryImport("kernel32.dll", EntryPoint = "AttachConsole", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static partial bool BatchAttachConsole(int dwProcessId);
         private const int BatchAttachParentProcess = -1;
 
         /// <summary>
@@ -119,7 +122,7 @@ namespace KillerPDF.Features
                 // under the input tree cannot feed the enumeration.
                 foreach (var f in Directory.GetFiles(inRoot, "*.pdf", SearchOption.AllDirectories))
                 {
-                    string rel = f.Substring(inRoot.Length).TrimStart('\\', '/');
+                    string rel = f[inRoot.Length..].TrimStart('\\', '/');
                     work.Add((rel, f, Path.Combine(outRoot, rel)));
                 }
             }
@@ -132,14 +135,14 @@ namespace KillerPDF.Features
             var log = new List<string> { "File,Status,Detail" };
             int ok = 0, skip = 0, fail = 0;
 
-            foreach (var item in work)
+            foreach (var (Rel, Src, Dst) in work)
             {
                 string status, detail;
                 try
                 {
-                    var dstDir = Path.GetDirectoryName(item.Dst);
+                    var dstDir = Path.GetDirectoryName(Dst);
                     if (!string.IsNullOrEmpty(dstDir)) Directory.CreateDirectory(dstDir);
-                    status = BatchResaveOne(item.Src, item.Dst, out detail);
+                    status = BatchResaveOne(Src, Dst, out detail);
                 }
                 catch (Exception ex)
                 {
@@ -152,8 +155,8 @@ namespace KillerPDF.Features
                 else fail++;
 
                 if (!quiet)
-                    con.WriteLine(detail.Length > 0 ? $"{status} {item.Rel} ({detail})" : $"{status} {item.Rel}");
-                log.Add($"{BatchCsvField(item.Rel)},{status},{BatchCsvField(detail)}");
+                    con.WriteLine(detail.Length > 0 ? $"{status} {Rel} ({detail})" : $"{status} {Rel}");
+                log.Add($"{BatchCsvField(Rel)},{status},{BatchCsvField(detail)}");
             }
 
             con.WriteLine($"Done. {work.Count} files: {ok} OK, {skip} skipped, {fail} failed.");
@@ -176,7 +179,7 @@ namespace KillerPDF.Features
 
         /// <summary>
         /// Resaves a single PDF through the standard save pipeline.
-        /// Returns "OK", "SKIP" (could not enter the plain Modify pipeline;
+        /// Returns "OK", "SKIP" (could not enter the plain engine pipeline;
         /// reason in <paramref name="detail"/>), or "FAIL" (opened but the
         /// save itself failed - the case the harness exists to catch).
         /// </summary>
@@ -201,10 +204,10 @@ namespace KillerPDF.Features
                 return "SKIP";
             }
 
-            PdfDocument doc;
+            PdfDocument document;
             try
             {
-                doc = PdfReader.Open(src, PdfDocumentOpenMode.Modify);
+                document = PdfDocument.Open(File.ReadAllBytes(src));
             }
             catch (Exception ex)
             {
@@ -214,18 +217,12 @@ namespace KillerPDF.Features
 
             try
             {
-                // Same pre-save pipeline as SaveInPlace for a document with no user edits.
-                PdfScrub.ScrubEmptyOutlines(doc);          // #103: never write a dangling /Outlines reference
-                PdfScrub.ScrubDegenerateCropBoxes(doc);    // never write a zero-size /CropBox (Adobe out-of-range)
-                PdfScrub.ScrubDeadSignatures(doc);         // a rewrite voids signatures; never ship a dead one (PDF/A 6.4.3)
-                PdfScrub.StripLinkAnnotationBorders(doc);  // link borders are stripped on every GUI save
-                doc.Save(dst);
-                doc.Close();
+                PdfEngineIntegration.ResaveDocument(
+                    src, dst, allowSignatureInvalidation: true);
                 return "OK";
             }
             catch (Exception ex)
             {
-                try { doc.Close(); } catch { }
                 detail = "save failed: " + FlattenBatchDetail(ex.Message);
                 return "FAIL";
             }
@@ -251,7 +248,7 @@ namespace KillerPDF.Features
 
         private static string BatchCsvField(string s)
         {
-            if (s.IndexOfAny(new[] { ',', '"', '\r', '\n' }) < 0) return s;
+            if (!s.AsSpan().ContainsAny(BatchCsvSpecialCharacters)) return s;
             return "\"" + s.Replace("\"", "\"\"") + "\"";
         }
     }

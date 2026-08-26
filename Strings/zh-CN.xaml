@@ -225,7 +225,7 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Lbl_Text">文本</sys:String>
     <sys:String x:Key="Str_Lbl_Highlight">高亮标记</sys:String>
     <sys:String x:Key="Str_Lbl_Strike">删除线</sys:String>
-    <sys:String x:Key="Str_Lbl_Underline">底线</sys:String>
+    <sys:String x:Key="Str_Lbl_Underline">下划线</sys:String>
     <sys:String x:Key="Str_Lbl_Bold">粗体</sys:String>
     <sys:String x:Key="Str_Lbl_Italic">斜体</sys:String>
     <sys:String x:Key="Str_Lbl_Draw">绘图</sys:String>
@@ -394,6 +394,7 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Bar_Color">颜色：</sys:String>
     <sys:String x:Key="Str_Bar_Fill">填充：</sys:String>
     <sys:String x:Key="Str_Bar_Size">大小：</sys:String>
+    <sys:String x:Key="Str_Bar_LetterSpacing">字符间距：</sys:String>
     <sys:String x:Key="Str_Bar_Opacity">不透明度：</sys:String>
     <sys:String x:Key="Str_Bar_FillOpacity">填充不透明度：</sys:String>
     <sys:String x:Key="Str_Bar_Font">字体：</sys:String>
@@ -410,12 +411,26 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Sign_Desc">使用证书密封 {0} 并保存签名副本。</sys:String>
     <sys:String x:Key="Str_Sign_Certificate">证书</sys:String>
     <sys:String x:Key="Str_Sign_FromFile">来自文件 (.pfx / .p12)</sys:String>
-    <sys:String x:Key="Str_Sign_FromStore">来自 Windows 证书存储</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">来自 Windows 证书存储 / USB token</sys:String>
     <sys:String x:Key="Str_Sign_Browse">浏览...</sys:String>
     <sys:String x:Key="Str_Sign_Password">密码</sys:String>
     <sys:String x:Key="Str_Sign_Reason">原因（可选）</sys:String>
     <sys:String x:Key="Str_Sign_Location">位置（可选）</sys:String>
     <sys:String x:Key="Str_Sign_Contact">联系方式（可选）</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">显示可见签名</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">签名文本</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">数字签名者：{name}&#10;日期：{date}&#10;原因：{reason}&#10;位置：{location}</sys:String>
+    <sys:String x:Key="Str_Sign_Page">Page</sys:String>
+    <sys:String x:Key="Str_Sign_Position">Position</sys:String>
+    <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
+    <sys:String x:Key="Str_Sign_BottomRight">Bottom right</sys:String>
+    <sys:String x:Key="Str_Sign_TopLeft">Top left</sys:String>
+    <sys:String x:Key="Str_Sign_TopRight">Top right</sys:String>
+    <sys:String x:Key="Str_Sign_Width">Width</sys:String>
+    <sys:String x:Key="Str_Sign_Height">Height</sys:String>
+    <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">证书持有者</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">请检查签名的页面、尺寸和文本大小。</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">签名副本另存为</sys:String>
     <sys:String x:Key="Str_Sign_Sign">签名</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">取消</sys:String>
@@ -443,6 +458,7 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Ocr_SearchablePdf">制作可搜索 PDF...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">提取全部文本...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">语言</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">表单感知 OCR</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">请先打开一个 PDF</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - 即将推出</sys:String>
     <sys:String x:Key="Str_TT_Ocr">对页面执行 OCR（复制文本） (Ctrl+Shift+O)</sys:String>
@@ -479,6 +495,7 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Tf_Warn">变换页面（旋转或缩放）会将其栅格化：页面会重新另存为图片，因此其中任何可选取的文本都会丢失。之后您可以运行 OCR 使其重新可搜索。</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">不再警告我</sys:String>
     <sys:String x:Key="Str_Tf_Done">已变换第 {0} 页</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">已变换 {0} 页</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">无法呈现页面 - 请稍后再试。</sys:String>
     <sys:String x:Key="Str_Tf_Failed">变换失败：{0}</sys:String>
 
@@ -721,6 +738,13 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Tf_LevelsBlack">黑场</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">白场</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">中间调</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <!-- 1.7.4 hardcoded-string sweep (#227) -->
     <sys:String x:Key="Str_Color_Name">颜色</sys:String>
     <sys:String x:Key="Str_Color_Pick">选择颜色</sys:String>

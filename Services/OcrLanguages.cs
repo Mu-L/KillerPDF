@@ -56,7 +56,6 @@ namespace KillerPDF.Services
         internal static System.Net.Http.HttpClient MakeDownloadClient()
         {
             // Timeout covers connect + headers; the body is bounded by the cancellation token instead.
-            System.Net.ServicePointManager.SecurityProtocol |= System.Net.SecurityProtocolType.Tls12;
             var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(100) };
             http.DefaultRequestHeaders.UserAgent.ParseAdd("KillerPDF-OCR");
             return http;
@@ -74,15 +73,15 @@ namespace KillerPDF.Services
                 resp.EnsureSuccessStatusCode();
                 long? total = resp.Content.Headers.ContentLength;
                 // using-var (not a block): these dispose at the end of the resp block, before the File.Move below.
-                using var netStream = await resp.Content.ReadAsStreamAsync();
+                using var netStream = await resp.Content.ReadAsStreamAsync(ct);
                 using var fileStream = new FileStream(part, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
 
                 var buffer = new byte[81920];
                 long read = 0;
                 int n;
-                while ((n = await netStream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
+                while ((n = await netStream.ReadAsync(buffer, ct)) > 0)
                 {
-                    await fileStream.WriteAsync(buffer, 0, n, ct);
+                    await fileStream.WriteAsync(buffer.AsMemory(0, n), ct);
                     read += n;
                     double mb = read / 1048576.0;
                     progress(total.HasValue

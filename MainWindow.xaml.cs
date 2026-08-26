@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -23,9 +20,9 @@ namespace KillerPDF
 {
     public partial class MainWindow : Window
     {
-        private PdfDocument? _doc { get => ActiveViewer?.DocumentRef; set { if (ActiveViewer != null) ActiveViewer.DocumentRef = value; } }
-        private string? _currentFile { get => ActiveViewer?.CurrentFileRef; set { if (ActiveViewer != null) ActiveViewer.CurrentFileRef = value; } }
-        private string? _originalFile { get => ActiveViewer?.OriginalFileRef; set { if (ActiveViewer != null) ActiveViewer.OriginalFileRef = value; } }
+        private PdfWorkingDocument? _doc { get => ActiveViewer?.DocumentRef; set { ActiveViewer?.DocumentRef = value; } }
+        private string? _currentFile { get => ActiveViewer?.CurrentFileRef; set { ActiveViewer?.CurrentFileRef = value; } }
+        private string? _originalFile { get => ActiveViewer?.OriginalFileRef; set { ActiveViewer?.OriginalFileRef = value; } }
         private Point _dragStartPoint;
 
         // Zoom
@@ -66,7 +63,7 @@ namespace KillerPDF
         private EditTool _currentTool
         {
             get => ActiveViewer?.CurrentToolRef ?? EditTool.Select;
-            set { if (ActiveViewer != null) ActiveViewer.CurrentToolRef = value; }
+            set { ActiveViewer?.CurrentToolRef = value; }
         }
         // Per-document state. Not readonly: tab switching swaps these by reference so each
         // open document keeps its own annotations, undo history, form values, and search hits.
@@ -77,15 +74,16 @@ namespace KillerPDF
         // the content isn't clipped; RotateBitmap is applied at render time instead.
         private Dictionary<int, int> _pageRotations { get => ActiveViewer.PageRotationsRef; set => ActiveViewer.PageRotationsRef = value; }
 
-        // Form filling - text/check keyed by widget object number; radio keyed by field name
-        private Dictionary<int, string> _formTextValues { get => ActiveViewer.FormTextValuesRef; set => ActiveViewer.FormTextValuesRef = value; }
-        private Dictionary<int, bool> _formCheckValues { get => ActiveViewer.FormCheckValuesRef; set => ActiveViewer.FormCheckValuesRef = value; }
+        // Form filling, keyed by each field's qualified name.
+        private Dictionary<string, string> _formTextValues { get => ActiveViewer.FormTextValuesRef; set => ActiveViewer.FormTextValuesRef = value; }
+        private Dictionary<string, string> _formChoiceValues { get => ActiveViewer.FormChoiceValuesRef; set => ActiveViewer.FormChoiceValuesRef = value; }
+        private Dictionary<string, bool> _formCheckValues { get => ActiveViewer.FormCheckValuesRef; set => ActiveViewer.FormCheckValuesRef = value; }
         private Dictionary<string, string> _formRadioValues { get => ActiveViewer.FormRadioValuesRef; set => ActiveViewer.FormRadioValuesRef = value; }
-        private Dictionary<int, double> _formFontSizes { get => ActiveViewer.FormFontSizesRef; set => ActiveViewer.FormFontSizesRef = value; }
+        private Dictionary<string, double> _formFontSizes { get => ActiveViewer.FormFontSizesRef; set => ActiveViewer.FormFontSizesRef = value; }
         // Floating font-size stepper shown while a form text field is focused.
         private Border? _formSizeBar { get => ActiveViewer.FormSizeBarRef; set => ActiveViewer.FormSizeBarRef = value; }
         private TextBox? _activeFormTb { get => ActiveViewer.ActiveFormTbRef; set => ActiveViewer.ActiveFormTbRef = value; }
-        private int _activeFormObj { get => ActiveViewer.ActiveFormObjRef; set => ActiveViewer.ActiveFormObjRef = value; }
+        private string _activeFormName { get => ActiveViewer.ActiveFormNameRef; set => ActiveViewer.ActiveFormNameRef = value; }
         private double _activeFormScale { get => ActiveViewer.ActiveFormScaleRef; set => ActiveViewer.ActiveFormScaleRef = value; }
         private const string FormOverlayTag = "FormFieldOverlay";
 
@@ -128,6 +126,7 @@ namespace KillerPDF
 
         // Text (typewriter) tool settings
         private double _textFontSize { get => ActiveViewer.TextFontSizeRef; set => ActiveViewer.TextFontSizeRef = value; }
+        private double _textLetterSpacing { get => ActiveViewer.TextLetterSpacingRef; set => ActiveViewer.TextLetterSpacingRef = value; }
         // Current text-tool typeface and style (mirrors the text bar; carried onto each new/edited box).
         private string _textFontName { get => ActiveViewer.TextFontNameRef; set => ActiveViewer.TextFontNameRef = value; }
         private bool _textBold { get => ActiveViewer.TextBoldRef; set => ActiveViewer.TextBoldRef = value; }
@@ -278,6 +277,7 @@ namespace KillerPDF
             set { _view.CurrentPage = value; if (PageList.SelectedIndex != value) PageList.SelectedIndex = value; }
         }
         private readonly Button _toolSelectBtn = null!;
+        private readonly Button _toolFormFieldBtn = null!;
         private readonly Button _toolTextBtn = null!;
         private readonly Button _toolHighlightBtn = null!;
         private readonly Button _toolUnderlineBtn = null!;
@@ -301,8 +301,7 @@ namespace KillerPDF
         public MainWindow()
         {
             InitializeComponent();
-            var v = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            if (v != null) VersionLabel.Text = $"v{v.Major}.{v.Minor}.{v.Build}";
+            VersionLabel.Text = $"v{AppVersion.Display}";
             // Accept dropped files/folders/archives anywhere on the window (not just the empty drop zone),
             // so dropping onto an open document works too. The empty-state DropZone marks its own drop
             // handled, so a drop there isn't processed twice.
@@ -328,6 +327,7 @@ namespace KillerPDF
             _pageContentPanel = ActiveViewer.PageHost;
             _continuousPanel  = ActiveViewer.ContinuousHost;
             _toolSelectBtn = (Button)FindName("ToolSelectBtn")!;
+            _toolFormFieldBtn = (Button)FindName("ToolFormFieldBtn")!;
             _toolTextBtn = (Button)FindName("ToolTextBtn")!;
             _toolHighlightBtn = (Button)FindName("ToolHighlightBtn")!;
             _toolUnderlineBtn = (Button)FindName("ToolUnderlineBtn")!;
@@ -408,7 +408,7 @@ namespace KillerPDF
             ApplyToolNumberTooltips();   // append the 1-9 toolbar positions to the tool tooltips
             BuildShortcutsOverlay();     // generate the shortcuts card from the single-source table (ShortcutsOverlay.cs)
             SourceInitialized += MainWindow_SourceInitialized;
-            Closed += (_, _) => { _continuousRenderCts?.Cancel(); _doc?.Close(); CloseLinkPdfiumDoc(); App.CleanupSessionTemps(); };
+            Closed += (_, _) => { _continuousRenderCts?.Cancel(); _doc?.Close(); CloseEngineDocumentSession(); App.CleanupSessionTemps(); };
 
             // Open a file passed via command-line / file association (e.g. double-clicking a .pdf)
             // Also show the portable badge when running outside the install location.
@@ -568,12 +568,11 @@ namespace KillerPDF
                     // `OpenTabsB` / `ActiveTabB`, and the split itself gets `SplitOpen` and the
                     // divider position. Without this a split window reopened with everything
                     // stacked in pane A.
-                    static List<string> FilesOf(Controls.PdfViewer pane) => pane.SessionsRef
+                    static List<string> FilesOf(Controls.PdfViewer pane) => [.. pane.SessionsRef
                         .Select(ss => ss.OriginalFile)
                         .Where(f => !string.IsNullOrEmpty(f) && System.IO.File.Exists(f))
                         .Distinct()
-                        .Select(f => f!)
-                        .ToList();
+                        .Select(f => f!)];
 
                     static void SavePane(string tabsKey, string activeKey,
                                          List<string> files, Controls.PdfViewer pane)
@@ -752,7 +751,7 @@ namespace KillerPDF
         // ============================================================
 
         /// <summary>Look up a localized string. Falls back to the key name if missing.</summary>
-        private string Loc(string key)
+        private static string Loc(string key)
             => Application.Current.TryFindResource(key) as string ?? key;
 
         // A "held" status message briefly wins over routine updates: scrolling the logo to
@@ -801,22 +800,6 @@ namespace KillerPDF
             };
             restore.Start();
         }
-
-        /// <summary>
-        /// Dereferences a PdfItem if it is an indirect reference (PdfReference is internal;
-        /// we detect it by looking for a public "Value" property returning PdfObject).
-        /// </summary>
-        private static PdfItem DerefItem(PdfItem item)
-        {
-            var valueProp = item.GetType().GetProperty("Value",
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-            if (valueProp?.GetValue(item) is PdfObject resolved)
-                return resolved;
-            return item;
-        }
-
-        // GetObjectNumber lives in Services/PdfScrub.cs (KillerUI refactor), beside
-        // DerefItemStatic - the same reflection-over-PdfReference family.
 
         // ============================================================
         // Search (Ctrl+F)

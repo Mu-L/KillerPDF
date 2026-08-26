@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -81,6 +78,33 @@ namespace KillerPDF.Controls
             PagePreviewPanel.ScrollToVerticalOffset(target);
         }
 
+        // Sidebar/page-jump navigation must temporarily outrank viewport-driven page tracking.
+        // WPF can raise ScrollChanged while the requested offset is still clamped to the old layout;
+        // without this target, that interim event immediately writes Page 1 back into the sidebar.
+        private int _continuousNavigationTarget = -1;
+        // An explicit sidebar selection owns the current page until the user interacts with the
+        // document viewport. Passive layout, fitting, rendering, and BringIntoView scrolls must not
+        // replace it with whichever page happens to be nearest the viewport center.
+        private int _sidebarSelectionPinned = -1;
+
+        private void NavigateContinuousToPage(int pageIndex)
+        {
+            if (_doc is null || pageIndex < 0 || pageIndex >= _doc.PageCount) return;
+            _continuousNavigationTarget = pageIndex;
+            ScrollContinuousToPage(pageIndex);
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)(() =>
+            {
+                if (_continuousNavigationTarget != pageIndex) return;
+                ScrollContinuousToPage(pageIndex);
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle, (Action)(() =>
+                {
+                    if (_continuousNavigationTarget != pageIndex) return;
+                    _continuousNavigationTarget = -1;
+                    SyncCurrentPageTo(pageIndex);
+                }));
+            }));
+        }
+
         // ── Current-page badge (#197, thanks Ryokoxx) ─────────────────────────────────────────
         // One viewport-corner badge showing "page / total", replacing the per-tile tooltips that
         // trailed the cursor. Slides up on scroll or page change, slides back down after idle.
@@ -130,6 +154,10 @@ namespace KillerPDF.Controls
 
         private void PagePreviewPanel_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
+            // ScrollChanged bubbles from nested form controls. Only movement of the document
+            // viewport is page navigation or a reason to rebuild document chrome.
+            if (!ReferenceEquals(e.OriginalSource, PagePreviewPanel)) return;
+
             // The vertical scrollbar can appear/disappear without a window resize (zoom, page count
             // changes). When it does, re-anchor the annotate bars so a right-docked bar tracks the
             // scrollbar's edge instead of getting covered (or stranded once it's gone).
@@ -159,7 +187,12 @@ namespace KillerPDF.Controls
                 // badge is per-pane furniture, unlike the page-jump box synced below.
                 if (e.VerticalChange != 0) ShowPageBadge(nearest);
 
-                SyncCurrentPageTo(nearest);
+                // Rebuilding Continuous temporarily returns the ScrollViewer to the top while its
+                // slots are replaced. That layout scroll is not navigation: keep the requested page
+                // selected until the target slot has its final geometry and the deferred scroll lands.
+                if (_continuousScrollTarget < 0 && _continuousNavigationTarget < 0
+                    && _sidebarSelectionPinned < 0)
+                    SyncCurrentPageTo(nearest);
 
                 // Once the scroll settles, sharpen the pages now in view (and release the ones that left).
                 // Cheap when there's nothing to do: below the hi-res threshold it's a restore-only pass over
@@ -198,7 +231,7 @@ namespace KillerPDF.Controls
                 // #197 follow-up: grid scrolling never raised the badge (it only fired on a page
                 // change), and one page number can't say which tiles are on screen - show the span.
                 if (e.VerticalChange != 0 && firstVis >= 0) ShowPageBadgeSpan(firstVis, lastVis);
-                if (nearest >= 0) SyncCurrentPageTo(nearest);
+                if (nearest >= 0 && _sidebarSelectionPinned < 0) SyncCurrentPageTo(nearest);
             }
         }
 
@@ -214,11 +247,11 @@ namespace KillerPDF.Controls
             if (_currentPage == nearest)
             {
                 Host?.ViewerPageChanged(this, nearest);
-                if (Host != null) Host.PageJumpText = (nearest + 1).ToString();
+                Host?.PageJumpText = (nearest + 1).ToString();
                 Host?.EnsureSidebarPageVisible(this, nearest);
                 return;
             }
-            if (Host != null) Host.PageJumpText = (nearest + 1).ToString();
+            Host?.PageJumpText = (nearest + 1).ToString();
             // Reentrancy FLAG, not a detach/attach pair. The PageList's real subscription is the
             // WINDOW's XAML-bound stub, so `-=` of this pane's own delegate removed NOTHING and
             // the `+=` stacked this pane's handler onto the shared list as an EXTRA direct
@@ -270,9 +303,9 @@ namespace KillerPDF.Controls
 
         // Builds a page's annotation overlay. Size/transform differ by mode (continuous = render-dim + scale;
         // grid/two-page = DIP 1:1); everything else - background, clip, tag, input handler - is identical.
-        private Canvas BuildPageOverlay(int page, double width, double height, System.Windows.Media.Transform? layoutTransform)
+        private SafeCanvas BuildPageOverlay(int page, double width, double height, System.Windows.Media.Transform? layoutTransform)
         {
-            var overlay = new Canvas
+            var overlay = new SafeCanvas
             {
                 Width = width,
                 Height = height,
@@ -298,7 +331,7 @@ namespace KillerPDF.Controls
             var img = new Image { Stretch = Stretch.None };
             RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
 
-            var overlay = new Canvas { Background = Brushes.Transparent, ClipToBounds = true };
+            var overlay = new SafeCanvas { Background = Brushes.Transparent, ClipToBounds = true };
             overlay.PreviewMouseLeftButtonDown += Canvas_MouseLeftButtonDown;
             overlay.MouseMove                  += Canvas_MouseMove;
             overlay.MouseLeave                 += Canvas_MouseLeave;
@@ -324,9 +357,13 @@ namespace KillerPDF.Controls
         internal void SetupContinuousView(int initialPage, bool fitDefault = true)
         {
             if (_doc is null) return;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
             // #130: a malformed page tree can parse to zero pages - Pages[0] below would throw
             // ArgumentOutOfRangeException. Bail out instead of crashing; the view just stays empty.
-            if (_doc.PageCount == 0) return;
+            if (engineSession.PageCount == 0) return;
+            initialPage = Math.Clamp(initialPage, 0, engineSession.PageCount - 1);
+            _continuousScrollTarget = initialPage;
+            SyncPageListSelection(initialPage);
             // Coming from Grid, the shared ScrollViewer still carries the grid's overrides
             // (horizontal bar Disabled, vertical Visible). Continuous never passes through
             // RefreshPageView, where the other modes restore them - so restore here, or a
@@ -338,7 +375,8 @@ namespace KillerPDF.Controls
             // restore both here for the same reason as the scrollbar overrides above.
             DocSurfacePad.Padding = new Thickness(12);
             DocSurfacePad.VerticalAlignment = VerticalAlignment.Top;
-            _continuousRenderCts?.Cancel();
+            CancelAndRelease(_continuousRenderCts);
+            _continuousRenderCts = null;
             _continuousPanel.Children.Clear();
             _continuousTops.Clear();
             _continuousCanvases.Clear();
@@ -347,7 +385,8 @@ namespace KillerPDF.Controls
 
             // Fresh slot set: any hi-res re-sharpen bookkeeping from the previous layout is stale.
             // (This reset used to live in the render pass, back when it repainted every slot.)
-            _continuousSharpenCts?.Cancel();
+            CancelAndRelease(_continuousSharpenCts);
+            _continuousSharpenCts = null;
             _continuousSharpPages.Clear();
             _continuousSharpW = 0;
 
@@ -356,17 +395,14 @@ namespace KillerPDF.Controls
             //   zoom = viewportW / _continuousPageW
             // and if _continuousPageW were derived from the current zoom level the two
             // would cancel and FitToWidth would always return approximately the old zoom.
-            var refPage = _doc.Pages[0];
-            _continuousPageW = Math.Max(200.0, refPage.Width.Point * (96.0 / 72.0));
+            var (referenceWidth, _) = engineSession.VisualPageSize(0, _pageRotations);
+            _continuousPageW = Math.Max(200.0, referenceWidth * (96.0 / 72.0));
 
             double y = 0;
-            for (int i = 0; i < _doc.PageCount; i++)
+            for (int i = 0; i < engineSession.PageCount; i++)
             {
                 _continuousTops.Add(y);
-                var pdfPage = _doc.Pages[i];
-                double pw = pdfPage.Width.Point, ph = pdfPage.Height.Point;
-                if (_pageRotations.TryGetValue(i, out int prot) && (prot == 90 || prot == 270))
-                    (pw, ph) = (ph, pw);
+                var (pw, ph) = engineSession.VisualPageSize(i, _pageRotations);
                 // Scaffold: reuse this tab's cached render dimensions (from a prior render of this page) so
                 // the frame is built at its REAL size up front. On a tab switch the page slots are already the
                 // right shape - no dark estimate-sized box that resizes when the bitmap finally streams in.
@@ -430,7 +466,6 @@ namespace KillerPDF.Controls
             else if (fitDefault) FitToPage();
             else SetZoom(_zoomLevel);
 
-            _continuousScrollTarget = initialPage;
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
                 () => ScrollContinuousToPage(initialPage));
 
@@ -451,7 +486,7 @@ namespace KillerPDF.Controls
         internal async System.Threading.Tasks.Task RenderContinuousPages(int centerPage)
         {
             if (_doc is null || _currentFile is null) return;
-            _continuousRenderCts?.Cancel();
+            CancelAndRelease(_continuousRenderCts);
             _continuousRenderCts = new System.Threading.CancellationTokenSource();
             var cts = _continuousRenderCts;
 
@@ -592,9 +627,13 @@ namespace KillerPDF.Controls
             if (_continuousScrollTarget >= 0 && fi >= _continuousScrollTarget)
             {
                 int tgt = _continuousScrollTarget;
-                _continuousScrollTarget = -1;
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
-                    (Action)(() => ScrollContinuousToPage(tgt)));
+                    (Action)(() =>
+                    {
+                        ScrollContinuousToPage(tgt);
+                        _continuousScrollTarget = -1;
+                        SyncCurrentPageTo(tgt);
+                    }));
             }
             // Virtualized slots render on approach, so a page ABOVE the viewport can refine its
             // estimated height mid-scroll (e.g. scrolling upward into a cropped page). Compensate
@@ -698,7 +737,7 @@ namespace KillerPDF.Controls
             // 1.05 is hysteresis only, so a page sitting on the boundary doesn't re-raster on a nudge.
             bool wantHi = hiW >= (int)(baseW * 1.05);
 
-            _continuousSharpenCts?.Cancel();
+            CancelAndRelease(_continuousSharpenCts);
             _continuousSharpenCts = new System.Threading.CancellationTokenSource();
             var cts = _continuousSharpenCts;
 
@@ -794,8 +833,7 @@ namespace KillerPDF.Controls
                 var dpiInfo = VisualTreeHelper.GetDpi(this);
                 double dpiScaleX = dpiInfo.DpiScaleX;
                 double dpiScaleY = dpiInfo.DpiScaleY;
-                int scaledMax = (int)Math.Min(6144,
-                    2048 * Math.Max(dpiScaleX, dpiScaleY) * Math.Max(1.0, _zoomLevel));
+                int scaledMax = ViewerRenderResolution.Primary(dpiScaleX, dpiScaleY, _zoomLevel);
                 _lastRenderZoom = _zoomLevel;
 
                 int pgRot = _pageRotations.TryGetValue(pageIndex, out int pr0) ? pr0 : 0;
@@ -882,7 +920,7 @@ namespace KillerPDF.Controls
                 // Defer additional pages until layout has settled so ActualWidth is valid.
                 // RenderPageLinks runs AFTER RenderAdditionalPages so ClearSecondaryPages
                 // inside RenderAdditionalPages doesn't wipe the overlays we just added.
-                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () =>
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, () =>
                 {
                     // Only Grid/Two-Page lay out neighbor tiles. In Single mode RenderAdditionalPages would
                     // snap the panel width to pageW + 12 (the inter-tile gap), nudging the lone page ~6px left
@@ -893,7 +931,7 @@ namespace KillerPDF.Controls
                     else
                     {
                         ClearSecondaryPages();
-                        if (_pageContentPanel is not null) _pageContentPanel.Width = double.NaN;
+                        _pageContentPanel?.Width = double.NaN;
                     }
                     RenderPageLinks(pageIndex, dipW, dipH);
                 });
@@ -1037,14 +1075,21 @@ namespace KillerPDF.Controls
             }
 
             // Cancel any previously running secondary render.
-            _secondaryRenderCts?.Cancel();
+            CancelAndRelease(_secondaryRenderCts);
             _secondaryRenderCts = new System.Threading.CancellationTokenSource();
             var cts = _secondaryRenderCts;
 
-            // Secondary pages: 1536 px base, scaled up for high-DPI displays so grid / two-page text
-            // stays crisp on 150%/200% screens (capped at 3072 to keep memory in check). Stays 1536
-            // at 100% DPI, so standard displays are unaffected.
-            int SecondaryMax = (int)Math.Min(3072, 1536 * Math.Max(1.0, VisualTreeHelper.GetDpi(this).DpiScaleX));
+            // A two-page spread displays both pages at the same size, so both must be rasterized at
+            // the same effective pixel density. The old secondary budget was only 1536 pixels and
+            // did not follow zoom, while the primary used a 2048-pixel zoom-aware budget. WPF then
+            // enlarged the right page from fewer pixels, making it visibly softer than the left.
+            // Grid retains its smaller capped budget because it may keep many pages on screen.
+            var secondaryDpi = VisualTreeHelper.GetDpi(this);
+            int secondaryMax = ViewerRenderResolution.Secondary(
+                _viewMode == ViewMode.TwoPage,
+                secondaryDpi.DpiScaleX,
+                secondaryDpi.DpiScaleY,
+                _zoomLevel);
             // Grid shows the whole document; Two-Page shows one secondary; other modes peek ahead.
             int limit = _viewMode == ViewMode.Grid
                 ? _doc.PageCount
@@ -1079,7 +1124,13 @@ namespace KillerPDF.Controls
             try
             {
                 var session = _active;
-                int tileBucket = (int)Math.Round(primaryDipW);   // tiles are sized to the primary width; key the cache by it
+                // Cache by the actual raster budget, not the tile's fixed logical width. Two-page
+                // rendering follows zoom, while primaryDipW remains constant; using that width as
+                // the key let a lower-resolution bitmap from an earlier zoom replace the sharp
+                // partner page when the delayed re-render settled. Keep tile keys negative so a
+                // tile bitmap whose baked logical geometry follows the primary page cannot collide
+                // with a primary bitmap rendered at the same pixel budget.
+                int tileBucket = -secondaryMax;
                 await System.Threading.Tasks.Task.Run(() =>
                 {
                     Docnet.Core.Readers.IDocReader? docReader = null;
@@ -1115,7 +1166,7 @@ namespace KillerPDF.Controls
                             // tile, which read as "the grid's last column never refreshed".
                             try
                             {
-                                docReader ??= DocLib.Instance.GetDocReader(currentFile, new PageDimensions(SecondaryMax, SecondaryMax));
+                                docReader ??= DocLib.Instance.GetDocReader(currentFile, new PageDimensions(secondaryMax, secondaryMax));
                                 using var pageReader = docReader.GetPageReader(i);
                                 int w = pageReader.GetPageWidth();
                                 int h = pageReader.GetPageHeight();
@@ -1391,8 +1442,7 @@ namespace KillerPDF.Controls
             else
             {
                 ClearSecondaryPages();
-                if (_pageContentPanel is not null)
-                    _pageContentPanel.Width = double.NaN;
+                _pageContentPanel?.Width = double.NaN;
             }
             if (_renderDims.TryGetValue(pageIndex, out var dims))
                 RenderPageLinks(pageIndex, dims.w, dims.h);
@@ -1567,11 +1617,11 @@ namespace KillerPDF.Controls
         private double DisplayZoomFactor()
         {
             if (_viewMode == ViewMode.Continuous || _doc is null) return 1.0;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
             int idx = _viewMode == ViewMode.Grid ? 0 : Math.Max(0, State.CurrentPage);   // never the shared sidebar's index (see ApplyZoom)
-            if (idx < 0 || idx >= _doc.PageCount) return 1.0;
+            if (idx < 0 || idx >= engineSession.PageCount) return 1.0;
             if (!_renderDims.TryGetValue(idx, out var d) || d.w <= 0) return 1.0;
-            double wpt = _doc.Pages[idx].Width.Point, hpt = _doc.Pages[idx].Height.Point;
-            if (_pageRotations.TryGetValue(idx, out int r) && (r == 90 || r == 270)) wpt = hpt;
+            var (wpt, _) = engineSession.VisualPageSize(idx, _pageRotations);
             double naturalW = wpt * 96.0 / 72.0;
             if (naturalW <= 0) return 1.0;
             return d.w / naturalW;
@@ -1697,6 +1747,7 @@ namespace KillerPDF.Controls
                 _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax, viewW / _continuousPageW));
                 ApplyZoom(lite);
                 int ci = State.CurrentPage;   // this pane's page, never the shared sidebar's (see ApplyZoom)
+                if (ci >= 0) NavigateContinuousToPage(ci);
                 if (ci >= 0 && _doc != null)
                     SetStatus(string.Format(Loc("Str_FitWidth"), ci + 1, _doc.PageCount, $"{DisplayZoomPct():F0}"));
                 return;
@@ -1727,15 +1778,17 @@ namespace KillerPDF.Controls
             if (_viewMode == ViewMode.Continuous)
             {
                 if (_continuousPageW <= 0 || _doc is null) return;
+                PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
                 int ci = State.CurrentPage;   // this pane's page, never the shared sidebar's (see ApplyZoom)
-                if (ci < 0 || ci >= _doc.PageCount) return;
-                var pdfPage = _doc.Pages[ci];
-                double ratio = Math.Max(0.1, pdfPage.Height.Point / Math.Max(1.0, pdfPage.Width.Point));
+                if (ci < 0 || ci >= engineSession.PageCount) return;
+                var (pageWidth, pageHeight) = engineSession.VisualPageSize(ci, _pageRotations);
+                double ratio = Math.Max(0.1, pageHeight / Math.Max(1.0, pageWidth));
                 double dipH  = _continuousPageW * ratio;
                 _fitMode   = FitMode.Page;
                 _zoomLevel = Math.Max(ZoomMin, Math.Min(ZoomMax,
                     Math.Min(viewW / _continuousPageW, viewH / dipH)));
                 ApplyZoom(lite);
+                NavigateContinuousToPage(ci);
                 SetStatus(string.Format(Loc("Str_FitPage"), ci + 1, _doc.PageCount, $"{DisplayZoomPct():F0}"));
                 return;
             }
@@ -1999,7 +2052,8 @@ namespace KillerPDF.Controls
 
             if (!isContinuous)
             {
-                _continuousRenderCts?.Cancel();
+                CancelAndRelease(_continuousRenderCts);
+                _continuousRenderCts = null;
                 _continuousPanel.Children.Clear();
                 _continuousTops.Clear();
                 _continuousCanvases.Clear();
@@ -2015,7 +2069,8 @@ namespace KillerPDF.Controls
             }
             else
             {
-                _secondaryRenderCts?.Cancel();
+                CancelAndRelease(_secondaryRenderCts);
+                _secondaryRenderCts = null;
                 ClearSecondaryPages();
                 _pageContentPanel.Width = double.NaN;
                 // Drop any scroll offset carried over from the previous mode (especially Continuous,

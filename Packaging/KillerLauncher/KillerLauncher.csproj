@@ -7,12 +7,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
     <AssemblyName Condition="'$(LauncherAssemblyName)' != ''">$(LauncherAssemblyName)</AssemblyName>
     <ApplicationIcon Condition="'$(LauncherIcon)' != ''">$(LauncherIcon)</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version Condition="'$(LauncherVersion)' != ''">$(LauncherVersion)</Version>
-    <AssemblyVersion Condition="'$(LauncherVersion)' != ''">$(LauncherVersion).0</AssemblyVersion>
-    <FileVersion Condition="'$(LauncherVersion)' != ''">$(LauncherVersion).0</FileVersion>
+    <AssemblyVersion Condition="'$(LauncherFileVersion)' != ''">$(LauncherFileVersion)</AssemblyVersion>
+    <FileVersion Condition="'$(LauncherFileVersion)' != ''">$(LauncherFileVersion)</FileVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <!-- The launcher only uses .NET Framework inbox assemblies, so it needs no binding redirects.
          Disabling their generated config also keeps SDK 10 publish from looking for a config named
@@ -20,6 +21,7 @@
     <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
     <GenerateBindingRedirectsOutputType>false</GenerateBindingRedirectsOutputType>
     <DefineConstants Condition="'$(AllowUnsignedInstall)' == 'true'">$(DefineConstants);ALLOW_UNSIGNED_INSTALL</DefineConstants>
+    <DefineConstants Condition="'$(InstallerPackage)' == 'true'">$(DefineConstants);INSTALLER_PACKAGE</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,6 +30,15 @@
 
   <ItemGroup Condition="Exists('$(PayloadZip)')">
     <EmbeddedResource Include="$(PayloadZip)" LogicalName="KillerLauncher.payload.zip" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(LauncherIcon)')">
+    <EmbeddedResource Include="$(LauncherIcon)" LogicalName="KillerLauncher.kp-icon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="..\..\Fonts\Typewriter-A602.ttf" Link="Fonts\Typewriter-A602.ttf" />
+    <Resource Include="..\..\Resources\kp-icon.png" Link="Resources\kp-icon.png" />
   </ItemGroup>
 
   <ItemGroup>

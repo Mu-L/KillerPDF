@@ -38,7 +38,7 @@ namespace KillerPDF
         /// the flyout is open while the wheel or F9 drives the change.</summary>
         private void CycleViewMode(bool forward = true)
         {
-            var modes = (ViewMode[])Enum.GetValues(typeof(ViewMode));
+            var modes = Enum.GetValues<ViewMode>();
             // Step from the PENDING mode when a fade-wrapped switch is in flight: _viewMode only
             // updates after the ~90ms fade-out, so wheel notches faster than that would otherwise
             // recompute from the stale mode and retarget the same switch - several notches

@@ -312,6 +312,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Ocr_SearchablePdf">Make Searchable PDF...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">Extract All Text...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">Language</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">Form-aware OCR</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Open a PDF first</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - coming soon</sys:String>
     <sys:String x:Key="Str_Ctx_SelectTool">Select Tool</sys:String>
@@ -466,6 +467,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Bar_Color">Color:</sys:String>
     <sys:String x:Key="Str_Bar_Fill">Fill:</sys:String>
     <sys:String x:Key="Str_Bar_Size">Size:</sys:String>
+    <sys:String x:Key="Str_Bar_LetterSpacing">Spacing:</sys:String>
     <sys:String x:Key="Str_Bar_Opacity">Opacity:</sys:String>
     <sys:String x:Key="Str_Bar_FillOpacity">Fill Opacity:</sys:String>
     <sys:String x:Key="Str_Bar_Font">Font:</sys:String>
@@ -483,12 +485,26 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Sign_Desc">Seals {0} with a certificate and saves a signed copy.</sys:String>
     <sys:String x:Key="Str_Sign_Certificate">Certificate</sys:String>
     <sys:String x:Key="Str_Sign_FromFile">From a file (.pfx / .p12)</sys:String>
-    <sys:String x:Key="Str_Sign_FromStore">From the Windows certificate store</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">From the Windows certificate store / USB token</sys:String>
     <sys:String x:Key="Str_Sign_Browse">Browse...</sys:String>
     <sys:String x:Key="Str_Sign_Password">Password</sys:String>
     <sys:String x:Key="Str_Sign_Reason">Reason (optional)</sys:String>
     <sys:String x:Key="Str_Sign_Location">Location (optional)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">Contact (optional)</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">Show a visible signature</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">Signature text</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">Digitally signed by {name}&#10;Date: {date}&#10;Reason: {reason}&#10;Location: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_Page">Page</sys:String>
+    <sys:String x:Key="Str_Sign_Position">Position</sys:String>
+    <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
+    <sys:String x:Key="Str_Sign_BottomRight">Bottom right</sys:String>
+    <sys:String x:Key="Str_Sign_TopLeft">Top left</sys:String>
+    <sys:String x:Key="Str_Sign_TopRight">Top right</sys:String>
+    <sys:String x:Key="Str_Sign_Width">Width</sys:String>
+    <sys:String x:Key="Str_Sign_Height">Height</sys:String>
+    <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">Certificate holder</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">Check the signature page, dimensions, and text size.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">Save signed copy as</sys:String>
     <sys:String x:Key="Str_Sign_Sign">Sign</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">Cancel</sys:String>
@@ -529,6 +545,13 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Tf_LevelsBlack">Black point</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">White point</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Midtones</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <sys:String x:Key="Str_Tf_CorrectPerspective">Correct trapezoidal distortion</sys:String>
     <sys:String x:Key="Str_Tf_PerspectiveHint">Drag the four corners onto the photographed page outline. Apply straightens it into a rectangle.</sys:String>
     <sys:String x:Key="Str_Tf_ResetCorners">Reset corners</sys:String>
@@ -540,6 +563,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Tf_Warn">Transforming a page (rotate or scale) rasterizes it: the page is re-saved as an image, so any selectable text on it is lost. You can run OCR afterward to make it searchable again.</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">Don't warn me again</sys:String>
     <sys:String x:Key="Str_Tf_Done">Transformed page {0}</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">Transformed {0} pages</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">Could not render the page - try again in a moment.</sys:String>
     <sys:String x:Key="Str_Tf_Failed">Transform failed: {0}</sys:String>
 

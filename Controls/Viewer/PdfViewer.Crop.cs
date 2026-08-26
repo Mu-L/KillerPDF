@@ -13,9 +13,6 @@ using System.Windows.Shapes;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Microsoft.Win32;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 using PdfPigDoc = UglyToad.PdfPig.PdfDocument;
 
@@ -117,12 +114,8 @@ namespace KillerPDF.Controls
         // rotation the rendered bitmap is turned, so the point dims are swapped relative to the raw page.
         private (double dispW, double dispH, double sx, double sy) CropDisplayDims(int pi, (double w, double h) dims)
         {
-            _pageRotations.TryGetValue(pi, out int rot);
-            var page = _doc!.Pages[pi];
-            double pdfW = page.Width.Point, pdfH = page.Height.Point;
-            bool swap = rot == 90 || rot == 270;
-            double dispW = swap ? pdfH : pdfW;
-            double dispH = swap ? pdfW : pdfH;
+            var (dispW, dispH) = EnsureEngineDocumentSession()
+                .VisualPageSize(pi, _pageRotations);
             return (dispW, dispH, dispW / dims.w, dispH / dims.h);   // sx,sy: page-points per canvas-unit
         }
 
@@ -609,6 +602,7 @@ namespace KillerPDF.Controls
         private void ApplyCrop(int[] pageIndices)
         {
             if (_doc is null || _currentFile is null) { SetStatus(Loc("Str_CropNoDoc")); return; }
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
             int currentPage = _cropPageIndex >= 0 ? _cropPageIndex : _currentPage;
             if (currentPage < 0) { SetStatus(Loc("Str_CropNoPage")); return; }
             if (!_renderDims.TryGetValue(currentPage, out var refDims))
@@ -621,19 +615,20 @@ namespace KillerPDF.Controls
                 // Convert canvas rect to PDF CropBox coords using the rotation-aware helper.
                 // This is the correct inversion of how Docnet renders the rotated bitmap.
                 _pageRotations.TryGetValue(currentPage, out int rot);
-                var refPage = _doc.Pages[currentPage];
-                double refPdfW = refPage.Width.Point;
-                double refPdfH = refPage.Height.Point;
+                var refPage = engineSession.Pages[currentPage];
+                double refPdfW = refPage.Width;
+                double refPdfH = refPage.Height;
 
                 var (rx1, ry1, rx2, ry2) = CanvasToPdfRect(
                     _cropCanvasRect, refPdfW, refPdfH, refDims.w, refDims.h, rot);
 
+                var crops = new Dictionary<int, PdfEngineIntegration.PageRectangle?>();
                 foreach (int pi in pageIndices)
                 {
-                    if (pi < 0 || pi >= _doc.PageCount) continue;
-                    var page  = _doc.Pages[pi];
-                    double pW = page.Width.Point;
-                    double pH = page.Height.Point;
+                    if (pi < 0 || pi >= engineSession.PageCount) continue;
+                    var page  = engineSession.Pages[pi];
+                    double pW = page.Width;
+                    double pH = page.Height;
 
                     // Scale proportionally when "All Pages" spans pages of different sizes
                     double x1 = rx1 * pW / refPdfW;
@@ -647,27 +642,14 @@ namespace KillerPDF.Controls
                     if (x2 - x1 < 1) x2 = x1 + 1;
                     if (y2 - y1 < 1) y2 = y1 + 1;
 
-                    // Write CropBox directly into the page dictionary (more reliable across
-                    // PdfSharpCore versions than the CropBox property setter).
-                    var cropArr = new PdfSharpCore.Pdf.PdfArray();
-                    cropArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(x1));
-                    cropArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(y1));
-                    cropArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(x2));
-                    cropArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(y2));
-                    page.Elements["/CropBox"] = cropArr;
-
-                    // Mirror to TrimBox (PDF spec: TrimBox within CropBox within MediaBox)
-                    var trimArr = new PdfSharpCore.Pdf.PdfArray();
-                    trimArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(x1));
-                    trimArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(y1));
-                    trimArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(x2));
-                    trimArr.Elements.Add(new PdfSharpCore.Pdf.PdfReal(y2));
-                    page.Elements["/TrimBox"] = trimArr;
+                    crops[pi] = new PdfEngineIntegration.PageRectangle(
+                        x1, y1, x2 - x1, y2 - y1);
                 }
 
                 HideCropConfirmBar();
                 SetTool(EditTool.Select);
-                SaveTempAndReload(keepAnnotations: true, preserveZoom: true);
+                SaveTempAndReload(keepAnnotations: true, preserveZoom: true,
+                    path => PdfEngineIntegration.ApplyCropBoxes(path, crops));
                 SetStatus(string.Format(Loc("Str_Cropped"), pageIndices.Length));
             }
             catch (Exception ex)
@@ -679,18 +661,19 @@ namespace KillerPDF.Controls
         private void RemoveCropBox(int[] pageIndices)
         {
             if (_doc is null || _currentFile is null) return;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
             try
             {
                 PushDocUndo();
-                foreach (int pi in pageIndices)
-                {
-                    if (pi < 0 || pi >= _doc.PageCount) continue;
-                    _doc.Pages[pi].Elements.Remove("/CropBox");
-                    _doc.Pages[pi].Elements.Remove("/TrimBox");
-                }
+                var crops = pageIndices
+                    .Where(pi => pi >= 0 && pi < engineSession.PageCount)
+                    .Distinct()
+                    .ToDictionary(pi => pi,
+                        _ => (PdfEngineIntegration.PageRectangle?)null);
                 HideCropConfirmBar();
                 SetTool(EditTool.Select);
-                SaveTempAndReload(keepAnnotations: true);
+                SaveTempAndReload(keepAnnotations: true,
+                    finalizeSavedFile: path => PdfEngineIntegration.ApplyCropBoxes(path, crops));
                 SetStatus(string.Format(Loc("Str_RemovedCrop"), pageIndices.Length));
             }
             catch (Exception ex)

@@ -6,9 +6,6 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Docnet.Core;
 using Docnet.Core.Models;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using PdfSharpCore.Pdf.IO;
 using KillerPDF.Services;
 
 namespace KillerPDF
@@ -36,12 +33,20 @@ namespace KillerPDF
             // directly after typing used to preview (and apply) the page without the new text.
             CommitActiveTextBox();
             int pageIdx = PageList.SelectedIndex;
-            // Render the preview from a copy with this page's annotations baked in, so the preview matches
-            // what Apply will produce (otherwise annotations are invisible in the Transform window). Kept at a
-            // modest resolution (the preview only shows at ~600px) so the live scale/rotate compose stays
-            // fast; Apply re-renders at full resolution independently.
-            var src = RenderPageBitmap(pageIdx, 1100, BurnPageAnnotationsToTemp(pageIdx));
-            if (src is null) { SetStatus(Loc("Str_Tf_NoRender")); return; }
+            int[] pageIndices = [.. PageList.SelectedItems.Cast<PageThumbnailVm>()
+                .Select(page => page.PageIndex).Distinct().OrderBy(index => index)];
+            if (pageIndices.Length == 0) pageIndices = [pageIdx];
+            // Build a modest preview for every selected page. Transform settings remain shared, while
+            // the window can flip through the actual targets before applying the batch.
+            PdfEngineDocumentSession previewSession = EnsureEngineDocumentSession();
+            var previews = new List<TransformWindow.PagePreview>();
+            foreach (int selectedPage in pageIndices)
+            {
+                var src = RenderPageBitmap(selectedPage, 1100, BurnPageAnnotationsToTemp(selectedPage));
+                if (src is null) { SetStatus(Loc("Str_Tf_NoRender")); return; }
+                var (pwpt, phpt) = previewSession.VisualPageSize(selectedPage, _pageRotations);
+                previews.Add(new TransformWindow.PagePreview(src, pwpt, phpt, selectedPage + 1));
+            }
 
             // First-use warning that a transform rasterizes the page; persists the opt-out.
             if (App.GetSetting("RotateWarnAck") != "1")
@@ -53,39 +58,31 @@ namespace KillerPDF
                 if (dontWarn) App.SetSetting("RotateWarnAck", "1");
             }
 
-            var page = _doc.Pages[pageIdx];
-            var (pwpt, phpt) = EffectivePageSize(page);   // CropBox-aware, so the readout matches the visible page
-            var win = new TransformWindow(this, src, pwpt, phpt);
+            var win = new TransformWindow(this, previews);
             win.ShowDialog();
             if (win.Applied && (Math.Abs(win.Angle) > 0.01 || Math.Abs(win.Scale - 1.0) > 0.001 ||
                 win.FlipH || win.FlipV || !PerspectiveWarp.IsIdentity(win.PerspectiveCorners) ||
-                !TransformWindow.LevelsIdentity(win.LevelBlack, win.LevelWhite, win.LevelGamma)))
-                ApplyPageTransform(pageIdx, win.Angle, win.Scale, win.FixedPage, win.FlipH, win.FlipV,
-                    win.PerspectiveCorners, win.LevelBlack, win.LevelWhite, win.LevelGamma);
+                !TransformWindow.LevelsIdentity(win.LevelBlack, win.LevelWhite, win.LevelGamma) ||
+                win.ColorMode != PageColorMode.Color || win.OutputDpi > 0 ||
+                win.UseJpegCompression))
+                ApplyPageTransforms(pageIndices, win.Angle, win.Scale, win.FixedPage, win.FlipH, win.FlipV,
+                    win.PerspectiveCorners, win.LevelBlack, win.LevelWhite, win.LevelGamma,
+                    win.ColorMode, win.BlackWhiteThreshold, win.OutputDpi,
+                    win.UseJpegCompression, win.JpegQuality);
         }
 
-        // The page's visible size in points: the CropBox if one is set (so a cropped page reports its real,
-        // smaller size), otherwise the full MediaBox. PdfPage.Width/Height return the MediaBox only.
-        private static (double wpt, double hpt) EffectivePageSize(PdfPage page)
-        {
-            double wpt = page.Width.Point, hpt = page.Height.Point;
-            if (page.Elements.GetArray("/CropBox") is { Elements.Count: 4 } cb)
-            {
-                double x1 = cb.Elements.GetReal(0), y1 = cb.Elements.GetReal(1);
-                double x2 = cb.Elements.GetReal(2), y2 = cb.Elements.GetReal(3);
-                double cw = Math.Abs(x2 - x1), ch = Math.Abs(y2 - y1);
-                if (cw > 1 && ch > 1) { wpt = cw; hpt = ch; }
-            }
-            return (wpt, hpt);
-        }
-
-        // Rasterizes one page with the chosen rotate + scale and swaps it in for the original (undoable).
-        private void ApplyPageTransform(int pageIdx, double angleDeg, double scale, bool fixedPage,
-            bool flipH, bool flipV, Point[] perspectiveCorners,
-            int levelBlack = 0, int levelWhite = 255, double levelGamma = 1.0)
+        // Rasterizes every selected page with one transform setup and swaps the batch in as one undo step.
+        private void ApplyPageTransforms(IReadOnlyList<int> pageIndices, double angleDeg,
+            double scale, bool fixedPage, bool flipH, bool flipV, Point[] perspectiveCorners,
+            int levelBlack = 0, int levelWhite = 255, double levelGamma = 1.0,
+            PageColorMode colorMode = PageColorMode.Color,
+            int blackWhiteThreshold = 160, int outputDpi = 0,
+            bool useJpegCompression = false, int jpegQuality = 85)
         {
             if (_doc is null || _currentFile is null) return;
-            if (pageIdx < 0 || pageIdx >= _doc.PageCount) return;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
+            int[] pages = [.. pageIndices.Distinct().OrderBy(index => index)];
+            if (pages.Length == 0 || pages.Any(index => index < 0 || index >= engineSession.PageCount)) return;
 
             try
             {
@@ -95,64 +92,77 @@ namespace KillerPDF
                 // If the page carries annotations, bake just that page's annotations into the PDF so they
                 // rotate/scale with the page (it is being rasterized anyway, and the user was warned). The
                 // helper is non-destructive (restores _doc); we then drop the now-baked annotations.
-                string? burned = BurnPageAnnotationsToTemp(pageIdx);
-                if (burned != null && _annotations.TryGetValue(pageIdx, out var pageAnns))
-                    pageAnns.Clear();   // now part of the page image
-
-                var src = RenderPageBitmap(pageIdx, 2200, burned);
-                if (src is null) { SetStatus(Loc("Str_Tf_NoRender")); return; }
-
-                var perspective = PerspectiveWarp.IsIdentity(perspectiveCorners)
-                    ? src : PerspectiveWarp.Apply(src, perspectiveCorners);
-                var composed = ComposeTransform(perspective, angleDeg, scale, fixedPage, flipH, flipV);
-                // #174: levels last, on the final full-resolution pixels - same pass the preview shows.
-                composed = TransformWindow.ApplyLevels(composed, levelBlack, levelWhite, levelGamma);
-                byte[] png = EncodePng(composed);
-
-                var oldPage = _doc.Pages[pageIdx];
-                var (epw, eph) = EffectivePageSize(oldPage);   // honor CropBox so a cropped page keeps its size
-                // #167: the bitmap is in VISUAL orientation - RenderPageBitmap applies the page's
-                // in-app rotation - but MediaBox/CropBox are always unrotated (the working file has
-                // /Rotate stripped into _pageRotations). On a quarter-turned page the two disagreed,
-                // so sx and sy came out different: the transformed page was squeezed back to portrait
-                // and stretched vertically. Swap the point dimensions to match what was rendered.
-                int visRot = _pageRotations.TryGetValue(pageIdx, out int vr) ? ((vr % 360) + 360) % 360 : 0;
-                if (visRot == 90 || visRot == 270) (epw, eph) = (eph, epw);
-                double sx = epw / src.PixelWidth;
-                double sy = eph / src.PixelHeight;
-                double newWpt = composed.PixelWidth * sx;
-                double newHpt = composed.PixelHeight * sy;
-
-                // Build a one-page PDF holding the transformed image (the proven image-page pattern).
-                string tmp = App.MakeTempFile("xfpage");
-                using (var one = new PdfDocument())
+                var replacements = new Dictionary<int, string>();
+                var bakedAnnotationPages = new List<int>();
+                foreach (int pageIdx in pages)
                 {
-                    var np = one.AddPage();
-                    np.Width  = XUnit.FromPoint(newWpt);
-                    np.Height = XUnit.FromPoint(newHpt);
-                    using (var xi = XImage.FromStream(() => new MemoryStream(png)))
-                    using (var gfx = XGraphics.FromPdfPage(np))
-                        gfx.DrawImage(xi, 0, 0, np.Width.Point, np.Height.Point);
-                    one.Save(tmp);
-                }
+                    string? burned = BurnPageAnnotationsToTemp(pageIdx);
+                    if (burned != null) bakedAnnotationPages.Add(pageIdx);
+                    var (epw, eph) = engineSession.VisualPageSize(pageIdx, _pageRotations);
+                    int renderBudget = outputDpi > 0
+                        ? Math.Max(1, (int)Math.Ceiling(Math.Max(epw, eph) * outputDpi / 72.0))
+                        : 2200;
+                    var src = RenderPageBitmap(pageIdx, renderBudget, burned) ?? throw new InvalidOperationException(Loc("Str_Tf_NoRender"));
+                    var perspective = PerspectiveWarp.IsIdentity(perspectiveCorners)
+                        ? src : PerspectiveWarp.Apply(src, perspectiveCorners);
+                    var composed = ComposeTransform(perspective, angleDeg, scale, fixedPage, flipH, flipV);
+                    composed = TransformWindow.ApplyLevels(composed, levelBlack, levelWhite, levelGamma);
+                    composed = PageQualityConverter.ApplyColorMode(
+                        composed, colorMode, blackWhiteThreshold);
+                    double sx = epw / src.PixelWidth;
+                    double sy = eph / src.PixelHeight;
+                    double newWpt = composed.PixelWidth * sx;
+                    double newHpt = composed.PixelHeight * sy;
 
-                // Import that page and swap it in for the original (mirrors DuplicatePage's index dance).
-                using (var srcDoc = PdfReader.Open(tmp, PdfDocumentOpenMode.Import))
+                    string tmp = App.MakeTempFile("xfpage");
+                    byte[] pixels = new byte[composed.PixelWidth * composed.PixelHeight * 4];
+                    composed.CopyPixels(pixels, composed.PixelWidth * 4, 0);
+                    ReadOnlyMemory<byte> jpeg = useJpegCompression
+                        ? EncodeJpeg(composed, jpegQuality) : default;
+                    File.WriteAllBytes(tmp, PdfEngineIntegration.CreateRasterDocument([
+                        new PdfEngineIntegration.RasterPage(composed.PixelWidth,
+                            composed.PixelHeight, newWpt, newHpt, pixels, jpeg)]));
+                    replacements[pageIdx] = tmp;
+                }
+                foreach (int pageIdx in bakedAnnotationPages)
+                    if (_annotations.TryGetValue(pageIdx, out var pageAnns)) pageAnns.Clear();
+
+                SaveTempAndReload(
+                    keepAnnotations: true,
+                    finalizeSavedFile: path =>
+                        PdfEngineIntegration.ReplacePages(path, replacements),
+                    remapRotations: rotations =>
+                        PdfEngineIntegration.RemapRotationsAfterPageReplacements(
+                            rotations, pages),
+                    selectedPageAfterReload: pages[0]);
+                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)(() =>
                 {
-                    var imported = _doc.AddPage(srcDoc.Pages[0]);
-                    _doc.Pages.RemoveAt(_doc.PageCount - 1);
-                    _doc.Pages.Insert(pageIdx, imported);
-                    _doc.Pages.RemoveAt(pageIdx + 1);
-                }
-
-                SaveTempAndReload(keepAnnotations: true);
-                SetStatus(string.Format(Loc("Str_Tf_Done"), pageIdx + 1));
+                    PageList.SelectedItems.Clear();
+                    foreach (int pageIdx in pages)
+                        if (pageIdx >= 0 && pageIdx < PageList.Items.Count)
+                            PageList.SelectedItems.Add(PageList.Items[pageIdx]);
+                }));
+                SetStatus(pages.Length == 1
+                    ? string.Format(Loc("Str_Tf_Done"), pages[0] + 1)
+                    : string.Format(Loc("Str_Tf_DoneBatch"), pages.Length));
             }
             catch (Exception ex)
             {
                 KillerDialog.Show(this, string.Format(Loc("Str_Tf_Failed"), ex.Message), "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private static byte[] EncodeJpeg(BitmapSource source, int quality)
+        {
+            var encoder = new JpegBitmapEncoder
+            {
+                QualityLevel = Math.Clamp(quality, 1, 100)
+            };
+            encoder.Frames.Add(BitmapFrame.Create(source));
+            using var stream = new MemoryStream();
+            encoder.Save(stream);
+            return stream.ToArray();
         }
 
         // Saves the document with ONE page's annotations burned in, to a temp PDF, and returns its path
@@ -173,14 +183,15 @@ namespace KillerPDF
             bool burnOk = true;
             try
             {
-                DrawAnnotationsOnDocument(pageIdx);
-                _doc.Save(tempBurned);
+                System.IO.File.Copy(tempClean, tempBurned, true);
+                PdfEngineBurn.Burn(tempBurned, _annotations, _renderDims,
+                    null, pageIdx, _pageRotations);
             }
             catch { burnOk = false; }
             _doc.Close();
             try
             {
-                _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempClean);
             }
             catch (Exception xrefEx) when (PdfImport.IsXRefException(xrefEx))
             {
@@ -189,7 +200,7 @@ namespace KillerPDF
                     && !PdfiumInterop.TryPdfiumSaveWithZeroRotations(tempClean, fixedPath))
                     throw;
                 tempClean = fixedPath;
-                _doc = PdfReader.Open(tempClean, PdfDocumentOpenMode.Modify);
+                _doc = PdfWorkingDocument.Open(tempClean);
             }
             _currentFile = tempClean;
             return burnOk ? tempBurned : null;
@@ -197,7 +208,7 @@ namespace KillerPDF
 
         // Renders a page to a white-backed bitmap (transparent page backgrounds show white, not the dark
         // canvas), applying any in-app rotation so the preview matches the live view.
-        private BitmapSource? RenderPageBitmap(int pageIdx, int maxPx, string? sourceOverride = null)
+        private RenderTargetBitmap? RenderPageBitmap(int pageIdx, int maxPx, string? sourceOverride = null)
         {
             if (_doc is null || _currentFile is null) return null;
             if (pageIdx < 0 || pageIdx >= _doc.PageCount) return null;
@@ -249,7 +260,7 @@ namespace KillerPDF
 
         // fixedPage=true: keep the canvas size, shrink the content with white margins. false: resize the page
         // (fewer pixels at the same points-per-pixel = a physically smaller page).
-        private static BitmapSource ScaleCompose(BitmapSource src, double scale, bool fixedPage)
+        private static RenderTargetBitmap ScaleCompose(BitmapSource src, double scale, bool fixedPage)
         {
             int w = src.PixelWidth, h = src.PixelHeight;
             int sw = Math.Max(1, (int)Math.Round(w * scale));
@@ -306,13 +317,5 @@ namespace KillerPDF
             return rtb;
         }
 
-        private static byte[] EncodePng(BitmapSource bmp)
-        {
-            var enc = new PngBitmapEncoder();
-            enc.Frames.Add(BitmapFrame.Create(bmp));
-            using var ms = new MemoryStream();
-            enc.Save(ms);
-            return ms.ToArray();
-        }
     }
 }

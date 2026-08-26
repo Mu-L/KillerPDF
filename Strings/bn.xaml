@@ -394,6 +394,7 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Bar_Color">রং:</sys:String>
     <sys:String x:Key="Str_Bar_Fill">ফিল:</sys:String>
     <sys:String x:Key="Str_Bar_Size">আকার:</sys:String>
+    <sys:String x:Key="Str_Bar_LetterSpacing">অক্ষর ব্যবধান:</sys:String>
     <sys:String x:Key="Str_Bar_Opacity">অস্বচ্ছতা:</sys:String>
     <sys:String x:Key="Str_Bar_FillOpacity">ফিল অস্বচ্ছতা:</sys:String>
     <sys:String x:Key="Str_Bar_Font">ফন্ট:</sys:String>
@@ -410,12 +411,26 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Sign_Desc">একটি সার্টিফিকেট দিয়ে {0} সিল করে এবং একটি স্বাক্ষরিত কপি সংরক্ষণ করে।</sys:String>
     <sys:String x:Key="Str_Sign_Certificate">সার্টিফিকেট</sys:String>
     <sys:String x:Key="Str_Sign_FromFile">একটি ফাইল থেকে (.pfx / .p12)</sys:String>
-    <sys:String x:Key="Str_Sign_FromStore">Windows সার্টিফিকেট স্টোর থেকে</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">Windows সার্টিফিকেট স্টোর থেকে / USB token</sys:String>
     <sys:String x:Key="Str_Sign_Browse">ব্রাউজ...</sys:String>
     <sys:String x:Key="Str_Sign_Password">পাসওয়ার্ড</sys:String>
     <sys:String x:Key="Str_Sign_Reason">কারণ (ঐচ্ছিক)</sys:String>
     <sys:String x:Key="Str_Sign_Location">অবস্থান (ঐচ্ছিক)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">যোগাযোগ (ঐচ্ছিক)</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">দৃশ্যমান স্বাক্ষর দেখান</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">স্বাক্ষরের টেক্সট</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">ডিজিটালি স্বাক্ষর করেছেন {name}&#10;তারিখ: {date}&#10;কারণ: {reason}&#10;অবস্থান: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_Page">Page</sys:String>
+    <sys:String x:Key="Str_Sign_Position">Position</sys:String>
+    <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
+    <sys:String x:Key="Str_Sign_BottomRight">Bottom right</sys:String>
+    <sys:String x:Key="Str_Sign_TopLeft">Top left</sys:String>
+    <sys:String x:Key="Str_Sign_TopRight">Top right</sys:String>
+    <sys:String x:Key="Str_Sign_Width">Width</sys:String>
+    <sys:String x:Key="Str_Sign_Height">Height</sys:String>
+    <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">সার্টিফিকেটধারী</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">স্বাক্ষরের পৃষ্ঠা, মাপ এবং টেক্সটের আকার পরীক্ষা করুন।</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">স্বাক্ষরিত কপি যেভাবে সংরক্ষণ করুন</sys:String>
     <sys:String x:Key="Str_Sign_Sign">স্বাক্ষর করুন</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">বাতিল করুন</sys:String>
@@ -443,6 +458,7 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Ocr_SearchablePdf">অনুসন্ধানযোগ্য PDF তৈরি করুন...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">সমস্ত টেক্সট বের করুন...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">ভাষা</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">ফর্ম-সচেতন OCR</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">প্রথমে একটি PDF খুলুন</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - শীঘ্রই আসছে</sys:String>
     <sys:String x:Key="Str_TT_Ocr">পৃষ্ঠায় OCR করুন (টেক্সট কপি করুন) (Ctrl+Shift+O)</sys:String>
@@ -477,6 +493,7 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Tf_Warn">একটি পৃষ্ঠা রূপান্তর করলে (ঘোরানো বা স্কেল) তা রাস্টারাইজ হয়: পৃষ্ঠাটি ছবি হিসেবে পুনরায় সংরক্ষিত হয়, তাই এতে থাকা যেকোনো নির্বাচনযোগ্য টেক্সট হারিয়ে যায়। পরে আপনি OCR চালিয়ে এটিকে আবার অনুসন্ধানযোগ্য করতে পারেন।</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">আমাকে আর সতর্ক করবেন না</sys:String>
     <sys:String x:Key="Str_Tf_Done">{0} পৃষ্ঠা রূপান্তর করা হয়েছে</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">{0}টি পৃষ্ঠা রূপান্তর করা হয়েছে</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">পৃষ্ঠাটি রেন্ডার করা যায়নি - কিছুক্ষণ পরে আবার চেষ্টা করুন।</sys:String>
     <sys:String x:Key="Str_Tf_Failed">রূপান্তর ব্যর্থ হয়েছে: {0}</sys:String>
     <sys:String x:Key="Str_Crop_Position">অবস্থান</sys:String>
@@ -717,6 +734,13 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_Tf_LevelsBlack">কালো বিন্দু</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">সাদা বিন্দু</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">মধ্যম টোন</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <!-- 1.7.4 hardcoded-string sweep (#227) -->
     <sys:String x:Key="Str_Color_Name">রং</sys:String>
     <sys:String x:Key="Str_Color_Pick">একটি রং বাছুন</sys:String>

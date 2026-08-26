@@ -394,6 +394,7 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Bar_Color">Color:</sys:String>
     <sys:String x:Key="Str_Bar_Fill">Relleno:</sys:String>
     <sys:String x:Key="Str_Bar_Size">Tamaño:</sys:String>
+    <sys:String x:Key="Str_Bar_LetterSpacing">Espaciado:</sys:String>
     <sys:String x:Key="Str_Bar_Opacity">Opacidad:</sys:String>
     <sys:String x:Key="Str_Bar_FillOpacity">Opacidad de relleno:</sys:String>
     <sys:String x:Key="Str_Bar_Font">Fuente:</sys:String>
@@ -410,12 +411,26 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Sign_Desc">Sella {0} con un certificado y guarda una copia firmada.</sys:String>
     <sys:String x:Key="Str_Sign_Certificate">Certificado</sys:String>
     <sys:String x:Key="Str_Sign_FromFile">Desde un archivo (.pfx / .p12)</sys:String>
-    <sys:String x:Key="Str_Sign_FromStore">Desde el almacén de certificados de Windows</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">Desde el almacén de certificados de Windows / USB token</sys:String>
     <sys:String x:Key="Str_Sign_Browse">Examinar...</sys:String>
     <sys:String x:Key="Str_Sign_Password">Contraseña</sys:String>
     <sys:String x:Key="Str_Sign_Reason">Motivo (opcional)</sys:String>
     <sys:String x:Key="Str_Sign_Location">Ubicación (opcional)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">Contacto (opcional)</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">Mostrar una firma visible</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">Texto de la firma</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">Firmado digitalmente por {name}&#10;Fecha: {date}&#10;Motivo: {reason}&#10;Ubicación: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_Page">Page</sys:String>
+    <sys:String x:Key="Str_Sign_Position">Position</sys:String>
+    <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
+    <sys:String x:Key="Str_Sign_BottomRight">Bottom right</sys:String>
+    <sys:String x:Key="Str_Sign_TopLeft">Top left</sys:String>
+    <sys:String x:Key="Str_Sign_TopRight">Top right</sys:String>
+    <sys:String x:Key="Str_Sign_Width">Width</sys:String>
+    <sys:String x:Key="Str_Sign_Height">Height</sys:String>
+    <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">Titular del certificado</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">Compruebe la página, las dimensiones y el tamaño del texto de la firma.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">Guardar copia firmada como</sys:String>
     <sys:String x:Key="Str_Sign_Sign">Firmar</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">Cancelar</sys:String>
@@ -443,6 +458,7 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Ocr_SearchablePdf">Crear PDF con texto buscable...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">Extraer todo el texto...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">Idioma</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">OCR compatible con formularios</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Primero abre un PDF</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - próximamente</sys:String>
     <sys:String x:Key="Str_TT_Ocr">OCR de la página (copiar texto) (Ctrl+Shift+O)</sys:String>
@@ -477,6 +493,7 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Tf_Warn">Transformar una página (rotar o escalar) la rasteriza: la página se vuelve a guardar como imagen, por lo que se pierde cualquier texto seleccionable. Puedes ejecutar OCR después para volver a hacerla buscable.</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">No volver a avisarme</sys:String>
     <sys:String x:Key="Str_Tf_Done">Página {0} transformada</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">{0} páginas transformadas</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">No se pudo renderizar la página - inténtalo de nuevo en un momento.</sys:String>
     <sys:String x:Key="Str_Tf_Failed">Error al transformar: {0}</sys:String>
     <sys:String x:Key="Str_Crop_Position">Posición</sys:String>
@@ -717,6 +734,13 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Tf_LevelsBlack">Punto negro</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Punto blanco</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Medios tonos</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <!-- 1.7.4 hardcoded-string sweep (#227) -->
     <sys:String x:Key="Str_Color_Name">Color</sys:String>
     <sys:String x:Key="Str_Color_Pick">Elija un color</sys:String>

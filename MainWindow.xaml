@@ -1113,6 +1113,41 @@
             </Setter>
         </Style>
 
+        <!-- Form field rows carry the PDF's own colours, not the app chrome. The implicit
+             ListBoxItem style above paints TextBrush on every item in this window, which is
+             near-white in the dark themes and vanishes against a form field's pale fill.
+             A ListBox can only pass its own Foreground down by inheritance, and a style
+             setter outranks that, so the overlay opts out with an explicit container style
+             the same way the file dialog's lists do. Neither trigger touches Foreground, so
+             the text stays readable in every state. -->
+        <Style x:Key="FormFieldListBoxItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="2,0"/>
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#333399FF"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#663399FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         </ResourceDictionary>
     </Window.Resources>
 
@@ -1285,6 +1320,15 @@
                     <Button x:Name="ToolCropBtn" Content="&#xE7A8;" Style="{StaticResource ToolbarButton}" Click="ToolCrop_Click" ToolTip="{DynamicResource Str_TT_CropTool}"/>
                     <Button x:Name="ToolRotateBtn" Content="&#xE7AD;" Style="{StaticResource ToolbarButton}" Click="ToolRotate_Click" ToolTip="{DynamicResource Str_TT_RotateTool}"/>
                     <Button x:Name="ToolStampBtn" Content="&#xE932;" Style="{StaticResource ToolbarButton}" Click="ToolStamp_Click" ToolTip="{DynamicResource Str_TT_StampTool}"/>
+                    <StackPanel x:Name="GrpFormField" Orientation="Horizontal">
+                        <Rectangle Width="1" Fill="{DynamicResource CardBorderBrush}" Margin="4,6"/>
+                        <Button x:Name="ToolFormFieldBtn" Style="{StaticResource ToolbarButton}" Click="ToolFormField_Click" ToolTip="Fillable text field - create, type, move, or resize fields (F)">
+                            <Grid Width="18" Height="16">
+                                <Border BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" BorderThickness="1" CornerRadius="1" Margin="1,2,1,1"/>
+                                <TextBlock Text="T" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,1,0,0"/>
+                            </Grid>
+                        </Button>
+                    </StackPanel>
                     <StackPanel x:Name="GrpUndo" Orientation="Horizontal">
                         <Rectangle Width="1" Fill="{DynamicResource CardBorderBrush}" Margin="4,6"/>
                         <Button Content="&#xE7A7;" Style="{StaticResource ToolbarButton}" Click="Undo_Click" ToolTip="{DynamicResource Str_TT_UndoLast}"/>
@@ -1360,6 +1404,15 @@
                                 </Button>
                                 <Button x:Name="MiText" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolText_Click">
                                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8D2;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Text}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
+                                </Button>
+                                <Button x:Name="MiFormField" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolFormField_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Grid Width="24" Height="18">
+                                            <Border Width="18" Height="14" BorderBrush="{DynamicResource TextBrush}" BorderThickness="1" CornerRadius="1"/>
+                                            <TextBlock Text="T" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="10" Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Grid>
+                                        <TextBlock Text="Forms (F)" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                    </StackPanel>
                                 </Button>
                                 <Button x:Name="MiUnderline" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolLine_Click">
                                     <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE738;" FontFamily="Segoe MDL2 Assets" FontSize="14" Width="24" Foreground="{DynamicResource TextBrush}"/><TextBlock Text="{DynamicResource Str_Lbl_Line}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/></StackPanel>
@@ -1545,6 +1598,7 @@
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  SelectionChanged="PageList_SelectionChanged"
                                  AllowDrop="True" Drop="PageList_Drop" DragOver="PageList_DragOver"
+                                 DragLeave="PageList_DragLeave"
                                  PreviewMouseLeftButtonDown="PageList_PreviewMouseLeftButtonDown"
                                  PreviewMouseMove="PageList_PreviewMouseMove"
                                  MouseRightButtonUp="PageList_MouseRightButtonUp">
@@ -1589,6 +1643,17 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                             </ListBox>
+                        </Border>
+                        <!-- Page reorder insertion marker. Its Y translation is driven from the same
+                             thumbnail midpoint calculation used by the eventual drop. -->
+                        <Border x:Name="PageDropIndicator" Height="3" Margin="8,0,20,0"
+                                VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                                Background="{DynamicResource SelectionAccent}"
+                                CornerRadius="1.5" Panel.ZIndex="5" IsHitTestVisible="False"
+                                Visibility="Collapsed">
+                            <Border.RenderTransform>
+                                <TranslateTransform Y="0"/>
+                            </Border.RenderTransform>
                         </Border>
                         </Grid>
                         <!-- Outline/bookmark tree (visible when OUTLINES tab is active) -->
@@ -2406,8 +2471,9 @@
                 <Grid x:Name="PortableBadge" Grid.Column="0" Grid.ColumnSpan="3" Panel.ZIndex="3"
                       HorizontalAlignment="Left" VerticalAlignment="Center"
                       Visibility="Collapsed">
-                    <Button x:Name="InstallBtn" Content="{DynamicResource Str_InstallBtn}"
+                    <Button x:Name="InstallBtn" Content="{DynamicResource Str_Portable}"
                             Click="Install_Click" Style="{StaticResource OutlineButton}"
+                            ToolTip="Portable mode - get the installed version"
                             FontFamily="{DynamicResource UiFont}" FontSize="10"
                             Padding="8,1"
                             VerticalAlignment="Center">
@@ -2579,7 +2645,7 @@
                     <Grid x:Name="ShortcutListHost">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="24"/>
+                            <ColumnDefinition Width="36"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
@@ -2758,25 +2824,11 @@
                     <!-- Update notice: shown only when a newer release is found (set in code-behind) -->
                     <Button x:Name="AboutUpdateButton" Visibility="Collapsed"
                             Margin="0,14,0,0" HorizontalAlignment="Left"
-                            Cursor="Hand" FocusVisualStyle="{x:Null}"
+                            Style="{StaticResource OutlineButton}" Padding="14,7"
                             Click="AboutUpdateButton_Click">
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border x:Name="UpdBd" Background="Transparent"
-                                        BorderBrush="{DynamicResource PrimaryBrush}" BorderThickness="1"
-                                        CornerRadius="4" Padding="14,7">
-                                    <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="UpdBd" Property="Background" Value="{DynamicResource RowSelectedBrush}"/>
-                                    </Trigger>
-                                </ControlTemplate.Triggers>
-                            </ControlTemplate>
-                        </Button.Template>
                         <TextBlock x:Name="AboutUpdateText" Text="{DynamicResource Str_Btn_DoUpdate}"
                                    FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI" FontSize="12" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource PrimaryBrush}"/>
+                                   Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"/>
                     </Button>
                     <!-- Footer row: the recent-files privacy toggle (#146) sits left, the tiny
                          destructive Clear-all-Data link bottom-right (red on hover) - the About

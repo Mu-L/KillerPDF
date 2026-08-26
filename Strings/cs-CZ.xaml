@@ -312,6 +312,7 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Ocr_SearchablePdf">Vytvořit prohledávatelné PDF...</sys:String>
     <sys:String x:Key="Str_Ocr_ExtractText">Extrahovat veškerý text...</sys:String>
     <sys:String x:Key="Str_Ocr_Language">Jazyk</sys:String>
+    <sys:String x:Key="Str_Ocr_FormAware">OCR s podporou formulářů</sys:String>
     <sys:String x:Key="Str_Ocr_NoDoc">Nejprve otevřete PDF</sys:String>
     <sys:String x:Key="Str_Ocr_ComingSoon">{0} - již brzy</sys:String>
     <sys:String x:Key="Str_Ctx_SelectTool">Nástroj výběru</sys:String>
@@ -459,6 +460,7 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Bar_Color">Barva:</sys:String>
     <sys:String x:Key="Str_Bar_Fill">Výplň:</sys:String>
     <sys:String x:Key="Str_Bar_Size">Velikost:</sys:String>
+    <sys:String x:Key="Str_Bar_LetterSpacing">Rozestup:</sys:String>
     <sys:String x:Key="Str_Bar_Opacity">Krytí:</sys:String>
     <sys:String x:Key="Str_Bar_FillOpacity">Krytí výplně:</sys:String>
     <sys:String x:Key="Str_Bar_Font">Písmo:</sys:String>
@@ -475,12 +477,26 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Sign_Desc">Zapečetí {0} certifikátem a uloží podepsanou kopii.</sys:String>
     <sys:String x:Key="Str_Sign_Certificate">Certifikát</sys:String>
     <sys:String x:Key="Str_Sign_FromFile">Ze souboru (.pfx / .p12)</sys:String>
-    <sys:String x:Key="Str_Sign_FromStore">Z úložiště certifikátů Windows</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">Z úložiště certifikátů Windows / USB token</sys:String>
     <sys:String x:Key="Str_Sign_Browse">Procházet...</sys:String>
     <sys:String x:Key="Str_Sign_Password">Heslo</sys:String>
     <sys:String x:Key="Str_Sign_Reason">Důvod (nepovinné)</sys:String>
     <sys:String x:Key="Str_Sign_Location">Místo (nepovinné)</sys:String>
     <sys:String x:Key="Str_Sign_Contact">Kontakt (nepovinné)</sys:String>
+    <sys:String x:Key="Str_Sign_VisibleAppearance">Zobrazit viditelný podpis</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceText">Text podpisu</sys:String>
+    <sys:String x:Key="Str_Sign_AppearanceDefault">Digitálně podepsal {name}&#10;Datum: {date}&#10;Důvod: {reason}&#10;Místo: {location}</sys:String>
+    <sys:String x:Key="Str_Sign_Page">Page</sys:String>
+    <sys:String x:Key="Str_Sign_Position">Position</sys:String>
+    <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
+    <sys:String x:Key="Str_Sign_BottomRight">Bottom right</sys:String>
+    <sys:String x:Key="Str_Sign_TopLeft">Top left</sys:String>
+    <sys:String x:Key="Str_Sign_TopRight">Top right</sys:String>
+    <sys:String x:Key="Str_Sign_Width">Width</sys:String>
+    <sys:String x:Key="Str_Sign_Height">Height</sys:String>
+    <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
+    <sys:String x:Key="Str_Sign_PreviewSigner">Držitel certifikátu</sys:String>
+    <sys:String x:Key="Str_Sign_BadAppearance">Zkontrolujte stránku podpisu, rozměry a velikost textu.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">Uložit podepsanou kopii jako</sys:String>
     <sys:String x:Key="Str_Sign_Sign">Podepsat</sys:String>
     <sys:String x:Key="Str_Sign_Cancel">Zrušit</sys:String>
@@ -528,6 +544,7 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Tf_Warn">Transformace stránky (otočení nebo změna měřítka) ji rastruje: stránka se znovu uloží jako obrázek, takže veškerý vybratelný text na ní bude ztracen. Následným spuštěním OCR ji můžete znovu učinit prohledávatelnou.</sys:String>
     <sys:String x:Key="Str_Tf_DontWarn">Příště nevarovat</sys:String>
     <sys:String x:Key="Str_Tf_Done">Transformována stránka {0}</sys:String>
+    <sys:String x:Key="Str_Tf_DoneBatch">Transformováno {0} stránek</sys:String>
     <sys:String x:Key="Str_Tf_NoRender">Stránku se nepodařilo vykreslit - zkuste to za okamžik znovu.</sys:String>
     <sys:String x:Key="Str_Tf_Failed">Transformace selhala: {0}</sys:String>
 
@@ -722,6 +739,13 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Tf_LevelsBlack">Černý bod</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Bílý bod</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Střední tóny</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
     <!-- 1.7.4 hardcoded-string sweep (#227) -->
     <sys:String x:Key="Str_Color_Name">Barva</sys:String>
     <sys:String x:Key="Str_Color_Pick">Vyberte barvu</sys:String>

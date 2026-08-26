@@ -111,7 +111,7 @@ namespace KillerPDF
         /// Encode raw BGRA (pdfium) → PNG → frozen BitmapFrame entirely on the calling thread.
         /// GDI+ Format32bppArgb is BGRA in memory, matching pdfium output exactly.
         /// </summary>
-        private static BitmapSource? EncodeToBitmapSource(byte[] bgra, int width, int height)
+        private static BitmapFrame? EncodeToBitmapSource(byte[] bgra, int width, int height)
         {
             var pin = GCHandle.Alloc(bgra, GCHandleType.Pinned);
             try

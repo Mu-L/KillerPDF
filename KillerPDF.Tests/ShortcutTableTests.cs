@@ -40,11 +40,10 @@ namespace KillerPDF.Tests
         {
             var doc = XDocument.Load(Path.Combine(StringsDir, "en-US.xaml"));
             XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
-            return doc.Root!.Elements()
+            return [.. doc.Root!.Elements()
                       .Select(e => (string?)e.Attribute(x + "Key"))
                       .Where(k => k != null)
-                      .Select(k => k!)
-                      .ToHashSet();
+                      .Select(k => k!)];
         }
 
         /// <summary>
@@ -210,7 +209,7 @@ namespace KillerPDF.Tests
         public void EveryKeyTokenIsResolvable()
         {
             var known = ShortcutTable.KeyTokens.Select(t => t.Token)
-                                     .Concat(new[] { "%zin%", "%zout%" })
+                                     .Concat(["%zin%", "%zout%"])
                                      .ToHashSet();
 
             var unknown = ShortcutTable.KsAll
