@@ -27,6 +27,8 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 
 ### Changed
 - Installed-payload verification now rejects files absent from the signed manifest, preventing untrusted assemblies in the application probing path, and its tamper test now exercises a same-length SHA-256 mismatch.
+- Moving from a per-user installation to an all-users installation now removes the stale per-user `killerpdf:` protocol registration so it cannot shadow the Program Files handler.
+- Portable cleanup now validates both process identity and start time instead of trusting a reusable PID, and legacy extraction markers retain a directory only when their recorded child still runs from that directory.
 - Saving edited fillable fields now embeds a compatible font when values contain smart punctuation, currency symbols, CJK, or other Unicode text instead of rejecting the save.
 - Fillable choice fields now bind their displayed option and saved export value explicitly, so selecting another dropdown option updates the live field and persists the new value.
 - Single-page and two-page views now accept one deliberate geared-wheel notch at a page edge while still suppressing momentum from the preceding content scroll; precision-wheel deltas continue to accumulate smoothly (#205).

@@ -56,6 +56,7 @@
     <Compile Include="..\Services\PageQualityConverter.cs" Link="Services\PageQualityConverter.cs" />
     <Compile Include="..\Services\FormOcrPolicy.cs" Link="Services\FormOcrPolicy.cs" />
     <Compile Include="..\Services\CombFieldLayout.cs" Link="Services\CombFieldLayout.cs" />
+    <Compile Include="..\Packaging\KillerLauncher\PortableProcessIdentity.cs" Link="Packaging\PortableProcessIdentity.cs" />
   </ItemGroup>
 
   <ItemGroup>

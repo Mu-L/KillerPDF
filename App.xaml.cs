@@ -697,9 +697,6 @@ namespace KillerPDF
             if (runningMachine)
             {
                 RemovePerUserInstall();
-                // The machine install's HKLM handler serves every account; drop the per-user
-                // registration so it cannot shadow the shared Program Files paths (#183).
-                UnregisterFileHandler(Registry.CurrentUser);
             }
             else
             {
@@ -754,12 +751,9 @@ namespace KillerPDF
                 if (!RunElevatedSilentInstall(launcher)) return false;
 
                 // Only ever one install: drop the per-user copy so there is a single Start Menu
-                // entry and a single uninstall entry. Settings are deliberately left alone.
+                // entry and a single uninstall entry. This also removes per-user file and protocol
+                // handlers that could shadow the machine registration. Settings remain intact.
                 RemovePerUserInstall();
-
-                // The elevated pass registered the handler in HKLM for every account. Remove an
-                // older per-user registration so it cannot shadow the shared Program Files paths.
-                UnregisterFileHandler(Registry.CurrentUser);
                 targetExe = MachineInstallExe;
             }
             else
@@ -864,6 +858,8 @@ namespace KillerPDF
                 key?.DeleteValue("InstallPath", throwOnMissingValue: false);
             }
             catch { }
+            UnregisterFileHandler(Registry.CurrentUser);
+            Services.ProtocolRegistrar.Unregister(Registry.CurrentUser);
             try { Registry.CurrentUser.DeleteSubKeyTree(
                 @"Software\Microsoft\Windows\CurrentVersion\Uninstall\KillerPDF",
                 throwOnMissingSubKey: false); }

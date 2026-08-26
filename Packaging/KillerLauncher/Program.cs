@@ -66,7 +66,7 @@ namespace KillerLauncher
             try
             {
                 ExtractAndVerify(directory);
-                WritePortableMarker(directory, version, Process.GetCurrentProcess().Id, null);
+                WritePortableMarker(directory, version, null);
 
                 var start = new ProcessStartInfo(Path.Combine(directory, InnerExeName), QuoteArguments(args))
                 {
@@ -81,7 +81,7 @@ namespace KillerLauncher
                 using (var child = Process.Start(start))
                 {
                     if (child == null) throw new InvalidOperationException("The application process could not be created.");
-                    WritePortableMarker(directory, version, Process.GetCurrentProcess().Id, child.Id);
+                    WritePortableMarker(directory, version, child);
                     child.WaitForExit();
                     return child.ExitCode;
                 }
@@ -275,37 +275,40 @@ namespace KillerLauncher
                 {
                     var lines = File.ReadAllLines(marker);
                     if (lines.Length > 0 && string.Equals(lines[0], ProductName, StringComparison.Ordinal) &&
-                        !MarkerHasLiveProcess(lines))
+                        !MarkerHasLiveProcess(directory, lines))
                         DeleteDirectoryWithRetries(directory);
                 }
                 catch { }
             }
         }
 
-        private static void WritePortableMarker(string directory, string version, int launcherPid, int? childPid)
+        private static void WritePortableMarker(string directory, string version, Process? child)
         {
+            using (Process launcher = Process.GetCurrentProcess())
             File.WriteAllLines(Path.Combine(directory, PortableMarkerName), new[]
             {
                 ProductName,
                 version,
-                launcherPid.ToString(CultureInfo.InvariantCulture),
-                childPid?.ToString(CultureInfo.InvariantCulture) ?? string.Empty
+                launcher.Id.ToString(CultureInfo.InvariantCulture),
+                child?.Id.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+                launcher.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture),
+                child?.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture) ?? string.Empty
             }, new UTF8Encoding(false));
         }
 
-        private static bool MarkerHasLiveProcess(string[] lines)
+        private static bool MarkerHasLiveProcess(string directory, string[] lines)
         {
-            foreach (string text in lines.Skip(2).Take(2))
+            if (lines.Length >= 6)
             {
-                if (!int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int pid)) continue;
-                try
-                {
-                    using (var process = Process.GetProcessById(pid))
-                        if (!process.HasExited) return true;
-                }
-                catch { }
+                if (PortableProcessIdentity.IsLive(lines[2], lines[4])) return true;
+                if (PortableProcessIdentity.IsLive(lines[3], lines[5], directory)) return true;
+                return false;
             }
-            return false;
+
+            // Legacy markers carried only PIDs. Ignore their launcher PID because Windows may
+            // have reused it, and retain the directory only if its child still runs from there.
+            return lines.Length >= 4
+                && PortableProcessIdentity.IsLive(lines[3], null, directory);
         }
 
         private static void DeleteDirectoryWithRetries(string directory)
