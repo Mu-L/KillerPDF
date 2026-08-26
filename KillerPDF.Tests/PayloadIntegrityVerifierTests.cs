@@ -26,13 +26,29 @@ public sealed class PayloadIntegrityVerifierTests
     {
         WithPayload((root, file) =>
         {
-            File.WriteAllText(file, "tampered");
+            byte[] content = File.ReadAllBytes(file);
+            content[0] ^= 0x01;
+            File.WriteAllBytes(file, content);
 
             PayloadIntegrityResult result = PayloadIntegrityVerifier.Verify(root);
 
             Assert.False(result.Success);
             Assert.Contains(result.Errors, error =>
                 error.Contains("mismatch", StringComparison.OrdinalIgnoreCase));
+        });
+    }
+
+    [Fact]
+    public void Verify_ReportsFilesOutsideManifest()
+    {
+        WithPayload((root, file) =>
+        {
+            File.WriteAllText(Path.Combine(root, "unlisted.dll"), "not trusted");
+
+            PayloadIntegrityResult result = PayloadIntegrityVerifier.Verify(root);
+
+            Assert.False(result.Success);
+            Assert.Contains("Unexpected file: unlisted.dll", result.Errors);
         });
     }
 

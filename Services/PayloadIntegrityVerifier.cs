@@ -84,6 +84,15 @@ internal static class PayloadIntegrityVerifier
             verified++;
         }
 
+        foreach (string file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+        {
+            if (string.Equals(file, manifestPath, StringComparison.OrdinalIgnoreCase)) continue;
+            string relative = Path.GetRelativePath(root, file)
+                .Replace(Path.DirectorySeparatorChar, '/');
+            if (!seen.Contains(relative))
+                errors.Add($"Unexpected file: {relative}");
+        }
+
         return new PayloadIntegrityResult(errors.Count == 0, verified, errors);
     }
 
