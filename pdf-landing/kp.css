@@ -206,9 +206,11 @@ html[data-theme="light"] .page-title { text-shadow: none; }
   .topbar .tb-nav { order: 1; flex-basis: 100%; justify-content: center; gap: 2px; padding-top: 7px; border-top: 1px solid var(--border); }
   .tb-nav a { padding: 6px 10px; font-size: 13.5px; }
   /* Row 3: theme swatches, accent, and language, centered together */
-  .topbar .tgrp { order: 2; }
+  .topbar .tgrp { order: 2; flex-basis: 100%; justify-content: center; min-width: 0; }
   .topbar .accent-switch { order: 3; }
   .topbar .lang-switch { order: 4; }
+  .topbar .tgrp { gap: 5px; }
+  .topbar .swatch { width: 17px; height: 17px; }
   /* Footer: stack the two status lines and center them */
   .statusbar { flex-direction: column; gap: 4px; justify-content: center; text-align: center; padding: 9px 12px; }
 }

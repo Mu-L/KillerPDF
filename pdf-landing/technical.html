@@ -60,6 +60,7 @@
 <nav class="tb-nav">
 <a href="help.html" data-i18n="nav_help">Help</a>
 <a href="technical.html" class="on" data-i18n="nav_tech">Technical</a>
+<a href="engine.html">Engine</a>
 <a href="about.html" data-i18n="nav_about">About</a>
 </nav>
 <div class="tgrp" role="group" aria-label="Theme">
@@ -120,6 +121,7 @@
 <a href="#temp-files" class="sub" data-i18n="pt_50">Temp files</a>
 <a href="#clear-all-data" class="sub" data-i18n="pt_52">Clear all data</a>
 <a href="#arch" data-i18n="pt_6">Architecture</a>
+<a href="#source-size" class="sub">Source size</a>
 <a href="#two-render-pipelines" class="sub" data-i18n="pt_56">Two render pipelines</a>
 <a href="#per-tab-sessions-an-lru-cache" class="sub" data-i18n="pt_58">Per-tab sessions &amp; an LRU cache</a>
 <a href="#canvas-overlay-maps" class="sub" data-i18n="pt_60">Canvas &amp; overlay maps</a>
@@ -138,13 +140,13 @@
 <a href="#why-structural-edits-reload" class="sub" data-i18n="pt_106">Why structural edits reload</a>
 <a href="#robust" data-i18n="pt_12">Robustness</a>
 <a href="#the-open-fallback-ladder" class="sub" data-i18n="pt_110">The open fallback ladder</a>
-<a href="#encryption-is-stripped-at-open" class="sub" data-i18n="pt_124">Encryption is stripped at open</a>
+<a href="#encryption-is-stripped-at-open" class="sub">Encryption and permissions</a>
 <a href="#network-and-partial-reads" class="sub" data-i18n="pt_126">Network and partial reads</a>
 <a href="#repair-works-on-a-copy" class="sub" data-i18n="pt_128">Repair works on a copy</a>
 <a href="#conformance" data-i18n="pt_conf_1">Standards conformance</a>
 <a href="#how-the-test-works" class="sub" data-i18n="pt_conf_2">How the test works</a>
 <a href="#the-numbers" class="sub" data-i18n="pt_conf_3">The numbers</a>
-<a href="#patching-the-write-engine" class="sub" data-i18n="pt_conf_5">Patching the write engine</a>
+<a href="#patching-the-write-engine" class="sub">Owning the document engine</a>
 <a href="#i18n" data-i18n="pt_13">Localization</a>
 <a href="#captions-and-tooltips-are-separate-strings" class="sub" data-i18n="pt_132">Captions and tooltips are separate strings</a>
 <a href="#specs" data-i18n="pt_14">Constants</a>
@@ -163,13 +165,13 @@
 
 <div class="tech-sec" id="stack">
 <h2 data-i18n="pt_16">Tech stack</h2>
-<p data-i18n="pt_17">KillerPDF is a native Windows app. There is no Electron, no browser engine, and no runtime to install. It relies on a small set of focused libraries, each handling one job:</p>
+<p>KillerPDF is a native Windows application built on modern .NET. There is no Electron and no browser engine. The installed edition uses the .NET 10 Desktop Runtime; the portable edition carries its own runtime. Each major subsystem has a deliberately narrow job:</p>
 <table class="spec-table"><tr><th data-i18n="pt_18">Component</th><th data-i18n="pt_19">Library</th></tr>
-<tr><td data-i18n="pt_20">UI</td><td data-i18n="pt_21">WPF on .NET Framework 4.8 (net48), x64, custom window chrome</td></tr>
+<tr><td>UI</td><td>WPF on .NET 10 for Windows, x64, with custom window chrome</td></tr>
 <tr><td data-i18n="pt_22">Rendering</td><td data-i18n="pt_23">PDFium via Docnet.Core 2.6 - every page bitmap and thumbnail</td></tr>
 <tr><td data-i18n="pt_24">Text</td><td data-i18n="pt_25">PdfPig 0.1.15 - search, selection, font sniffing</td></tr>
-<tr><td data-i18n="pt_26">Write engine</td><td data-i18n="pt_27">PdfSharpCore 1.3.67, vendored and patched - save, page ops, annotation / stamp flattening</td></tr>
-<tr><td data-i18n="pt_28">Signing</td><td data-i18n="pt_29">PDFsharp 6.2.4 (separate namespace) - CMS / SHA-256 signatures</td></tr>
+<tr><td>Document engine</td><td><a href="engine.html">The KillerPDF.Engine</a> - parsing, authoring, preservation, page operations, forms, annotations, encryption, signatures, PDF 2.0, PDF/A and PDF/UA</td></tr>
+<tr><td>Signing</td><td>The KillerPDF.Engine - byte-preserving detached CMS signatures, certification permissions, field locks and verification</td></tr>
 <tr><td data-i18n="pt_30">OCR</td><td data-i18n="pt_31">Tesseract 5.2 - native libs embedded, language packs on demand</td></tr>
 <tr><td data-i18n="pt_32">Packaging</td><td data-i18n="pt_33">A compact framework-dependent installer and a self-contained portable launcher, each carrying a compressed, SHA-256-verified payload</td></tr>
 </table>
@@ -200,7 +202,9 @@
 
 <div class="tech-sec" id="arch">
 <h2 data-i18n="pt_54">Architecture</h2>
-<p data-i18n="pt_55_174"><b>MainWindow</b> is a composed application shell rather than one giant code-behind. Its partials under <code>Shell/</code> own the shared toolbar, sidebar, dialogs and application workflows, while each document pane is a reusable <b>PdfViewer</b> control with its own view state, tab strip, render surfaces and document interaction code. Two viewer instances create split pane without opening a second window. Rendering, annotations, forms, links, crop, selection, text editing, tabs and zoom are divided across 16 <code>Controls/Viewer/PdfViewer.*</code> partials totaling about 10,800 lines. Thin bridge and host adapters connect shell and viewer, with shared work under <code>Services/</code> and focused controllers under <code>Features/</code>. Excluding tests, packaging and the vendored PdfSharpCore fork, the application is 122 C# source files and about 41,400 lines: roughly 13,100 under <code>Shell/</code>, 17,500 under <code>Controls/</code>, 5,100 under <code>Services/</code>, 2,600 under <code>Features/</code>, and 2,600 in root application files.</p>
+<p><b>MainWindow</b> is a composed application shell rather than one giant code-behind. Its partials under <code>Shell/</code> own the shared toolbar, sidebar, dialogs and application workflows, while each document pane is a reusable <b>PdfViewer</b> with independent tabs, view state, render surfaces, thumbnails and interaction state. Two viewer instances create split pane without opening a second window. Thin host adapters connect the shell and viewers; reusable application policy lives under <code>Services/</code>; focused controllers live under <code>Features/</code>; and all PDF structure and serialization crosses the independent <a href="engine.html">KillerPDF.Engine boundary</a>.</p>
+<h3 id="source-size">Source size</h3>
+<p>As measured from tracked <code>.cs</code> files on the 1.8 development branch, KillerPDF contains <b>395 C# files and 126,040 physical source lines</b>. Production code accounts for 300 files and 91,401 lines: 143 application files (43,216 lines), 151 engine-library files (45,352 lines), one corpus runner (2,140 lines), and five packaging files (693 lines). The remaining 95 files and 34,639 lines are application and engine tests. Generated build output is excluded.</p>
 <h3 id="two-render-pipelines" data-i18n="pt_56">Two render pipelines</h3>
 <p data-i18n="pt_57">KillerPDF has a primary-page renderer (<b>RenderPage</b>) and a multi-page streaming renderer used by Continuous, Grid and Two-Page layouts. Single view uses the primary tile; multi-page layouts create per-page tiles and replace their bitmaps progressively as work completes. RenderPage is deliberately switched off during Continuous so a primary-page repaint cannot clear the live multi-page overlay map.</p>
 <h3 id="per-tab-sessions-an-lru-cache" data-i18n="pt_58">Per-tab sessions &amp; an LRU cache</h3>
@@ -379,8 +383,8 @@
 <tr><td data-i18n="pt_120">"Unexpected EOF" on a valid file</td><td data-i18n="pt_121">Re-save losslessly through PDFium; opens clean, no save nag</td></tr>
 <tr><td data-i18n="pt_122">Anything unclassified</td><td data-i18n="pt_123">Offer a PDFium repair, which recovers most damaged files</td></tr>
 </table>
-<h3 id="encryption-is-stripped-at-open" data-i18n="pt_124">Encryption is stripped at open</h3>
-<p data-i18n="pt_125">PdfSharpCore can read an encrypted PDF but cannot re-serialize a modified one - it would write back stale encrypted bytes and fail. So when a file is encrypted, the encryption is removed at open time (PDFium, lossless, with a PdfSharpCore Import fallback). That pass is CPU-heavy, so it runs on a background thread behind the busy overlay; every later edit and save then behaves like a normal document.</p>
+<h3 id="encryption-is-stripped-at-open">Encryption and permissions</h3>
+<p>The KillerPDF.Engine authenticates Standard Security revisions 2 through 6, including RC4, AES-128, AES-256 and crypt filters. It distinguishes user and owner authentication, exposes the document's operation permissions, and enforces those permissions at the high-level editing APIs. Authenticated documents can be updated incrementally or rewritten while preserving encryption; decryption is an explicit workflow rather than a prerequisite for every edit.</p>
 <h3 id="network-and-partial-reads" data-i18n="pt_126">Network and partial reads</h3>
 <p data-i18n="pt_127">UNC shares and the WSL <code>\\wsl$</code> 9P filesystem sometimes hand back partial reads, which the parser sees as a truncated file. Before opening anything on a network path, KillerPDF copies it to a local temp with a single read-to-EOF, then opens the complete copy - while keeping your original path for display and Save.</p>
 <h3 id="repair-works-on-a-copy" data-i18n="pt_128">Repair works on a copy</h3>
@@ -392,33 +396,29 @@
 <p data-i18n="pt_conf_7">A PDF editor has one obligation above all others: saving your file must not damage it. Starting with 1.6.4, that claim is tested rather than assumed. Every release is validated against <a href="https://verapdf.org/" target="_blank" rel="noopener">veraPDF</a>, the industry reference validator for PDF/A and PDF/UA, across a 2,907-file public conformance corpus (the veraPDF test corpus, the Isartor PDF/A-1b suite, and the TWG test files). These are deliberately hostile files, most built to violate exactly one clause of a standard, so any structural damage a save introduces shows up immediately as a newly failed rule.</p>
 <h3 id="how-the-test-works" data-i18n="pt_conf_2">How the test works</h3>
 <p data-i18n="pt_conf_8">Every corpus file is validated pristine, resaved through KillerPDF's normal open/save pipeline (headlessly, via <code>--batch-resave</code>), and validated again. A comparison script then flags any file that fails a rule after the resave that it did not fail before. The bar for release is zero regressions. A second pass runs <code>qpdf --check</code> on every original/resave pair and flags any file whose structural health worsened.</p>
-<h3 id="the-numbers" data-i18n="pt_conf_4">The numbers (v1.7.4, veraPDF 1.30.2)</h3>
+<h3 id="the-numbers">The 1.8 validation gates</h3>
 <table class="spec-table"><tr><th data-i18n="pt_conf_9">Outcome</th><th data-i18n="pt_conf_10">Files</th></tr>
 <tr><td data-i18n="pt_conf_11">Corpus total</td><td>2,907</td></tr>
-<tr><td data-i18n="pt_conf_12">Resaved and revalidated</td><td>2,236</td></tr>
-<tr><td data-i18n="pt_conf_13">Refused (encrypted or unparseable; source untouched)</td><td>671</td></tr>
-<tr><td data-i18n="pt_conf_14">Conformance regressions</td><td>0 <span style="color:var(--muted)" data-i18n="pt_conf_15">(one documented PDF 2.0 header limitation, below)</span></td></tr>
-<tr><td data-i18n="pt_conf_16">Files that came out <i>more</i> conformant</td><td>63</td></tr>
-<tr><td data-i18n="pt_conf_17">qpdf structural check worsened</td><td data-i18n="pt_conf_28">0 (195 improved)</td></tr>
+<tr><td>Incremental structural corpus</td><td>2,907 files</td></tr>
+<tr><td>Selected-page import corpus</td><td>2,907 files, zero unexpected failures</td></tr>
+<tr><td>Engine tests</td><td>1,427</td></tr>
+<tr><td>Build quality gate</td><td>Release build, zero warnings</td></tr>
+<tr><td>Independent validators</td><td>qpdf, veraPDF and OpenSSL</td></tr>
 </table>
-<h3 id="patching-the-write-engine" data-i18n="pt_conf_6">Patching the write engine at the source</h3>
-<p data-i18n="pt_conf_18">Getting to zero meant fixing the write engine itself. PdfSharpCore is vendored into the repo and patched rather than worked around; each patch is marked in the source and documented with the ISO clause it satisfies:</p>
+<h3 id="patching-the-write-engine">Owning the document engine</h3>
+<p>KillerPDF 1.8 replaces its legacy PdfSharpCore document pipeline with The KillerPDF.Engine, built in this repository from PDF syntax upward. Validation is performed at parser, object-graph, writer, application-integration and public-corpus levels. The engine can preserve existing bytes through incremental revisions or produce deterministic full rewrites, and it fails closed when required structure cannot be interpreted safely.</p>
 <ul>
-<li data-i18n="pt_conf_19">No Producer/Creator stamped into the Info dictionary of an imported document (PDF/A requires Info to stay equivalent to the XMP metadata).</li>
-<li data-i18n="pt_conf_20">No /ModDate rewritten the moment a file is opened for modification (same rule).</li>
-<li data-i18n="pt_conf_21">No transparency /Group injected onto every page (forbidden outright in PDF/A-1).</li>
-<li data-i18n="pt_conf_22">Stream /Length always matches the spec's exact byte count, empty streams included.</li>
-<li data-i18n="pt_conf_23">Booleans serialized as the PDF keywords <code>true</code> / <code>false</code>; the library wrote <code>True</code>, .NET's capitalization, which is not a valid PDF token at all.</li>
-<li data-i18n="pt_conf_24">The debug-only "verbose" file layout removed, so no build can pad object tokens in ways the object-syntax rules forbid.</li>
+<li>PDF 2.0 headers, cross-reference streams, object streams and incremental revisions are native concepts.</li>
+<li>PDF/A-4, PDF/A-4e, PDF/A-4f and PDF/UA-2 authoring safeguards are coordinated across metadata, fonts, structure, forms, annotations and associated files.</li>
+<li>Full rewrites are deterministic; incremental edits preserve the original byte prefix.</li>
+<li>Bounded parsing, graph validation and explicit implementation limits reject ambiguous or unsafe input before writing.</li>
 </ul>
-<p data-i18n="pt_conf_25">On top of that, every save scrubs the damage older libraries left behind: dangling outline references, degenerate crop boxes, and dead digital-signature values (a signature's digest must cover the whole file, so any edit invalidates it; leaving the stale value in place fails strict validation).</p>
-<p data-i18n="pt_conf_26">The one known limitation: PDF/A-4 is built on PDF 2.0, and the write engine serializes PDF 1.7, so the single PDF/A-4 corpus file picks up the version-marker rules on resave. That is a header limitation, not structural damage, and KillerPDF does not claim PDF/A-4 output.</p>
-<p data-i18n="pt_conf_27">The full report, the comparison script, and instructions for reproducing the run ship in the repo under <a href="https://github.com/SteveTheKiller/KillerPDF/blob/main/validation/RESULTS.md" target="_blank" rel="noopener"><code style="color:inherit">validation/RESULTS.md</code></a>.</p>
+<p>The complete reusable-library architecture, capability map, validation model and developer quick start are on the <a href="engine.html">KillerPDF.Engine page</a>.</p>
 </div>
 
 <div class="tech-sec" id="i18n">
 <h2 data-i18n="pt_130">Localization</h2>
-<p data-i18n="pt_131_174">The desktop interface is localized through per-locale <code>ResourceDictionary</code> files under <code>Strings/</code> - twelve locales, one XAML file each, including Polish and Hungarian. The Hungarian dictionary covers all 784 interface keys. Code-built and XAML controls resolve those keys through <code>Loc("Str_...")</code> or a <code>DynamicResource</code>, so switching language reflows the UI live without a restart.</p>
+<p>The desktop interface is localized through per-locale <code>ResourceDictionary</code> files under <code>Strings/</code>: 13 locales, one XAML file each, including Italian, Polish, Hungarian, Bengali, Japanese, and simplified and traditional Chinese. Code-built and XAML controls resolve keys through <code>Loc("Str_...")</code> or a <code>DynamicResource</code>, so switching language reflows the UI live without a restart.</p>
 <h3 id="captions-and-tooltips-are-separate-strings" data-i18n="pt_132">Captions and tooltips are separate strings</h3>
 <p data-i18n="pt_133">A toolbar button carries two independent strings: the hover <b>tooltip</b> (<code>Str_TT_*</code>) and the text <b>caption</b> under or beside the icon (<code>Str_Lbl_*</code>, mapped per glyph). Because they are localized separately, the toolbar can shed captions to save width while every tooltip stays intact.</p>
 </div>
@@ -433,7 +433,7 @@
 <tr><td data-i18n="pt_145">Render-cache tabs (LRU)</td><td data-i18n="pt_146_172">3 most-recently-used; ~160 MB per tab; 48-entry hard cap</td></tr>
 <tr><td data-i18n="pt_147">Folder / zip import cap</td><td data-i18n="pt_148">50 files</td></tr>
 <tr><td data-i18n="pt_149">Signature reservation</td><td data-i18n="pt_150">16,384 bytes, SHA-256, whole chain</td></tr>
-<tr><td data-i18n="pt_151">Languages / themes</td><td data-i18n="pt_152_172">12 locales / 13 themes + accent variants</td></tr>
+<tr><td>Languages / themes</td><td>13 locales / 13 themes + accent variants</td></tr>
 </table>
 <p style="margin-top:14px" data-i18n="pt_153_172">A full 50-page technical brochure (the same facts, with the interactive forms and theme gallery) ships in the repo as <a href="https://github.com/SteveTheKiller/KillerPDF/blob/main/KillerPDF.pdf" target="_blank" rel="noopener"><code style="color:inherit">KillerPDF.pdf</code></a> - open it in KillerPDF itself.</p>
 </div>
@@ -445,7 +445,7 @@
 <tr><td data-i18n="pt_158">Annotation</td><td data-i18n="pt_159">Anything you add on top of a PDF: a highlight, text box, drawn line, signature, or image. It sits on the overlay, separate from the original page, and only becomes part of the file when you save (see Flatten).</td></tr>
 <tr><td data-i18n="pt_160">Bitmap</td><td data-i18n="pt_161">A grid of colored pixels. To display a page, KillerPDF draws (rasterizes) it into a bitmap at a resolution chosen from your zoom and screen density.</td></tr>
 <tr><td data-i18n="pt_162">CMS signature</td><td data-i18n="pt_163">Cryptographic Message Syntax, the standard format for a digital signature embedded in a PDF. KillerPDF signs using SHA-256 over the whole file.</td></tr>
-<tr><td data-i18n="pt_164">Costura (Costura.Fody)</td><td data-i18n="pt_165">A build-time bundler used by normal development builds. The 1.7.4 release payload disables it and ships the ordinary multi-file app behind the portable launcher.</td></tr>
+<tr><td>Costura (Costura.Fody)</td><td>A build-time bundler retained for ordinary development builds. Release packaging produces explicit framework-dependent and self-contained payloads for the installer and portable launcher.</td></tr>
 <tr><td data-i18n="pt_166">Cover / cover-pair</td><td data-i18n="pt_167">A Cover is an opaque box that hides the original words on a page. To edit existing PDF text, KillerPDF lays a Cover over the old text and a Text box on top holding your replacement; the two are locked together as a cover-pair.</td></tr>
 <tr><td data-i18n="pt_168">Cross-reference table (xref)</td><td data-i18n="pt_169">The index near the end of a PDF that records where every internal object is stored. If it is damaged, many readers fail to open the file, so KillerPDF has recovery paths that rebuild it.</td></tr>
 <tr><td data-i18n="pt_170">Device-independent pixel (DIP)</td><td data-i18n="pt_171">The unit KillerPDF's drawing surface uses. One DIP is a fixed physical size regardless of how dense the screen is, so layouts look the same across monitors.</td></tr>
@@ -456,13 +456,13 @@
 <tr><td data-i18n="pt_180">Ink</td><td data-i18n="pt_181">A freehand drawn stroke. The Line tool is stored as ink as well.</td></tr>
 <tr><td data-i18n="pt_182">Linearized PDF</td><td data-i18n="pt_183">A PDF arranged so a viewer can start showing the first page before the whole file has loaded (sometimes called "fast web view"). These files often keep their structure in object streams.</td></tr>
 <tr><td data-i18n="pt_184">LRU cache (least recently used)</td><td data-i18n="pt_185_172">A memory-saving rule that keeps the most recently used items and drops the oldest. KillerPDF retains drawn-page caches for only the three most recent tabs, with an approximately 160 MB per-tab budget and 48-entry hard cap.</td></tr>
-<tr><td data-i18n="pt_186">.NET Framework 4.8 (net48)</td><td data-i18n="pt_187">The version of Microsoft's .NET platform KillerPDF is built for. It ships with every supported version of Windows, so users install no separate runtime.</td></tr>
+<tr><td>.NET 10</td><td>The modern .NET runtime used by both the Windows application and The KillerPDF.Engine. The installer detects or installs the Desktop Runtime; the portable package carries it.</td></tr>
 <tr><td data-i18n="pt_188">Object stream</td><td data-i18n="pt_189">A compressed container inside modern PDFs (version 1.5 and later) that bundles many of the file's internal objects together. Some libraries cannot read them, which is why KillerPDF falls back to PDFium for certain jobs.</td></tr>
 <tr><td data-i18n="pt_190">OCR (optical character recognition)</td><td data-i18n="pt_191">Reading the actual text out of a scanned image so it can be searched, selected, or copied. KillerPDF uses Tesseract.</td></tr>
 <tr><td data-i18n="pt_192">Overlay</td><td data-i18n="pt_193">The transparent sheet drawn directly on top of a page image, where your annotations are painted. The page image underneath is never changed.</td></tr>
 <tr><td data-i18n="pt_194">PDFium</td><td data-i18n="pt_195">Google's PDF engine (the same one inside Chrome). KillerPDF uses it to render pages to images and to read structures other libraries cannot.</td></tr>
 <tr><td data-i18n="pt_196">PdfPig</td><td data-i18n="pt_197">A .NET library KillerPDF uses to read text from a PDF: search, selection, and detecting each letter's font and size.</td></tr>
-<tr><td data-i18n="pt_198">PdfSharpCore / PDFsharp</td><td data-i18n="pt_199">The .NET libraries KillerPDF uses to write changes back into a PDF: saving, page operations, and flattening (PdfSharpCore), and digital signatures (PDFsharp 6.2, in a separate namespace).</td></tr>
+<tr><td>The KillerPDF.Engine</td><td>KillerPDF's independent, UI-free .NET document library for reading, validating, authoring, editing, signing, encrypting and writing PDF files. It does not render pages or provide desktop controls.</td></tr>
 <tr><td data-i18n="pt_200">Point</td><td data-i18n="pt_201">The PDF's own unit of length. One point is 1/72 of an inch.</td></tr>
 <tr><td data-i18n="pt_202">Rasterize</td><td data-i18n="pt_203">To convert a page's text and shapes into a grid of pixels (a bitmap) for display.</td></tr>
 <tr><td data-i18n="pt_204">Render-dim space</td><td data-i18n="pt_205">KillerPDF's fixed internal coordinate system for a page, sized so the longer side is 2048 units and unrelated to zoom or screen pixels. Annotation positions are stored here so they never drift as you zoom or change view mode.</td></tr>

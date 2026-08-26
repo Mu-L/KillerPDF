@@ -84,6 +84,21 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 .feature-card p { font-size: 13px; color: var(--muted); line-height: 1.55; }
 .feature-card code { display: inline-block; margin-top: 4px; background: var(--panel); padding: 2px 7px; border-radius: 4px; font-family: Consolas, monospace; font-size: 12px; color: var(--text); white-space: nowrap; }
 
+/* Engine introduction */
+.engine-intro { margin: 18px 0 4px; padding: 26px 28px; background: var(--modal) url('grain.png') repeat; background-size: 256px 256px; border: 1px solid var(--pane-border); border-top: 2px solid var(--tab-edge); border-radius: 8px; box-shadow: 0 12px 28px rgba(0,0,0,.26); }
+.engine-intro-grid { display: grid; grid-template-columns: minmax(0,1.45fr) minmax(300px,.8fr); gap: 28px; align-items: center; }
+.engine-kicker { color: var(--accent); font: 12px 'TypewriterHead','Courier New',monospace; letter-spacing: 1.15px; text-transform: uppercase; }
+.engine-lockup { display: flex; align-items: center; gap: 9px; margin: 8px 0 12px; color: var(--text); font: 30px 'TypewriterHead','Courier New',monospace; line-height: 1; text-shadow: 0 3px 7px rgba(0,0,0,.48); }
+.engine-lockup .wm-logo { width: auto; height: 38px; filter: drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+.engine-copy p { max-width: 680px; color: var(--text2); font-size: 14px; line-height: 1.65; }
+.engine-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; padding: 9px 14px; border: 1.5px solid var(--accent); border-radius: 6px; color: var(--accent); font-size: 13px; font-weight: 700; transition: background .15s,color .15s,transform .1s; }
+.engine-link:hover { background: color-mix(in srgb,var(--text) 16%,transparent); color: var(--accent); transform: translateY(-1px); }
+.engine-stats { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.engine-stat { min-width: 0; padding: 11px 12px; border: 1px solid var(--pane-border); border-radius: 6px; background: color-mix(in srgb,var(--panel) 72%,transparent); }
+.engine-stat b { display: block; color: var(--accent); font: 700 20px 'Courier New',monospace; }
+.engine-stat span { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+html[data-theme="light"] .engine-lockup { text-shadow: none; }
+
 /* Sidebar (the app's thumbnail pane) */
 /* Keep at least 2px of top clearance: thumbnails lift 2px on hover, and a zero
    top inset makes the scroll container clip the hovered thumbnail's top border. */
@@ -101,6 +116,8 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
   .terminal-body { font-size: 12px; }
   .hero-blurbs { grid-template-columns: 1fr; gap: 22px; }
   .feature-grid { grid-template-columns: 1fr; }
+  .engine-intro { padding: 22px 20px; }
+  .engine-intro-grid { grid-template-columns: 1fr; gap: 20px; }
   .hero-cta { flex: 0 0 auto; order: 1; align-items: center; text-align: center; }
   .hero-info { order: 0; }
   .sb-thumbs { flex-direction: row; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; -webkit-mask-image: none; mask-image: none; }
@@ -108,9 +125,15 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 }
 @media (max-width: 560px) {
   .hero { padding: 28px 0 22px; }
+  .hero .hero-lockup { flex-direction: column; gap: 12px; min-width: 0; }
+  .hero .hero-icon { height: 116px; max-width: 100%; }
+  .hero .wm-logo { width: min(100%, 320px); height: auto; }
   .hero .tagline { font-size: 15px; }
   .features { padding: 28px 0 18px; }
   .features h2 { font-size: 20px; margin-bottom: 20px; }
+  .engine-lockup { font-size: 23px; gap: 6px; }
+  .engine-lockup .wm-logo { height: 30px; }
+  .engine-stats { grid-template-columns: 1fr 1fr; }
 }
 </style>
 </head>
@@ -131,6 +154,7 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 <nav class="tb-nav">
 <a href="help.html" data-i18n="nav_help">Help</a>
 <a href="technical.html" data-i18n="nav_tech">Technical</a>
+<a href="engine.html">Engine</a>
 <a href="about.html" data-i18n="nav_about">About</a>
 </nav>
 <div class="tgrp" role="group" aria-label="Theme">
@@ -219,6 +243,23 @@ html[data-theme="light"] .blurb h3, html[data-theme="light"] .feature-card h3 { 
 <div class="row"><span class="k">platform</span>&nbsp;<span class="v">Windows 10/11 x64</span></div>
 <div class="row"><span class="k">sha256</span>&nbsp;<span class="v hash">c53b34c5847abe24228226656c00eff5<br>f76396d2bd8ad1be8fdbac56b153b136</span></div>
 <p class="note" data-i18n="hero_note">Install or run portable. Free, open source, GPLv3.<br>No accounts or subscriptions required.<br>No telemetry is sent and no ads... ever.<br><br>Built by a field tech with an intense dislike for Adobe.</p>
+</div>
+</div>
+</section>
+
+<section class="engine-intro" aria-labelledby="engine-intro-title">
+<div class="engine-intro-grid">
+<div class="engine-copy">
+<div class="engine-kicker">The foundation of KillerPDF 1.8</div>
+<h2 class="engine-lockup" id="engine-intro-title"><span>The</span><img class="wm-logo" src="brand/killerpdf-logo-dark-green.svg" alt="KillerPDF"><span>.Engine</span></h2>
+<p>The KillerPDF.Engine is an independent .NET document library built from scratch for PDF 2.0 and modern PDF/A authoring. It reads, validates, creates, edits, signs, encrypts and writes PDFs through a public API designed for KillerPDF and other applications.</p>
+<a class="engine-link" href="engine.html">Explore the engine and developer guide <span aria-hidden="true">&#8594;</span></a>
+</div>
+<div class="engine-stats" aria-label="Engine development figures">
+<div class="engine-stat"><b>151</b><span>engine source files</span></div>
+<div class="engine-stat"><b>45,352</b><span>physical C# lines</span></div>
+<div class="engine-stat"><b>1,427</b><span>engine tests</span></div>
+<div class="engine-stat"><b>2,907</b><span>hostile corpus PDFs</span></div>
 </div>
 </div>
 </section>
