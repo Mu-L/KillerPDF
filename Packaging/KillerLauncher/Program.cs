@@ -35,13 +35,24 @@ namespace KillerLauncher
         {
             try
             {
+#if INSTALLER_PACKAGE
                 if (args.Any(a => string.Equals(a, "/install-user", StringComparison.OrdinalIgnoreCase)))
-                    return Install(machine: false, desktop: args.Any(a => string.Equals(a, "/desktop", StringComparison.OrdinalIgnoreCase)));
-
+                    return Install(machine: false, desktop: args.Any(a => string.Equals(a, "/desktop", StringComparison.OrdinalIgnoreCase)),
+                        destinationOverride: ReadInstallDirectory(args));
                 if (args.Any(a => string.Equals(a, "/silent", StringComparison.OrdinalIgnoreCase)))
-                    return Install(machine: true, desktop: false);
+                    return Install(machine: true, desktop: args.Any(a =>
+                        string.Equals(a, "/desktop", StringComparison.OrdinalIgnoreCase)), destinationOverride: ReadInstallDirectory(args));
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                return InstallerWizard.Run(args);
+#else
+                if (args.Any(a => string.Equals(a, "/install-user", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(a, "/silent", StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException(
+                        "This is the portable package. Use KillerPDF Setup to install the application.");
 
                 return RunPortable(args);
+#endif
             }
             catch (Exception ex)
             {
@@ -92,7 +103,7 @@ namespace KillerLauncher
             }
         }
 
-        private static int Install(bool machine, bool desktop)
+        internal static int Install(bool machine, bool desktop, string? destinationOverride = null)
         {
             if (!IsTrustedForInstall(CurrentExecutablePath()))
                 throw new InvalidOperationException(
@@ -108,7 +119,7 @@ namespace KillerLauncher
 
             string destination = !string.IsNullOrWhiteSpace(testRoot)
                 ? Path.GetFullPath(testRoot)
-                : (machine ? MachineInstallDirectory : UserInstallDirectory);
+                : ValidateInstallDirectory(destinationOverride ?? DefaultInstallDirectory(machine));
             string parent = Path.GetDirectoryName(destination) ?? throw new InvalidOperationException("Invalid install directory.");
             Directory.CreateDirectory(parent);
 
@@ -152,6 +163,45 @@ namespace KillerLauncher
                 }
                 throw;
             }
+        }
+
+        internal static string DefaultInstallDirectory(bool machine) =>
+            machine ? MachineInstallDirectory : UserInstallDirectory;
+
+        internal static string ValidateInstallDirectory(string directory)
+        {
+            if (string.IsNullOrWhiteSpace(directory))
+                throw new InvalidOperationException("Choose an installation folder.");
+            string path = Path.GetFullPath(Environment.ExpandEnvironmentVariables(directory.Trim()));
+            string? root = Path.GetPathRoot(path);
+            if (string.IsNullOrEmpty(root) || string.Equals(
+                    path.TrimEnd(Path.DirectorySeparatorChar), root.TrimEnd(Path.DirectorySeparatorChar),
+                    StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("KillerPDF cannot be installed directly in the root of a drive.");
+            return path.TrimEnd(Path.DirectorySeparatorChar);
+        }
+
+        internal static string InstalledExecutable(string directory) =>
+            Path.Combine(ValidateInstallDirectory(directory), InnerExeName);
+
+        internal static string EncodeInstallDirectoryArgument(string directory) =>
+            "/install-dir64:" + Convert.ToBase64String(Encoding.UTF8.GetBytes(ValidateInstallDirectory(directory)));
+
+        private static string? ReadInstallDirectory(IEnumerable<string> args)
+        {
+            const string prefix = "/install-dir64:";
+            string? value = args.FirstOrDefault(a => a.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+            if (value == null) return null;
+            try { return Encoding.UTF8.GetString(Convert.FromBase64String(value.Substring(prefix.Length))); }
+            catch (FormatException) { throw new InvalidOperationException("The requested installation folder is invalid."); }
+        }
+
+        internal static bool HasDesktopRuntime10()
+        {
+            string root = Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.ProgramFiles), "dotnet", "shared", "Microsoft.WindowsDesktop.App");
+            try { return Directory.Exists(root) && Directory.GetDirectories(root, "10.*").Length > 0; }
+            catch { return false; }
         }
 
         private static int RunRegistration(string directory, bool machine, bool desktop)

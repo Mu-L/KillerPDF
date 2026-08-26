@@ -1,6 +1,8 @@
 #Requires -Version 5.1
 param(
     [string]$Configuration = "Release",
+    [ValidateSet("Portable", "Installer")]
+    [string]$PackageKind = "Portable",
     [switch]$KeepSymbols,
     [switch]$RepackOnly,
     [switch]$RequireSignature
@@ -12,12 +14,14 @@ Set-StrictMode -Version Latest
 $projectDir = Split-Path -Parent $PSScriptRoot
 $appProject = Join-Path $projectDir 'KillerPDF.csproj'
 $launcherProject = Join-Path $projectDir 'Packaging\KillerLauncher\KillerLauncher.csproj'
-$artifactRoot = Join-Path $projectDir "bin\$Configuration\net10.0-windows\portable-package"
+$isInstaller = $PackageKind -eq 'Installer'
+$packageSlug = if ($isInstaller) { 'installer-package' } else { 'portable-package' }
+$artifactRoot = Join-Path $projectDir "bin\$Configuration\net10.0-windows\$packageSlug"
 $payloadDir = Join-Path $artifactRoot 'payload'
 $payloadZip = Join-Path $artifactRoot 'payload.zip'
 $launcherOutput = Join-Path $artifactRoot 'launcher'
 $publicDir = Join-Path $projectDir "bin\$Configuration\net10.0-windows\publish"
-$publicExe = Join-Path $publicDir 'KillerPDF.exe'
+$publicExe = Join-Path $publicDir $(if ($isInstaller) { 'KillerPDF-Setup.exe' } else { 'KillerPDF-Portable.exe' })
 
 if (-not $RepackOnly) {
     if ([IO.Directory]::Exists($artifactRoot)) { [IO.Directory]::Delete($artifactRoot, $true) }
@@ -40,7 +44,7 @@ if (-not $RepackOnly) {
     Write-Host "==> Building loose KillerPDF payload $version..." -ForegroundColor Cyan
     & dotnet publish $appProject -c $Configuration `
         -r win-x64 `
-        --self-contained true `
+        --self-contained $(!$isInstaller) `
         -p:KillerPayloadBuild=true `
         -p:PublishDir="$payloadDir\"
     if ($LASTEXITCODE -ne 0) { throw 'Payload build failed.' }
@@ -65,14 +69,17 @@ $payloadFiles = @([IO.Directory]::GetFiles($payloadDir, '*', [IO.SearchOption]::
 $actualPayloadNames = @($payloadFiles | ForEach-Object {
     $_.Substring($payloadDir.Length + 1).Replace('\', '/')
 })
-$expectedPayloadNames = @(Get-Content -LiteralPath (Join-Path $PSScriptRoot 'payload-files.txt') |
+$payloadList = if ($isInstaller) { 'installed-payload-files.txt' } else { 'payload-files.txt' }
+$expectedPayloadNames = @(Get-Content -LiteralPath (Join-Path $PSScriptRoot $payloadList) |
     Where-Object { $_ -and -not $_.StartsWith('#') } | Sort-Object)
 $payloadDifference = @(Compare-Object $expectedPayloadNames $actualPayloadNames)
 if ($payloadDifference.Count -gt 0) {
     $details = ($payloadDifference | ForEach-Object { "$($_.SideIndicator) $($_.InputObject)" }) -join [Environment]::NewLine
     throw "Payload file set changed. Review dependencies and update build\payload-files.txt deliberately:`n$details"
 }
-foreach ($required in 'KillerPDF.App.exe', 'KillerPdf.Engine.dll', 'pdfium.dll', 'System.Text.Json.dll') {
+$requiredFiles = @('KillerPDF.App.exe', 'KillerPdf.Engine.dll', 'pdfium.dll')
+if (-not $isInstaller) { $requiredFiles += 'System.Text.Json.dll' }
+foreach ($required in $requiredFiles) {
     if ($actualPayloadNames -notcontains $required) {
         throw "Required loose payload file is missing ($required). Costura/Fody may have run accidentally."
     }
@@ -115,6 +122,7 @@ Write-Host "==> Building the public portable launcher..." -ForegroundColor Cyan
     -p:LauncherFileVersion=$fileVersion `
     -p:LauncherIcon="$(Join-Path $projectDir 'Resources\kp-icon.ico')" `
     -p:PayloadZip="$payloadZip" `
+    -p:InstallerPackage="$isInstaller" `
     -p:AllowUnsignedInstall="$(!$RequireSignature)" `
     -p:PublishDir="$launcherOutput\"
 if ($LASTEXITCODE -ne 0) { throw 'Launcher build failed.' }
@@ -129,7 +137,7 @@ if (-not [IO.File]::Exists($builtLauncher)) { throw "Launcher output is missing:
 $installSmokeRoot = Join-Path $artifactRoot ('install-smoke-' + [Guid]::NewGuid().ToString('N'))
 $previousTestRoot = [Environment]::GetEnvironmentVariable('KILLERPDF_TEST_INSTALL_ROOT')
 $previousSkipRegistration = [Environment]::GetEnvironmentVariable('KILLERPDF_SKIP_REGISTRATION')
-try {
+if ($isInstaller -and -not $RequireSignature) { try {
     [Environment]::SetEnvironmentVariable('KILLERPDF_TEST_INSTALL_ROOT', $installSmokeRoot)
     [Environment]::SetEnvironmentVariable('KILLERPDF_SKIP_REGISTRATION', '1')
     $installProcess = Start-Process -FilePath $builtLauncher -ArgumentList '/install-user' -Wait -PassThru
@@ -146,7 +154,7 @@ finally {
     [Environment]::SetEnvironmentVariable('KILLERPDF_TEST_INSTALL_ROOT', $previousTestRoot)
     [Environment]::SetEnvironmentVariable('KILLERPDF_SKIP_REGISTRATION', $previousSkipRegistration)
     if ([IO.Directory]::Exists($installSmokeRoot)) { [IO.Directory]::Delete($installSmokeRoot, $true) }
-}
+} }
 
 $payloadBytes = ([IO.FileInfo]$payloadZip).Length
 $publicBytes = ([IO.FileInfo]$publicExe).Length

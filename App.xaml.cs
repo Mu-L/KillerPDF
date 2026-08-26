@@ -27,7 +27,7 @@ namespace KillerPDF
         // ============================================================
 
         private static readonly string AppName   = "KillerPDF";
-        // The public portable file remains KillerPDF.exe. Once installed, shortcuts launch the
+        // The public portable file is KillerPDF-Portable.exe. Once installed, shortcuts launch the
         // loose-file application directly so installed startup never pays launcher/extraction cost.
         private static readonly string ExeName   = "KillerPDF.App.exe";
         private static readonly string InstallDir = Path.Combine(
@@ -126,11 +126,12 @@ namespace KillerPDF
                 return;
             }
 
-            // Handle uninstall flag (called by Add/Remove Programs)
+            // Handle uninstall flags (called by Add/Remove Programs and package managers)
             if (e.Args.Length > 0 &&
-                string.Equals(e.Args[0], "/uninstall", StringComparison.OrdinalIgnoreCase))
+                (string.Equals(e.Args[0], "/uninstall", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(e.Args[0], "/uninstall-silent", StringComparison.OrdinalIgnoreCase)))
             {
-                Uninstall();
+                Uninstall(string.Equals(e.Args[0], "/uninstall-silent", StringComparison.OrdinalIgnoreCase));
                 Shutdown();
                 return;
             }
@@ -150,8 +151,7 @@ namespace KillerPDF
             // #183: skip the per-user refresh when running from the machine-wide install - the
             // elevated installer already registered the handler in HKLM for all users, and an
             // HKCU copy would shadow it for just this user.
-            if (!string.Equals(Process.GetCurrentProcess().MainModule?.FileName, MachineInstallExe,
-                    StringComparison.OrdinalIgnoreCase))
+            if (!IsRegisteredCopy(Registry.LocalMachine, Process.GetCurrentProcess().MainModule?.FileName))
                 Services.ProtocolRegistrar.Register();
             StartupTrace.Mark("Protocol registration refresh complete");
 
@@ -661,19 +661,37 @@ namespace KillerPDF
             try
             {
                 string currentExe = Process.GetCurrentProcess().MainModule!.FileName;
-                return !string.Equals(currentExe, InstallExe, StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(currentExe, MachineInstallExe, StringComparison.OrdinalIgnoreCase);
+                return !IsRegisteredCopy(Registry.CurrentUser, currentExe)
+                    && !IsRegisteredCopy(Registry.LocalMachine, currentExe);
             }
             catch { return false; }
         }
 
         /// <summary>True when KillerPDF is already installed machine-wide.</summary>
-        internal static bool MachineInstallExists() =>
-            File.Exists(MachineInstallExe) || File.Exists(LegacyMachineInstallExe);
+        internal static bool MachineInstallExists() => ExistingRegisteredExecutable(Registry.LocalMachine) != null
+            || File.Exists(MachineInstallExe) || File.Exists(LegacyMachineInstallExe);
 
         /// <summary>True when KillerPDF is already installed for the current user.</summary>
-        internal static bool UserInstallExists() =>
-            File.Exists(InstallExe) || File.Exists(LegacyUserInstallExe);
+        internal static bool UserInstallExists() => ExistingRegisteredExecutable(Registry.CurrentUser) != null
+            || File.Exists(InstallExe) || File.Exists(LegacyUserInstallExe);
+
+        private static string? ExistingRegisteredExecutable(RegistryKey root)
+        {
+            try
+            {
+                using var key = root.OpenSubKey(@"Software\KillerPDF");
+                string? path = key?.GetValue("InstallPath") as string;
+                return !string.IsNullOrWhiteSpace(path) && File.Exists(path) ? Path.GetFullPath(path) : null;
+            }
+            catch { return null; }
+        }
+
+        private static bool IsRegisteredCopy(RegistryKey root, string? executable)
+        {
+            string? registered = ExistingRegisteredExecutable(root);
+            return registered != null && !string.IsNullOrWhiteSpace(executable)
+                && string.Equals(registered, Path.GetFullPath(executable), StringComparison.OrdinalIgnoreCase);
+        }
 
         /// <summary>Repairs a machine that carries BOTH a per-user and a machine-wide install -
         /// the state where each Add/Remove Programs entry describes the other copy's version and
@@ -684,9 +702,11 @@ namespace KillerPDF
         {
             if (!UserInstallExists() || !MachineInstallExists()) return;
             string current = Process.GetCurrentProcess().MainModule?.FileName ?? "";
-            bool runningMachine = string.Equals(current, MachineInstallExe, StringComparison.OrdinalIgnoreCase)
+            bool runningMachine = IsRegisteredCopy(Registry.LocalMachine, current)
+                               || string.Equals(current, MachineInstallExe, StringComparison.OrdinalIgnoreCase)
                                || string.Equals(current, LegacyMachineInstallExe, StringComparison.OrdinalIgnoreCase);
-            bool runningUser = string.Equals(current, InstallExe, StringComparison.OrdinalIgnoreCase)
+            bool runningUser = IsRegisteredCopy(Registry.CurrentUser, current)
+                            || string.Equals(current, InstallExe, StringComparison.OrdinalIgnoreCase)
                             || string.Equals(current, LegacyUserInstallExe, StringComparison.OrdinalIgnoreCase);
             if (!runningMachine && !runningUser) return;
 
@@ -712,6 +732,7 @@ namespace KillerPDF
 
         private static void RemoveMachineInstallConflict()
         {
+            string? registeredExe = ExistingRegisteredExecutable(Registry.LocalMachine);
             try { File.Delete(MachineStartMenuLnk); } catch { }
             try { Directory.Delete(MachineStartMenuDir, recursive: false); } catch { }
             UnregisterFileHandler(Registry.LocalMachine);
@@ -719,7 +740,8 @@ namespace KillerPDF
             try { Registry.LocalMachine.DeleteSubKeyTree(@"Software\KillerPDF"); } catch { }
             try { Registry.LocalMachine.DeleteSubKeyTree(
                 @"Software\Microsoft\Windows\CurrentVersion\Uninstall\KillerPDF"); } catch { }
-            try { if (Directory.Exists(MachineInstallDir)) Directory.Delete(MachineInstallDir, true); } catch { }
+            string directory = Path.GetDirectoryName(registeredExe ?? MachineInstallExe) ?? MachineInstallDir;
+            try { if (Directory.Exists(directory)) Directory.Delete(directory, true); } catch { }
             SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, IntPtr.Zero, IntPtr.Zero);
         }
 
@@ -847,10 +869,12 @@ namespace KillerPDF
         /// window placement survive the move to a machine-wide install.</summary>
         private static void RemovePerUserInstall()
         {
+            string? registeredExe = ExistingRegisteredExecutable(Registry.CurrentUser);
             try { if (File.Exists(StartMenuLnk)) File.Delete(StartMenuLnk); } catch { }
             try { if (Directory.Exists(StartMenuDir)) Directory.Delete(StartMenuDir, true); } catch { }
             try { if (File.Exists(DesktopLnk)) File.Delete(DesktopLnk); } catch { }
-            try { if (Directory.Exists(InstallDir)) Directory.Delete(InstallDir, true); } catch { }
+            string directory = Path.GetDirectoryName(registeredExe ?? InstallExe) ?? InstallDir;
+            try { if (Directory.Exists(directory)) Directory.Delete(directory, true); } catch { }
             try
             {
                 using var key = Registry.CurrentUser.OpenSubKey(@"Software\KillerPDF", writable: true);
@@ -1763,7 +1787,7 @@ namespace KillerPDF
         // Uninstall
         // ============================================================
 
-        private static bool RelaunchMachineUninstallElevatedIfNeeded(bool machine)
+        private static bool RelaunchMachineUninstallElevatedIfNeeded(bool machine, bool silent)
         {
             if (!machine) return false;
             try
@@ -1774,7 +1798,8 @@ namespace KillerPDF
                     return false;
 
                 Process.Start(new ProcessStartInfo(
-                    Process.GetCurrentProcess().MainModule!.FileName, "/uninstall")
+                    Process.GetCurrentProcess().MainModule!.FileName,
+                    silent ? "/uninstall-silent" : "/uninstall")
                 {
                     UseShellExecute = true,
                     Verb = "runas",
@@ -1794,9 +1819,11 @@ namespace KillerPDF
 
         private static void RegisterInstalledCopy(bool machine, bool desktop)
         {
-            string exePath = machine ? MachineInstallExe : InstallExe;
-            string installDirectory = machine ? MachineInstallDir : InstallDir;
-            string iconPath = machine ? MachineFileIconPath : FileIconPath;
+            string exePath = Path.GetFullPath(Process.GetCurrentProcess().MainModule?.FileName
+                ?? throw new InvalidOperationException("The installed application path is unavailable."));
+            string installDirectory = Path.GetDirectoryName(exePath)
+                ?? throw new InvalidOperationException("The installed application folder is unavailable.");
+            string iconPath = Path.Combine(installDirectory, "pdf-file.ico");
             string startMenuDirectory = machine ? MachineStartMenuDir : StartMenuDir;
             string startMenuShortcut = machine ? MachineStartMenuLnk : StartMenuLnk;
             RegistryKey registryRoot = machine ? Registry.LocalMachine : Registry.CurrentUser;
@@ -1828,7 +1855,7 @@ namespace KillerPDF
                 key.SetValue("InstallLocation", installDirectory);
                 key.SetValue("DisplayIcon", $"{exePath},0");
                 key.SetValue("UninstallString", $"\"{exePath}\" /uninstall");
-                key.SetValue("QuietUninstallString", $"\"{exePath}\" /uninstall");
+                key.SetValue("QuietUninstallString", $"\"{exePath}\" /uninstall-silent");
                 key.SetValue("NoModify", 1);
                 key.SetValue("NoRepair", 1);
             }
@@ -1836,19 +1863,21 @@ namespace KillerPDF
             SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, IntPtr.Zero, IntPtr.Zero);
         }
 
-        private static void Uninstall()
+        private static void Uninstall(bool silent)
         {
-            bool machine = string.Equals(
-                Process.GetCurrentProcess().MainModule?.FileName, MachineInstallExe,
-                StringComparison.OrdinalIgnoreCase);
-            if (RelaunchMachineUninstallElevatedIfNeeded(machine)) return;
+            string currentExe = Path.GetFullPath(Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty);
+            bool machine = IsRegisteredCopy(Registry.LocalMachine, currentExe);
+            if (RelaunchMachineUninstallElevatedIfNeeded(machine, silent)) return;
 
-            var res = MessageBox.Show(
-                "Uninstall KillerPDF from this computer?",
-                $"{AppName} Uninstall",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-            if (res != MessageBoxResult.Yes) return;
+            if (!silent)
+            {
+                var res = MessageBox.Show(
+                    "Uninstall KillerPDF from this computer?",
+                    $"{AppName} Uninstall",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+                if (res != MessageBoxResult.Yes) return;
+            }
 
             // Shortcuts
             try { File.Delete(StartMenuLnk); } catch { }
@@ -1881,7 +1910,7 @@ namespace KillerPDF
             File.WriteAllText(bat,
                 "@echo off\r\n" +
                 "ping -n 3 127.0.0.1 >nul\r\n" +
-                $"rmdir /s /q \"{(machine ? MachineInstallDir : InstallDir)}\"\r\n" +
+                $"rmdir /s /q \"{Path.GetDirectoryName(currentExe)}\"\r\n" +
                 "del \"%~f0\"\r\n");
             Process.Start(new ProcessStartInfo("cmd.exe", $"/c \"{bat}\"")
             {
@@ -1889,8 +1918,11 @@ namespace KillerPDF
                 UseShellExecute = true
             });
 
-            MessageBox.Show(Application.Current.TryFindResource("Str_Dlg_Uninstalled") as string ?? "KillerPDF has been uninstalled.", AppName,
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            if (!silent)
+            {
+                MessageBox.Show(Application.Current.TryFindResource("Str_Dlg_Uninstalled") as string ?? "KillerPDF has been uninstalled.", AppName,
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
     }
 }

@@ -6,8 +6,8 @@
     1. Locates and hashes pdfium.dll for the published checksum summary.
     2. Builds the ordinary multi-file KillerPDF.App payload without Costura/Fody weaving.
     3. Signs KillerPDF.App.exe, regenerates its hash manifest, compresses that payload once,
-       and embeds it in the public portable/installer KillerPDF.exe.
-    4. Signs KillerPDF.exe. Prefers CertThumbprint (exact match) over CertName (CN match)
+       and embeds it in the public portable and installer executables.
+    4. Signs both public executables. Prefers CertThumbprint (exact match) over CertName (CN match)
        and retries the timestamp across three TSA endpoints.
     5. Runs "signtool verify /pa /v" as a post-sign gate - aborts if either signature chain
        is not trusted to an accepted root.
@@ -48,10 +48,15 @@ Set-StrictMode -Version Latest
 
 $proj         = Join-Path $PSScriptRoot "KillerPDF.csproj"
 $publishDir   = Join-Path $PSScriptRoot "bin\Release\net10.0-windows\publish"
-$exe          = Join-Path $publishDir "KillerPDF.exe"
-$portableBuild = Join-Path $PSScriptRoot "build\build-portable.ps1"
-$payloadDir    = Join-Path $PSScriptRoot "bin\Release\net10.0-windows\portable-package\payload"
-$innerExe      = Join-Path $payloadDir "KillerPDF.App.exe"
+$portableExe   = Join-Path $publishDir "KillerPDF-Portable.exe"
+$installerExe  = Join-Path $publishDir "KillerPDF-Setup.exe"
+$packageBuild  = Join-Path $PSScriptRoot "build\build-packages.ps1"
+$portablePayloadDir  = Join-Path $PSScriptRoot "bin\Release\net10.0-windows\portable-package\payload"
+$installerPayloadDir = Join-Path $PSScriptRoot "bin\Release\net10.0-windows\installer-package\payload"
+$innerExes = @(
+    (Join-Path $portablePayloadDir "KillerPDF.App.exe"),
+    (Join-Path $installerPayloadDir "KillerPDF.App.exe")
+)
 
 # TSA endpoints - tried in order; first success wins.
 $tsaList = @(
@@ -178,13 +183,15 @@ if ($pdfiumPath) {
     Write-Host "    pdfium SHA256: $pdfiumHash" -ForegroundColor Green
 }
 
-# ── 2. Build the loose payload and one-payload launcher ──────────────────────
-Write-Host "`n==> Building loose payload + portable launcher..." -ForegroundColor Cyan
-& powershell -NoProfile -ExecutionPolicy Bypass -File $portableBuild -RequireSignature
-if ($LASTEXITCODE -ne 0) { throw "Portable package build failed." }
-if (-not (Test-Path $exe)) { throw "EXE not found at: $exe" }
-if (-not (Test-Path $innerExe)) { throw "Inner application not found at: $innerExe" }
-Write-Host "    EXE: $exe" -ForegroundColor Green
+# ── 2. Build the portable and installed packages ─────────────────────────────
+Write-Host "`n==> Building portable and installer packages..." -ForegroundColor Cyan
+& powershell -NoProfile -ExecutionPolicy Bypass -File $packageBuild -RequireSignature
+if ($LASTEXITCODE -ne 0) { throw "Package build failed." }
+foreach ($artifact in @($portableExe, $installerExe) + $innerExes) {
+    if (-not (Test-Path $artifact)) { throw "Release artifact not found at: $artifact" }
+}
+Write-Host "    Portable : $portableExe" -ForegroundColor Green
+Write-Host "    Installer: $installerExe" -ForegroundColor Green
 
 # ── 3. Sign ─────────────────────────────────────────────────────────────────
 if (-not $SkipSign) {
@@ -209,58 +216,52 @@ if (-not $SkipSign) {
 
     # Sign the real installed application before it is compressed into the public launcher.
     # Third-party binaries retain their publishers' signatures; only Killer-owned binaries are signed here.
-    Write-Host "`n==> Signing inner application before payload packaging..." -ForegroundColor Cyan
-    $innerSigned = $false
-    foreach ($tsa in $tsaList) {
-        & $signtool sign /fd sha256 /tr $tsa /td sha256 @certArgs `
-            /d "KillerPDF Application" /du "https://killerpdf.net" /v $innerExe
-        if ($LASTEXITCODE -eq 0) { $innerSigned = $true; break }
-        Start-Sleep -Seconds 3
+    Write-Host "`n==> Signing inner applications before payload packaging..." -ForegroundColor Cyan
+    foreach ($innerExe in $innerExes) {
+        $innerSigned = $false
+        foreach ($tsa in $tsaList) {
+            & $signtool sign /fd sha256 /tr $tsa /td sha256 @certArgs `
+                /d "KillerPDF Application" /du "https://killerpdf.net" /v $innerExe
+            if ($LASTEXITCODE -eq 0) { $innerSigned = $true; break }
+            Start-Sleep -Seconds 3
+        }
+        if (-not $innerSigned) { throw "Signing the inner application failed on all TSA endpoints: $innerExe" }
+        & $signtool verify /pa /v $innerExe
+        if ($LASTEXITCODE -ne 0) { throw "Inner application signature verification failed: $innerExe" }
     }
-    if (-not $innerSigned) { throw "Signing the inner application failed on all TSA endpoints." }
-    & $signtool verify /pa /v $innerExe
-    if ($LASTEXITCODE -ne 0) { throw "Inner application signature verification failed." }
 
     # Signing changes the inner EXE hash. Rebuild the manifest, compressed payload, and outer
     # launcher so the payload contains the signed bytes and verifies them after extraction.
     Write-Host "`n==> Repacking signed payload..." -ForegroundColor Cyan
-    & powershell -NoProfile -ExecutionPolicy Bypass -File $portableBuild -RepackOnly -RequireSignature
+    & powershell -NoProfile -ExecutionPolicy Bypass -File $packageBuild -RepackOnly -RequireSignature
     if ($LASTEXITCODE -ne 0) { throw "Signed payload repack failed." }
 
-    # Timestamp with retry across TSA list
-    $signed = $false
-    foreach ($tsa in $tsaList) {
-        Write-Host "    Trying TSA: $tsa"
-        & $signtool sign `
-            /fd  sha256 `
-            /tr  $tsa `
-            /td  sha256 `
-            @certArgs `
-            /d   "KillerPDF" `
-            /du  "https://killerpdf.net" `
-            /v   $exe
-
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "    Signed and timestamped via $tsa" -ForegroundColor Green
-            $signed = $true
-            break
+    # Timestamp both public artifacts with retry across TSA list.
+    foreach ($publicExe in @($portableExe, $installerExe)) {
+        $signed = $false
+        foreach ($tsa in $tsaList) {
+            Write-Host "    Trying TSA for $([IO.Path]::GetFileName($publicExe)): $tsa"
+            & $signtool sign /fd sha256 /tr $tsa /td sha256 @certArgs `
+                /d "KillerPDF" /du "https://killerpdf.net" /v $publicExe
+            if ($LASTEXITCODE -eq 0) { $signed = $true; break }
+            Start-Sleep -Seconds 3
         }
-        Write-Warning "    TSA $tsa failed (exit $LASTEXITCODE). Trying next..."
-        Start-Sleep -Seconds 3
+        if (-not $signed) { throw "Signing failed on all TSA endpoints: $publicExe" }
     }
-    if (-not $signed) { throw "Signing failed on all TSA endpoints. Is SimplySign Desktop connected?" }
 
     # ── Post-sign verification gate ─────────────────────────────────────────
     Write-Host "`n==> Verifying signature chain (/pa)..." -ForegroundColor Cyan
-    & $signtool verify /pa /v $exe
-    if ($LASTEXITCODE -ne 0) {
-        throw "signtool verify FAILED. The signed EXE does not pass trust validation. DO NOT RELEASE."
+    foreach ($publicExe in @($portableExe, $installerExe)) {
+        & $signtool verify /pa /v $publicExe
+        if ($LASTEXITCODE -ne 0) {
+            throw "signtool verify FAILED for $publicExe. DO NOT RELEASE."
+        }
     }
     Write-Host "    Signature chain OK." -ForegroundColor Green
 
     # Print the thumbprint of the cert that was actually used
     try {
-        $cert = [System.Security.Cryptography.X509Certificates.X509Certificate]::CreateFromSignedFile($exe)
+        $cert = [System.Security.Cryptography.X509Certificates.X509Certificate]::CreateFromSignedFile($installerExe)
         $cert2 = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($cert)
         $actualThumb = $cert2.Thumbprint
         $actualCN    = $cert2.GetNameInfo(
@@ -296,17 +297,21 @@ if ($LASTEXITCODE -ne 0) { throw "Source bundle failed." }
 } else {
     # PublishOnly: the artifacts from the last full run are the release.
     Write-Host "`n==> PublishOnly: skipping build and sign, using existing artifacts." -ForegroundColor Yellow
-    if (-not (Test-Path $exe)) { throw "PublishOnly: no built exe at $exe - run the full script first." }
+    foreach ($artifact in @($portableExe, $installerExe)) {
+        if (-not (Test-Path $artifact)) { throw "PublishOnly: no built artifact at $artifact" }
+    }
     $pdfiumPath  = $null
     $pdfiumHash  = ""
     $actualThumb = "(existing signature)"
     $actualCN    = "(existing signature)"
 }
 
-# ── 4. SHA256 (final EXE) ─────────────────────────────────────────────────
-Write-Host "`n==> Computing final EXE SHA256..." -ForegroundColor Cyan
-$exeHash = (Get-FileHash $exe -Algorithm SHA256).Hash
-Write-Host "    KillerPDF.exe : $exeHash" -ForegroundColor Green
+# ── 4. SHA256 (final EXEs) ──────────────────────────────────────────────────
+Write-Host "`n==> Computing final EXE SHA256 values..." -ForegroundColor Cyan
+$portableHash  = (Get-FileHash $portableExe -Algorithm SHA256).Hash
+$installerHash = (Get-FileHash $installerExe -Algorithm SHA256).Hash
+Write-Host "    KillerPDF-Portable.exe : $portableHash" -ForegroundColor Green
+Write-Host "    KillerPDF-Setup.exe    : $installerHash" -ForegroundColor Green
 if ($pdfiumPath) {
     Write-Host "    pdfium.dll    : $pdfiumHash" -ForegroundColor Green
 }
@@ -322,7 +327,7 @@ if ($srcZip) {
 }
 
 # ── 6. Write SHA256SUMS.txt ──────────────────────────────────────────────────
-# Written into the publish folder next to KillerPDF.exe and the -src.zip, so every file you
+# Written into the publish folder next to both public executables and the source archive, so every file you
 # upload to the GitHub release is in one place. The updater reads this from the release assets.
 $sumsPath = Join-Path $publishDir "SHA256SUMS.txt"
 if ($PublishOnly -and (Test-Path $sumsPath)) {
@@ -330,7 +335,8 @@ if ($PublishOnly -and (Test-Path $sumsPath)) {
     Write-Host "`n==> PublishOnly: keeping existing SHA256SUMS.txt." -ForegroundColor Yellow
 } else {
 $lines    = [System.Collections.Generic.List[string]]::new()
-$lines.Add("KillerPDF.exe           $exeHash")
+$lines.Add("KillerPDF-Setup.exe     $installerHash")
+$lines.Add("KillerPDF-Portable.exe  $portableHash")
 if ($pdfiumPath) { $lines.Add("pdfium.dll              $pdfiumHash") }
 if ($srcZip) {
     $srcHash = (Get-FileHash $srcZip.FullName -Algorithm SHA256).Hash
@@ -343,10 +349,12 @@ Write-Host "`n==> SHA256SUMS.txt written to: $sumsPath" -ForegroundColor Green
 # ── 7. Summary ───────────────────────────────────────────────────────────────
 Write-Host "`n╔══════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
 Write-Host   "  KillerPDF release artifacts" -ForegroundColor White
-Write-Host   "  EXE  : $exe"
+Write-Host   "  SETUP   : $installerExe"
+Write-Host   "  PORTABLE: $portableExe"
 if ($srcZip) { Write-Host "  SRC  : $($srcZip.FullName)" }
 Write-Host   ""
-Write-Host   "  SHA256 (EXE)       : $exeHash" -ForegroundColor Green
+Write-Host   "  SHA256 (Setup)      : $installerHash" -ForegroundColor Green
+Write-Host   "  SHA256 (Portable)   : $portableHash" -ForegroundColor Green
 if ($pdfiumPath) {
 Write-Host   "  SHA256 (pdfium.dll): $pdfiumHash" -ForegroundColor Green }
 Write-Host   ""
@@ -417,8 +425,8 @@ try {
         throw "No <ReleaseDate>yyyy-MM-dd</ReleaseDate> found in KillerPDF.csproj"
     }
     $releaseDate = $Matches[1]
-    $hashLower   = $exeHash.ToLower()
-    $exeMB       = [math]::Round((Get-Item $exe).Length / 1MB, 2)
+    $hashLower   = $installerHash.ToLower()
+    $exeMB       = [math]::Round((Get-Item $installerExe).Length / 1MB, 2)
     $siteDir     = Join-Path $PSScriptRoot 'pdf-landing'
 
     $indexPath = Join-Path $siteDir 'index.html'
@@ -558,7 +566,7 @@ try {
 
     if ($DryRun) {
         Write-Host "`n==> DryRun: stopping before tag and release." -ForegroundColor Yellow
-        Write-Host "    Would tag $Tag, push it, and publish KillerPDF.exe, the -src.zip, and SHA256SUMS.txt."
+        Write-Host "    Would tag $Tag, push it, and publish Setup, Portable, the source archive, and SHA256SUMS.txt."
         exit 0
     }
 
@@ -570,7 +578,7 @@ try {
 
     # ── 11. GitHub release ───────────────────────────────────────────────────
     Write-Host "`n==> Creating GitHub release..." -ForegroundColor Cyan
-    $assets = @($exe)
+    $assets = @($installerExe, $portableExe)
     if ($srcZip) { $assets += $srcZip.FullName }
     if (Test-Path $sumsPath) { $assets += $sumsPath }
     gh release create $Tag @assets --title "KillerPDF $Tag" --notes-file $notesFile --verify-tag

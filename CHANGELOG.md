@@ -13,6 +13,7 @@ KillerPDF 1.8 replaces its legacy PdfSharpCore document pipeline with an indepen
 KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history is maintained in [The KillerPDF.Engine changelog](engine/CHANGELOG.md).
 
 ### Added
+- KillerPDF now builds separate standard and portable packages. The standard package uses a compact Dark-theme installer with the product identity rail, raised grain-textured content card, runtime detection, account scope, shortcut selection, verified installation, elevation, rollback, and launch completion.
 - The Windows application now directly references The KillerPDF.Engine after moving to .NET 10, establishing the integration boundary while PdfSharpCore is retired through tested feature slices.
 - Text boxes now support adjustable letter spacing with live preview, spacing-aware wrapping, and matching PDF output for aligning characters with preprinted form boxes (#232).
 - Multiple selected page thumbnails can now be dragged as one ordered block, with the insertion marker identifying the block's exact destination and page rotation state moving with every selected page (#233).
@@ -26,6 +27,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- Portable builds identify themselves with a `PORTABLE` upgrade badge linked to the installed release instead of offering to install their temporary self-contained payload.
 - Installed-payload verification now rejects files absent from the signed manifest, preventing untrusted assemblies in the application probing path, and its tamper test now exercises a same-length SHA-256 mismatch.
 - Moving from a per-user installation to an all-users installation now removes the stale per-user `killerpdf:` protocol registration so it cannot shadow the Program Files handler.
 - Portable cleanup now validates both process identity and start time instead of trusting a reusable PID, and legacy extraction markers retain a directory only when their recorded child still runs from that directory.

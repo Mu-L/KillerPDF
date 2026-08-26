@@ -186,7 +186,8 @@ namespace KillerPDF.Features
                 using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(90) };
                 http.DefaultRequestHeaders.UserAgent.ParseAdd("KillerPDF-UpdateCheck");
 
-                var exeUrl = $"{Repo}/releases/download/{tag}/KillerPDF.exe";
+                string assetName = App.IsPortable() ? "KillerPDF-Portable.exe" : "KillerPDF-Setup.exe";
+                var exeUrl = $"{Repo}/releases/download/{tag}/{assetName}";
                 // Read the checksums from the release ASSET next to the exe, not from
                 // raw.githubusercontent at the tag. Both files are uploaded to the release
                 // together, so the hash can never drift from the exe the way a repo-committed
@@ -199,7 +200,7 @@ namespace KillerPDF.Features
                 string? expected = null;
                 foreach (var line in sumsTxt.Replace("\r", "").Split('\n'))
                 {
-                    if (line.TrimStart().StartsWith("KillerPDF.exe", StringComparison.OrdinalIgnoreCase))
+                    if (line.TrimStart().StartsWith(assetName, StringComparison.OrdinalIgnoreCase))
                     {
                         var parts = line.Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries);
                         if (parts.Length >= 2) expected = parts[^1];

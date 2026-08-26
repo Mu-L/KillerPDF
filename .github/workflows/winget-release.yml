@@ -36,7 +36,7 @@ jobs:
         run: |
           $releaseTag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ github.event.inputs.tag }}" } else { "${{ github.event.release.tag_name }}" }
           $version = $releaseTag.TrimStart('v')
-          $url = "https://github.com/SteveTheKiller/KillerPDF/releases/download/$releaseTag/KillerPDF.exe"
+          $url = "https://github.com/SteveTheKiller/KillerPDF/releases/download/$releaseTag/KillerPDF-Setup.exe"
           komac update SteveTheKiller.KillerPDF --version $version --urls $url --submit
         env:
           GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}

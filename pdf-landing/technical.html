@@ -42,7 +42,7 @@
 <img class="tb-icon" src="kp-icon.png" alt="KillerPDF" width="44" height="44">
 <img class="wm-logo tb-wm" src="brand/killerpdf-logo-dark-green.svg" alt="KillerPDF">
 </a>
-<a class="tb-dl" href="https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF.exe"><svg viewBox="0 0 24 24"><path d="M11 4h2v7h3l-4 5-4-5h3V4zM5 18h14v2H5z"/></svg><span data-i18n="nav_dl">Download</span></a>
+<a class="tb-dl" href="https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF-Setup.exe"><svg viewBox="0 0 24 24"><path d="M11 4h2v7h3l-4 5-4-5h3V4zM5 18h14v2H5z"/></svg><span data-i18n="nav_dl">Download</span></a>
 <span class="tb-spacer"></span>
 <nav class="tb-nav">
 <a href="help.html" data-i18n="nav_help">Help</a>
@@ -157,15 +157,15 @@
 <tr><td data-i18n="pt_26">Write engine</td><td data-i18n="pt_27">PdfSharpCore 1.3.67, vendored and patched - save, page ops, annotation / stamp flattening</td></tr>
 <tr><td data-i18n="pt_28">Signing</td><td data-i18n="pt_29">PDFsharp 6.2.4 (separate namespace) - CMS / SHA-256 signatures</td></tr>
 <tr><td data-i18n="pt_30">OCR</td><td data-i18n="pt_31">Tesseract 5.2 - native libs embedded, language packs on demand</td></tr>
-<tr><td data-i18n="pt_32">Packaging</td><td data-i18n="pt_33">A small portable launcher carrying one compressed, SHA-256-verified multi-file payload</td></tr>
+<tr><td data-i18n="pt_32">Packaging</td><td data-i18n="pt_33">A compact framework-dependent installer and a self-contained portable launcher, each carrying a compressed, SHA-256-verified payload</td></tr>
 </table>
 </div>
 
 <div class="tech-sec" id="install">
 <h2 data-i18n="pt_34">Install, folders &amp; data</h2>
-<p data-i18n="pt_35">KillerPDF is portable first - the single exe runs from anywhere with nothing to install. Installing is optional. A per-user install needs no administrator rights, while the all-users option requests elevation and installs under Program Files.</p>
+<p data-i18n="pt_35">KillerPDF ships in two forms. The compact installer is the standard download and supports per-user or all-users installation. The larger portable edition contains its own runtime and runs from anywhere without installation.</p>
 <h3 id="what-the-installer-does" data-i18n="pt_36">What the installer does</h3>
-<p data-i18n="pt_37">The portable download verifies and extracts its payload for the current run. Installing copies that ordinary multi-file application to <code>%LOCALAPPDATA%\Programs\KillerPDF\</code>, or to <code>%ProgramFiles%\KillerPDF\</code> after an elevation prompt for all users. Installed shortcuts launch <code>KillerPDF.App.exe</code> directly, avoiding portable extraction on startup. Both modes register the PDF handler and <code>killerpdf:</code> protocol at the matching scope and create an Add/Remove Programs entry.</p>
+<p data-i18n="pt_37">The installer verifies and extracts the framework-dependent application to <code>%LOCALAPPDATA%\Programs\KillerPDF\</code>, or to <code>%ProgramFiles%\KillerPDF\</code> after an elevation prompt for all users. Installed shortcuts launch <code>KillerPDF.App.exe</code> directly. The portable edition verifies and extracts its self-contained payload for the current run. Installed copies register the PDF handler and <code>killerpdf:</code> protocol at the matching scope and create an Add/Remove Programs entry.</p>
 <h3 id="where-things-live" data-i18n="pt_38">Where things live</h3>
 <table class="spec-table"><tr><th data-i18n="pt_39">Location</th><th data-i18n="pt_40">Holds</th></tr>
 <tr><td><code>%LOCALAPPDATA%\Programs\KillerPDF\</code></td><td data-i18n="pt_41">the installed application payload, including KillerPDF.App.exe and its native and managed dependencies</td></tr>

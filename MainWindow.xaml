@@ -2436,8 +2436,9 @@
                 <Grid x:Name="PortableBadge" Grid.Column="0" Grid.ColumnSpan="3" Panel.ZIndex="3"
                       HorizontalAlignment="Left" VerticalAlignment="Center"
                       Visibility="Collapsed">
-                    <Button x:Name="InstallBtn" Content="{DynamicResource Str_InstallBtn}"
+                    <Button x:Name="InstallBtn" Content="{DynamicResource Str_Portable}"
                             Click="Install_Click" Style="{StaticResource OutlineButton}"
+                            ToolTip="Portable mode - get the installed version"
                             FontFamily="{DynamicResource UiFont}" FontSize="10"
                             Padding="8,1"
                             VerticalAlignment="Center">
