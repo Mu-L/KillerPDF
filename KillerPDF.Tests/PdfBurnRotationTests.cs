@@ -234,4 +234,13 @@ public sealed class PdfBurnRotationTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    [Fact]
+    public void TextBurn_UsesWpfTypefaceBaselineInsteadOfAssumedFullEm()
+    {
+        double ratio = PdfEngineBurn.BaselineRatio("Segoe UI", false, false);
+
+        Assert.InRange(ratio, .5, 1.5);
+        Assert.NotEqual(1, ratio, 3);
+    }
 }

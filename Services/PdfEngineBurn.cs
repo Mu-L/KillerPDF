@@ -110,7 +110,10 @@ internal static class PdfEngineBurn
         content.SaveState().SetFillRgb(text.ColorR / 255d, text.ColorG / 255d, text.ColorB / 255d)
             .SetOpacity(text.ColorA / 255d).BeginText().SetFont(font, size)
             .SetCharacterSpacing(characterSpacing);
-        double baseline = y + padY + size;
+        // WPF positions glyphs at the typeface's own baseline, which is not necessarily one em below
+        // the top of the TextBlock. Assuming a full em here made saved text jump vertically even
+        // though the overlay looked correctly placed before save (#273).
+        double baseline = y + padY + BaselineRatio(text.FontName, text.Bold, text.Italic) * size;
         foreach (string line in lines)
         {
             if (baseline > y + height) break;
@@ -343,6 +346,23 @@ internal static class PdfEngineBurn
     {
         int count = text.EnumerateRunes().Count();
         return Measure(font, text, size) + Math.Max(0, count - 1) * characterSpacing;
+    }
+
+    internal static double BaselineRatio(string family, bool bold, bool italic)
+    {
+        try
+        {
+            var typeface = new System.Windows.Media.Typeface(
+                new System.Windows.Media.FontFamily(string.IsNullOrWhiteSpace(family) ? "Segoe UI" : family),
+                italic ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal,
+                bold ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal,
+                System.Windows.FontStretches.Normal);
+            if (typeface.TryGetGlyphTypeface(out System.Windows.Media.GlyphTypeface glyph)
+                && double.IsFinite(glyph.Baseline) && glyph.Baseline is > .5 and < 1.5)
+                return glyph.Baseline;
+        }
+        catch { }
+        return .8;
     }
 
     private static EngineImage? LoadImageFile(string? path, double opacity)

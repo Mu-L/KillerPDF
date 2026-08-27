@@ -89,6 +89,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Transform now replaces its rasterized result page through The KillerPDF.Engine and resets that page's effective rotation while retaining its position in the document.
 
 ### Fixed
+- Typewriter text keeps its on-screen vertical position after saving, and clicking dotted or underscored blanks on flattened forms now creates an empty text entry box over the detected field instead of selecting the surrounding label (#273, thanks bel57).
 - Typst bookmark outlines now remain enabled and navigate correctly when an `/XYZ` destination uses the valid zero value for retaining the current zoom (#269).
 - A portable launch that forwards to an already-running installed copy no longer takes over the `killerpdf:` protocol handler, and portable copies no longer shadow a valid installed handler (#267).
 - Push-button form appearances remain visible in the interactive viewer, bounded list-box appearances stay inside their field rectangles, and multi-select choice values now load, display, edit, and save as complete selections (#245).

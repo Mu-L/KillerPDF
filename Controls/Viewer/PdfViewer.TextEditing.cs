@@ -235,6 +235,20 @@ namespace KillerPDF.Controls
                     return new { Word = w, Rect = new Rect(cx, cy, cw, ch) };
                 }).ToList();
 
+                // Flattened forms commonly represent an entry area as a run of dots or underscores.
+                // Treat a click on that run as an empty text field instead of folding the placeholder
+                // and its label into the nearest source-text line. The cover removes the printed marks
+                // and the replacement box inherits their exact position and width.
+                Rect? placeholder = TextEntryPlaceholder.FindNearest(
+                    canvasWords.Select(w => new TextEntryPlaceholder.Candidate(w.Word.Text, w.Rect)),
+                    canvasPos);
+                if (placeholder is Rect blank)
+                {
+                    double blankFont = Math.Max(blank.Height * .75, 8);
+                    StartCoverTextEdit(pageIdx, blank, "", blankFont, "Segoe UI", syInv);
+                    return;
+                }
+
                 if (canvasWords.Count == 0)
                 {
                     // Scanned / image-only page: no text layer to detect. Fall back to a manual edit -
