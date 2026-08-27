@@ -292,6 +292,8 @@ namespace KillerPDF
         private readonly Grid _portableBadge = null!;
         private readonly TextBox _pageJumpBox = null!;
         private readonly TextBlock _pageTotalLabel = null!;
+        /// <summary>The sidebar list and the total above it, so the two cannot be set apart.</summary>
+        private readonly Controls.SidebarPageBinding _sidebarPages = null!;
 
         // Dirty / unsaved-change tracking
         private bool _isDirty { get => ActiveViewer.IsDirtyRef; set => ActiveViewer.IsDirtyRef = value; }
@@ -358,6 +360,7 @@ namespace KillerPDF
             _portableBadge = (Grid)FindName("PortableBadge")!;
             _pageJumpBox = (TextBox)FindName("PageJumpBox")!;
             _pageTotalLabel = (TextBlock)FindName("PageTotalLabel")!;
+            _sidebarPages = new Controls.SidebarPageBinding(PageList, _pageTotalLabel);
             // Both panes: each tracks the page under its own viewport. Pane B was never wired, so
             // its page counter, jump box and sidebar selection never moved as it scrolled.
             Viewer.WireScrollChanged();      // handler moved into the control with the render pipeline

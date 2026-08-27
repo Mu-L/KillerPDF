@@ -209,7 +209,7 @@ namespace KillerPDF
             // separately, so the other pane's decode is writing into ITS array and should be left
             // to finish - canceling it was what left a pane showing page labels with no pictures
             // after any focus change.
-            if (!ReferenceEquals(PageList.ItemsSource, cached)) PageList.ItemsSource = cached;
+            _sidebarPages.Show(cached);
             ActiveViewer.SyncPageListSelection(preservedPage);
         }
 
@@ -223,7 +223,7 @@ namespace KillerPDF
 
             if (_doc is null || _currentFile is null)
             {
-                PageList.ItemsSource = null;
+                _sidebarPages.Show(null);
                 return;
             }
 
@@ -251,7 +251,7 @@ namespace KillerPDF
                     if (prev != null) items[i].SetThumbnailDirect(prev);
                 }
             }
-            PageList.ItemsSource = items;
+            _sidebarPages.Show(items);
             ActiveViewer.SyncPageListSelection(preservedPage);
 
             // Hand the array to the pane it belongs to, so focusing away and back can re-seat it
