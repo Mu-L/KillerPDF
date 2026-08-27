@@ -13,6 +13,7 @@ KillerPDF 1.8 replaces its legacy PdfSharpCore document pipeline with an indepen
 KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history is maintained in [The KillerPDF.Engine changelog](engine/CHANGELOG.md).
 
 ### Added
+- Touchscreen users can now pan the document viewport with one finger in every page layout (#271).
 - Dual-pane PDF comparison now opens a second document beside the original, synchronizes page navigation, zoom, and scrolling, highlights visual difference regions, reports changed-page percentages and dimension mismatches, and identifies pages present in only one document (#160).
 - A measurement tool now draws a temporary ruler directly on any rendered page and reports distance in inches, millimetres, and PDF points alongside the rotated page size. Measurements remain accurate across zoom levels, render resolutions, and quarter-turn page rotations (#162).
 - KillerPDF now builds separate standard and portable packages. The standard package uses a compact Dark-theme installer with the product identity rail, raised grain-textured content card, runtime detection, account scope, shortcut selection, verified installation, elevation, rollback, and launch completion.
@@ -88,6 +89,8 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Transform now replaces its rasterized result page through The KillerPDF.Engine and resets that page's effective rotation while retaining its position in the document.
 
 ### Fixed
+- Typst bookmark outlines now remain enabled and navigate correctly when an `/XYZ` destination uses the valid zero value for retaining the current zoom (#269).
+- A portable launch that forwards to an already-running installed copy no longer takes over the `killerpdf:` protocol handler, and portable copies no longer shadow a valid installed handler (#267).
 - Push-button form appearances remain visible in the interactive viewer, bounded list-box appearances stay inside their field rectangles, and multi-select choice values now load, display, edit, and save as complete selections (#245).
 - Shipped builds no longer run a dead Costura-only pdfium startup check. The new `--verify` and `/verify` commands validate every installed payload file against `payload.manifest` on demand, covering the complete installation without adding launch latency.
 - Application shortcuts such as Save, Save As, Find, Print, Open, tab commands, and F1 through F12 now remain available while a fillable form field or typewriter box has focus, while ordinary typing and standard text-editing shortcuts stay inside the field (#237).

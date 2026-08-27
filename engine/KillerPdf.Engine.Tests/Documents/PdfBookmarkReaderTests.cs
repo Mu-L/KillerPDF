@@ -1,5 +1,6 @@
 using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Documents;
+using System.Text;
 using Xunit;
 
 namespace KillerPdf.Engine.Tests.Documents;
@@ -65,10 +66,38 @@ public sealed class PdfBookmarkReaderTests
     }
 
     [Fact]
+    public void Read_TreatsExplicitZeroXyzZoomAsRetainCurrentZoom()
+    {
+        byte[] source = new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddBookmark("Typst heading", 0, options: new PdfBookmarkOptions
+            {
+                Destination = PdfDestination.At(70, 781, 1)
+            })
+            .Build();
+        source = ReplaceAscii(source, "/XYZ 70 781 1", "/XYZ 70 781 0");
+
+        PdfBookmarkInfo bookmark = Assert.Single(
+            PdfBookmarkReader.Read(PdfDocument.Open(source)));
+
+        Assert.Equal(0, bookmark.DestinationPageIndex);
+        Assert.Equal(PdfDestinationKind.Xyz, bookmark.Destination!.Kind);
+        Assert.Equal([70, 781, null], bookmark.Destination.Values);
+    }
+
+    [Fact]
     public void Read_ReturnsEmptyListWhenDocumentHasNoBookmarks()
     {
         PdfDocument document = PdfDocument.Open(new PdfDocumentBuilder().AddBlankPage().Build());
 
         Assert.Empty(PdfBookmarkReader.Read(document));
+    }
+
+    private static byte[] ReplaceAscii(byte[] source, string oldValue, string newValue)
+    {
+        Assert.Equal(oldValue.Length, newValue.Length);
+        string text = Encoding.Latin1.GetString(source);
+        Assert.Equal(1, text.Split(oldValue).Length - 1);
+        return Encoding.Latin1.GetBytes(text.Replace(oldValue, newValue, StringComparison.Ordinal));
     }
 }

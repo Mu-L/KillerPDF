@@ -6,6 +6,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ## [1.8.0-beta.5] - Unreleased
 
+- Accepted the PDF-standard zero zoom value in `/XYZ` bookmark destinations as retaining the current viewer zoom, restoring Typst-generated outlines.
 - Added optional visible appearances for newly created digital-signature widgets, including editable text, page coordinates, dimensions, font size, a standard border, and standards-compliant appearance streams.
 - Expanded tolerant full rewrites across malformed but recoverable headers, cross-reference tables and streams, trailer metadata, stream lengths, and trailing data while retaining bounded parsing and deterministic output. Explicit signature invalidation now removes stale signature values and certification permissions before rewriting, and the corpus gates distinguish intentional skips from regressions.
 - Completed the desktop document-engine migration by replacing the mutable PdfSharpCore document with an engine-validated serialized working-state handle. Removed the production and test references, vendored source, compatibility formatter tests, solution project, and portable payload dependencies; Release, strict docs, qpdf, veraPDF PDF/UA-2, packaging, and launcher gates pass.

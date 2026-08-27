@@ -148,28 +148,6 @@ namespace KillerPDF
                 return;
             }
 
-            // Refresh the current executable path for the browser extension handoff. This stays
-            // after silent install, uninstall, and CLI dispatch so those headless paths never
-            // register a protocol under an elevated or service account.
-            // #246: clear a per-user registration left behind by a copy that is now gone, before
-            // the refresh below. A machine-wide install can never do this by rewriting the key -
-            // that is exactly what #183 forbids - so removing the dead one is the only way back.
-            Services.ProtocolRegistrar.RemoveStaleRegistration(Registry.CurrentUser);
-            // #183: skip the per-user refresh when running from the machine-wide install - the
-            // elevated installer already registered the handler in HKLM for all users, and an
-            // HKCU copy would shadow it for just this user.
-            if (!IsRegisteredCopy(Registry.LocalMachine, Process.GetCurrentProcess().MainModule?.FileName))
-            {
-                // A portable session runs from an extracted directory that is deleted when the
-                // window closes. Register its durable launcher instead, which already forwards
-                // every argument to the extracted application. This preserves browser handoff
-                // support without leaving HKCU aimed at a temporary executable (#246).
-                Services.ProtocolRegistrar.Register(
-                    Registry.CurrentUser,
-                    GetPortableLauncherPath());
-            }
-            StartupTrace.Mark("Protocol registration refresh complete");
-
             // Single instance: a second launch (e.g. double-clicking another PDF in Explorer)
             // forwards its file path to the already-running instance, which opens it as a new
             // tab, then this process exits. Without this, every launch spawned its own window.
@@ -186,6 +164,19 @@ namespace KillerPDF
             }
             StartPipeServer();
             StartupTrace.Mark("Single-instance initialization complete");
+
+            // Refresh the browser-extension handoff only after this process is known to be the
+            // primary instance. A portable launch that merely forwards and exits must not take
+            // the protocol handler from the installed copy (#267).
+            Services.ProtocolRegistrar.RemoveStaleRegistration(Registry.CurrentUser);
+            string registrationPath = GetPortableLauncherPath()
+                ?? Process.GetCurrentProcess().MainModule?.FileName
+                ?? Environment.ProcessPath
+                ?? throw new InvalidOperationException("The current executable path is unavailable.");
+            if (Services.ProtocolRegistrar.ShouldRefreshPerUser(
+                    Registry.CurrentUser, Registry.LocalMachine, registrationPath))
+                Services.ProtocolRegistrar.Register(Registry.CurrentUser, registrationPath);
+            StartupTrace.Mark("Protocol registration refresh complete");
 
             OfferInstallConflictRepair();
 

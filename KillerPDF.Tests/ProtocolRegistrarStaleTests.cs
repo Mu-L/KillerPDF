@@ -101,4 +101,38 @@ public sealed class ProtocolRegistrarStaleTests : IDisposable
     {
         Assert.Null(ProtocolRegistrar.RegisteredAppPath(_root));
     }
+
+    [Fact]
+    public void ShouldRefreshPerUser_DoesNotShadowALiveMachineHandler()
+    {
+        using RegistryKey user = _root.CreateSubKey("User")!;
+        using RegistryKey machine = _root.CreateSubKey("Machine")!;
+        ProtocolRegistrar.Register(machine, LivingExecutable());
+        string portable = Path.Combine(_directory, "portable", "KillerPDF.exe");
+
+        Assert.False(ProtocolRegistrar.ShouldRefreshPerUser(user, machine, portable));
+    }
+
+    [Fact]
+    public void ShouldRefreshPerUser_DoesNotTakeAValidHandlerFromAnotherCopy()
+    {
+        using RegistryKey user = _root.CreateSubKey("User")!;
+        using RegistryKey machine = _root.CreateSubKey("Machine")!;
+        ProtocolRegistrar.Register(user, LivingExecutable());
+        string portable = Path.Combine(_directory, "portable", "KillerPDF.exe");
+
+        Assert.False(ProtocolRegistrar.ShouldRefreshPerUser(user, machine, portable));
+    }
+
+    [Fact]
+    public void ShouldRefreshPerUser_AllowsFirstRegistrationAndOwnerRefresh()
+    {
+        using RegistryKey user = _root.CreateSubKey("User")!;
+        using RegistryKey machine = _root.CreateSubKey("Machine")!;
+        string executable = LivingExecutable();
+
+        Assert.True(ProtocolRegistrar.ShouldRefreshPerUser(user, machine, executable));
+        ProtocolRegistrar.Register(user, executable);
+        Assert.True(ProtocolRegistrar.ShouldRefreshPerUser(user, machine, executable));
+    }
 }

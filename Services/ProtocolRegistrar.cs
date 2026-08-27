@@ -50,6 +50,25 @@ namespace KillerPDF.Services
             catch { return null; }
         }
 
+        /// <summary>
+        /// Returns whether startup may refresh the per-user handler without taking it from a
+        /// different live copy. A valid machine handler wins because any HKCU registration would
+        /// shadow it; a valid HKCU handler is refreshed only by the same launcher that owns it.
+        /// </summary>
+        internal static bool ShouldRefreshPerUser(
+            RegistryKey userRoot, RegistryKey machineRoot, string registrationPath)
+        {
+            if (File.Exists(RegisteredAppPath(machineRoot))) return false;
+            string? userPath = RegisteredAppPath(userRoot);
+            if (userPath is null || !File.Exists(userPath)) return true;
+            try
+            {
+                return string.Equals(Path.GetFullPath(userPath), Path.GetFullPath(registrationPath),
+                    StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; }
+        }
+
         // #246: a per-user registration outlives the copy that wrote it. The portable launcher
         // extracts to a per-run directory and deletes it on exit, so a portable session leaves the
         // handler aimed at a path that is already gone - and HKCU shadows HKLM, so it hijacks the

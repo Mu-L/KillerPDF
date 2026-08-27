@@ -152,7 +152,11 @@ public static class PdfBookmarkReader
         double?[] values = [.. array.Skip(2).Select(value => OptionalNumber(document, value))];
         PdfDestination destination = kind.ValueAsLatin1() switch
         {
-            "XYZ" when values.Length == 3 => PdfDestination.At(values[0], values[1], values[2]),
+            // ISO 32000 defines an /XYZ zoom of zero the same way as null: retain the
+            // viewer's current zoom. Typst emits the explicit zero form. Normalize it
+            // before constructing the authoring model, whose non-null zoom is positive.
+            "XYZ" when values.Length == 3 => PdfDestination.At(
+                values[0], values[1], values[2] == 0 ? null : values[2]),
             "Fit" when values.Length == 0 => PdfDestination.FitPage(),
             "FitH" when values.Length == 1 => PdfDestination.FitWidth(values[0]),
             "FitV" when values.Length == 1 => PdfDestination.FitHeight(values[0]),
