@@ -76,14 +76,23 @@ namespace KillerPDF
                 CornerRadius = new CornerRadius(5, 5, 0, 0)
             };
             titleBar.MouseLeftButtonDown += (_, e) => { if (e.ButtonState == MouseButtonState.Pressed) win.DragMove(); };
-            // When the title is just "KillerPDF", render it as the main window's wordmark - "Killer"
-            // in the primary text color and "PDF" in the green logo accent, bold, with a soft shadow.
-            if (title == "KillerPDF")
+            // KillerPDF-prefixed titles keep the real wordmark. A qualifier such as "Uninstall"
+            // follows in the same typewriter family instead of flattening the whole title into
+            // generic monospace text.
+            if (title == "KillerPDF" || title.StartsWith("KillerPDF ", System.StringComparison.Ordinal))
             {
                 var wm = new StackPanel { Orientation = Orientation.Horizontal };
                 var wmTb = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
                 wmTb.Inlines.Add(new System.Windows.Documents.Run("Killer") { FontFamily = UiKit.WordmarkFont, FontWeight = FontWeights.Normal, FontSize = 15, Foreground = R("TextBrush") });
                 wmTb.Inlines.Add(new System.Windows.Documents.Run("PDF") { FontFamily = UiKit.WordmarkFontPdf, FontWeight = FontWeights.Bold, FontSize = 19.5, Foreground = R("AccentLogo") });
+                if (title.Length > "KillerPDF".Length)
+                    wmTb.Inlines.Add(new System.Windows.Documents.Run("  " + title.Substring("KillerPDF".Length).TrimStart())
+                    {
+                        FontFamily = UiKit.WordmarkFont,
+                        FontWeight = FontWeights.Normal,
+                        FontSize = 14,
+                        Foreground = R("TextBrush")
+                    });
                 wm.Children.Add(wmTb);
                 // No DropShadowEffect on the text - it rasterizes and blurs the wordmark. Kept crisp.
                 titleBar.Child = wm;

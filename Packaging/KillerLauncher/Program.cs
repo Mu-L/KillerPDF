@@ -37,8 +37,19 @@ namespace KillerLauncher
             {
 #if INSTALLER_PACKAGE
                 if (args.Any(a => string.Equals(a, "/install-user", StringComparison.OrdinalIgnoreCase)))
+                {
+                    // KillerPDF 1.7.x uses /install-user for its F12 update handoff. Keep that
+                    // automatic path when the runtime is ready, but show the prerequisite-aware
+                    // wizard on machines that cannot launch the new app yet.
+                    if (!HasDesktopRuntime10())
+                    {
+                        Application.EnableVisualStyles();
+                        Application.SetCompatibleTextRenderingDefault(false);
+                        return InstallerWizard.Run(args);
+                    }
                     return Install(machine: false, desktop: args.Any(a => string.Equals(a, "/desktop", StringComparison.OrdinalIgnoreCase)),
                         destinationOverride: ReadInstallDirectory(args));
+                }
                 if (args.Any(a => string.Equals(a, "/silent", StringComparison.OrdinalIgnoreCase)))
                     return Install(machine: true, desktop: args.Any(a =>
                         string.Equals(a, "/desktop", StringComparison.OrdinalIgnoreCase)), destinationOverride: ReadInstallDirectory(args));

@@ -137,7 +137,8 @@
                         <Grid Margin="24,20,24,14">
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                             <TextBlock x:Name="Heading" FontSize="18" FontWeight="SemiBold" Margin="0,0,28,0"/>
-                            <TextBlock x:Name="Copy" Grid.Row="1" Foreground="#a8a8a8" Margin="0,5,25,12" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="Copy" Grid.Row="1" Foreground="#a8a8a8" Margin="0,5,25,12"
+                                       TextWrapping="Wrap" LineStackingStrategy="BlockLineHeight" LineHeight="19"/>
                             <StackPanel x:Name="Options" Grid.Row="2">
                                 <RadioButton x:Name="CurrentUser" Content="Install for my account" IsChecked="True" Checked="Scope_Checked"/>
                                 <RadioButton x:Name="AllUsers" Content="Install for everyone on this computer" Checked="Scope_Checked"/>
@@ -150,13 +151,71 @@
                                 </Grid>
                                 <CheckBox x:Name="DesktopShortcut" Content="Create a desktop shortcut" IsChecked="True"/>
                             </StackPanel>
-                            <TextBlock x:Name="RuntimeStatus" Grid.Row="3" FontFamily="Consolas" FontSize="10.5" Margin="0,6,0,9" HorizontalAlignment="Right"/>
+                            <Grid Grid.Row="3" Margin="0,6,0,9" Height="14">
+                                <TextBlock x:Name="RuntimeStatus" FontFamily="Consolas" FontSize="10.5" HorizontalAlignment="Right"/>
+                                <Grid x:Name="InstallProgress" Visibility="Collapsed">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="INSTALLING" FontFamily="Consolas" FontSize="9" Foreground="#a8a8a8"
+                                               VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                    <Border Grid.Column="1" Height="3" Background="#242424" CornerRadius="1.5"
+                                            VerticalAlignment="Center" ClipToBounds="True">
+                                        <Canvas>
+                                            <Rectangle Width="86" Height="3" RadiusX="1.5" RadiusY="1.5">
+                                                <Rectangle.Fill>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                        <GradientStop Color="#001ea54c" Offset="0"/>
+                                                        <GradientStop Color="#1ea54c" Offset="0.5"/>
+                                                        <GradientStop Color="#001ea54c" Offset="1"/>
+                                                    </LinearGradientBrush>
+                                                </Rectangle.Fill>
+                                                <Rectangle.RenderTransform><TranslateTransform X="-86"/></Rectangle.RenderTransform>
+                                                <Rectangle.Triggers>
+                                                    <EventTrigger RoutedEvent="Loaded">
+                                                        <BeginStoryboard>
+                                                            <Storyboard RepeatBehavior="Forever">
+                                                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
+                                                                                 From="-86" To="360" Duration="0:0:1.35"/>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </EventTrigger>
+                                                </Rectangle.Triggers>
+                                            </Rectangle>
+                                        </Canvas>
+                                    </Border>
+                                </Grid>
+                            </Grid>
                             <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
                                 <Button x:Name="BackButton" Content="Back" Style="{StaticResource WizardButton}" Click="Back_Click"/>
                                 <Button x:Name="CancelButton" Content="Cancel" Style="{StaticResource WizardButton}" Click="Cancel_Click"/>
                                 <Button x:Name="NextButton" Content="Next" Style="{StaticResource PrimaryButton}" Click="Next_Click"/>
                             </StackPanel>
                         </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Grid x:Name="NoticeOverlay" Grid.ColumnSpan="2" Panel.ZIndex="20" Visibility="Collapsed"
+                  Background="#B8000000">
+                <Border Width="390" MinHeight="150" Padding="22,18,22,16" HorizontalAlignment="Center"
+                        VerticalAlignment="Center" Background="#303030" BorderBrush="#515151"
+                        BorderThickness="1" CornerRadius="6">
+                    <Border.Effect><DropShadowEffect Color="Black" BlurRadius="20" ShadowDepth="5" Direction="270" Opacity="0.85"/></Border.Effect>
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="42"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border x:Name="NoticeRing" Width="28" Height="28" CornerRadius="14" BorderThickness="2"
+                                    Background="#242424" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                <TextBlock x:Name="NoticeGlyph" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           FontFamily="Segoe UI" FontSize="17" FontWeight="SemiBold"/>
+                            </Border>
+                            <TextBlock x:Name="NoticeHeading" Grid.Column="1" FontSize="16" FontWeight="SemiBold"
+                                       Foreground="#f0f0f0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        </Grid>
+                        <TextBlock x:Name="NoticeMessage" Grid.Row="1" Margin="42,13,0,20" Foreground="#c8c8c8"
+                                   LineHeight="18" TextWrapping="Wrap"/>
+                        <Button x:Name="NoticeOk" Grid.Row="2" Content="OK" Style="{StaticResource PrimaryButton}"
+                                HorizontalAlignment="Right" IsDefault="True" Click="NoticeOk_Click"/>
                     </Grid>
                 </Border>
             </Grid>

@@ -21,7 +21,7 @@ $payloadDir = Join-Path $artifactRoot 'payload'
 $payloadZip = Join-Path $artifactRoot 'payload.zip'
 $launcherOutput = Join-Path $artifactRoot 'launcher'
 $publicDir = Join-Path $projectDir "bin\$Configuration\net10.0-windows\publish"
-$publicExe = Join-Path $publicDir $(if ($isInstaller) { 'KillerPDF-Setup.exe' } else { 'KillerPDF-Portable.exe' })
+$publicExe = Join-Path $publicDir $(if ($isInstaller) { 'KillerPDF.exe' } else { 'KillerPDF-Portable.exe' })
 
 if (-not $RepackOnly) {
     if ([IO.Directory]::Exists($artifactRoot)) { [IO.Directory]::Delete($artifactRoot, $true) }
@@ -31,6 +31,10 @@ if ([IO.Directory]::Exists($launcherOutput)) { [IO.Directory]::Delete($launcherO
 [IO.Directory]::CreateDirectory($payloadDir) | Out-Null
 [IO.Directory]::CreateDirectory($launcherOutput) | Out-Null
 [IO.Directory]::CreateDirectory($publicDir) | Out-Null
+if ($isInstaller) {
+    $obsoleteSetupExe = Join-Path $publicDir 'KillerPDF-Setup.exe'
+    if ([IO.File]::Exists($obsoleteSetupExe)) { [IO.File]::Delete($obsoleteSetupExe) }
+}
 
 $versionXml = [xml](Get-Content -Raw -LiteralPath $appProject)
 $versionNode = $versionXml.SelectSingleNode('/Project/PropertyGroup/Version')

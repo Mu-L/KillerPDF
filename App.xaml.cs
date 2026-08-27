@@ -205,6 +205,7 @@ namespace KillerPDF
 
         private const string MutexName = @"Local\KillerPDF.SingleInstance";
         private const string PipeName  = "KillerPDF.OpenPipe";
+        private const string UninstallCloseCommand = "::KILLERPDF_CLOSE_FOR_UNINSTALL::";
         private Mutex? _instanceMutex;
 
         private void StartPipeServer()
@@ -243,6 +244,16 @@ namespace KillerPDF
         {
             if (Current?.MainWindow is MainWindow mw)
             {
+                if (string.Equals(path, UninstallCloseCommand, StringComparison.Ordinal))
+                {
+                    // Add or Remove Programs owns the foreground when it starts uninstall. Bring
+                    // KillerPDF forward before closing so its quit or unsaved-work prompt cannot
+                    // open invisibly behind Settings.
+                    mw.RestoreAndActivate();
+                    mw.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,
+                        new Action(mw.Close));
+                    return;
+                }
                 mw.RestoreAndActivate();
                 if (!string.IsNullOrEmpty(path)) mw.OpenFromExternal(path);
                 mw.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,
@@ -263,6 +274,9 @@ namespace KillerPDF
 
         // Secondary instance: send our file path to the primary instance over the pipe.
         private static void ForwardToPrimary(string? path)
+            => SendToPrimary(path);
+
+        private static bool SendToPrimary(string? path)
         {
             try
             {
@@ -270,8 +284,31 @@ namespace KillerPDF
                 client.Connect(3000);
                 using var w = new StreamWriter(client, new UTF8Encoding(false)) { AutoFlush = true };
                 w.WriteLine(path ?? "");
+                return true;
             }
-            catch { /* primary not accepting yet; nothing more we can do */ }
+            catch { return false; }
+        }
+
+        private static bool CloseRunningInstanceForUninstall()
+        {
+            Mutex? running;
+            try { running = Mutex.OpenExisting(MutexName); }
+            catch (WaitHandleCannotBeOpenedException) { return true; }
+
+            using (running)
+            {
+                // Transfer the foreground privilege received from Windows Settings to the running
+                // app before asking it to activate itself and show any close confirmation.
+                GrantPrimaryForegroundPermission();
+                if (!SendToPrimary(UninstallCloseCommand)) return false;
+                try
+                {
+                    if (!running.WaitOne(TimeSpan.FromSeconds(60))) return false;
+                    running.ReleaseMutex();
+                    return true;
+                }
+                catch (AbandonedMutexException) { return true; }
+            }
         }
 
         // Explorer launches the secondary process with foreground permission. Pass that permission
@@ -1893,7 +1930,7 @@ namespace KillerPDF
             {
                 key.SetValue("DisplayName", AppName);
                 key.SetValue("DisplayVersion", AppVersion.Display);
-                key.SetValue("Publisher", "Steve / thekiller.net");
+                key.SetValue("Publisher", "Steve the Killer");
                 key.SetValue("InstallLocation", installDirectory);
                 key.SetValue("DisplayIcon", $"{exePath},0");
                 key.SetValue("UninstallString", $"\"{exePath}\" /uninstall");
@@ -1913,12 +1950,23 @@ namespace KillerPDF
 
             if (!silent)
             {
-                var res = MessageBox.Show(
+                var res = KillerDialog.Show(
+                    null,
                     "Uninstall KillerPDF from this computer?",
                     $"{AppName} Uninstall",
                     MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
+                    MessageBoxImage.Question,
+                    defaultResult: MessageBoxResult.No);
                 if (res != MessageBoxResult.Yes) return;
+            }
+
+            if (!CloseRunningInstanceForUninstall())
+            {
+                if (!silent)
+                    KillerDialog.Show(null,
+                        "KillerPDF is still running. Close it, then try uninstalling again.",
+                        $"{AppName} Uninstall", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
             }
 
             // Shortcuts
@@ -1962,7 +2010,8 @@ namespace KillerPDF
 
             if (!silent)
             {
-                MessageBox.Show(Application.Current.TryFindResource("Str_Dlg_Uninstalled") as string ?? "KillerPDF has been uninstalled.", AppName,
+                KillerDialog.Show(null,
+                    Application.Current.TryFindResource("Str_Dlg_Uninstalled") as string ?? "KillerPDF has been uninstalled.", AppName,
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }

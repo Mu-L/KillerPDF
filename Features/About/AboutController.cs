@@ -186,7 +186,7 @@ namespace KillerPDF.Features
                 using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(90) };
                 http.DefaultRequestHeaders.UserAgent.ParseAdd("KillerPDF-UpdateCheck");
 
-                string assetName = App.IsPortable() ? "KillerPDF-Portable.exe" : "KillerPDF-Setup.exe";
+                string assetName = App.IsPortable() ? "KillerPDF-Portable.exe" : "KillerPDF.exe";
                 var exeUrl = $"{Repo}/releases/download/{tag}/{assetName}";
                 // Read the checksums from the release ASSET next to the exe, not from
                 // raw.githubusercontent at the tag. Both files are uploaded to the release

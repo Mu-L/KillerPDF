@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Threading.Tasks;
 
 namespace KillerLauncher
 {
@@ -43,21 +44,21 @@ namespace KillerLauncher
             CancelButton.Visibility = _installed ? Visibility.Collapsed : Visibility.Visible;
             if (_page == 0)
             {
-                Heading.Text = "Install KillerPDF";
-                Copy.Text = "Set up the standard Windows build with shortcuts, file associations, and automatic updates.";
+                Heading.Text = "Welcome to KillerPDF!";
+                Copy.Text = "Fast, private PDF editing is only a few clicks away.\nLet's get you set up.";
                 NextButton.Content = "Next";
             }
             else if (options)
             {
-                Heading.Text = "Options";
-                Copy.Text = "Choose the installation scope and shortcut.";
+                Heading.Text = "Make it yours";
+                Copy.Text = "Choose where KillerPDF lives and who gets to use it.";
                 SetRuntimeStatus();
                 NextButton.Content = "Next";
             }
             else
             {
-                Heading.Text = _installed ? "Installation complete" : "Ready to install";
-                Copy.Text = _installed ? "KillerPDF is ready to use." :
+                Heading.Text = _installed ? "You're all set!" : "Ready to go!";
+                Copy.Text = _installed ? "KillerPDF is installed and ready to make PDFs less painful." :
                     (AllUsers.IsChecked == true ? "All users" : "Current user") +
                     (DesktopShortcut.IsChecked == true ? "  •  Desktop shortcut" : "  •  No desktop shortcut");
                 SetRuntimeStatus();
@@ -73,7 +74,7 @@ namespace KillerLauncher
                 ? Color.FromRgb(30, 165, 76) : Color.FromRgb(255, 190, 80));
         }
 
-        private void Next_Click(object sender, RoutedEventArgs e)
+        private async void Next_Click(object sender, RoutedEventArgs e)
         {
             if (_installed)
             {
@@ -90,36 +91,62 @@ namespace KillerLauncher
                 RenderPage();
                 InstallFolder.Focus();
                 InstallFolder.SelectAll();
-                System.Windows.MessageBox.Show(this, ex.Message, "KillerPDF Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ShowNotice("Check installation options", ex.Message, NoticeKind.Warning);
                 return;
             }
             if (!Program.HasDesktopRuntime10())
             {
                 Process.Start(new ProcessStartInfo("https://dotnet.microsoft.com/en-us/download/dotnet/10.0") { UseShellExecute = true });
-                System.Windows.MessageBox.Show(this, "Install the .NET 10 Desktop Runtime, then return to setup.", "KillerPDF Setup", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowNotice(".NET 10 Desktop Runtime required",
+                    "Install the .NET 10 Desktop Runtime, then return to setup.", NoticeKind.Information);
                 return;
             }
             try
             {
                 NextButton.IsEnabled = BackButton.IsEnabled = CancelButton.IsEnabled = false;
-                Heading.Text = "Installing";
-                Copy.Text = "Verifying and installing KillerPDF...";
+                Heading.Text = "Installing KillerPDF";
+                Copy.Text = "Almost there. We're putting everything in place...";
+                RuntimeStatus.Visibility = Visibility.Collapsed;
+                InstallProgress.Visibility = Visibility.Visible;
                 bool machine = AllUsers.IsChecked == true;
-                int result = machine ? InstallForEveryone(DesktopShortcut.IsChecked == true, installDirectory)
-                    : Program.Install(false, DesktopShortcut.IsChecked == true, installDirectory);
+                bool desktop = DesktopShortcut.IsChecked == true;
+                Task<int> install = Task.Run(() => machine ? InstallForEveryone(desktop, installDirectory)
+                    : Program.Install(false, desktop, installDirectory));
+                await Task.WhenAll(install, Task.Delay(2000));
+                int result = install.Result;
                 if (result != 0) throw new InvalidOperationException("Setup returned " + result + ".");
                 _installedDirectory = installDirectory;
                 _installed = true;
                 NextButton.IsEnabled = true;
+                InstallProgress.Visibility = Visibility.Collapsed;
                 RenderPage();
             }
             catch (Exception ex)
             {
                 NextButton.IsEnabled = BackButton.IsEnabled = CancelButton.IsEnabled = true;
-                System.Windows.MessageBox.Show(this, ex.Message, "KillerPDF Setup", MessageBoxButton.OK, MessageBoxImage.Error);
+                InstallProgress.Visibility = Visibility.Collapsed;
                 RenderPage();
+                ShowNotice("Installation failed", ex.Message, NoticeKind.Error);
             }
         }
+
+        private enum NoticeKind { Information, Warning, Error }
+
+        private void ShowNotice(string heading, string message, NoticeKind kind)
+        {
+            NoticeHeading.Text = heading;
+            NoticeMessage.Text = message;
+            NoticeGlyph.Text = kind == NoticeKind.Error ? "×" : kind == NoticeKind.Warning ? "!" : "i";
+            NoticeGlyph.Foreground = new SolidColorBrush(kind == NoticeKind.Error
+                ? Color.FromRgb(227, 93, 106)
+                : kind == NoticeKind.Warning ? Color.FromRgb(255, 190, 80) : Color.FromRgb(30, 165, 76));
+            NoticeRing.BorderBrush = NoticeGlyph.Foreground;
+            NoticeOverlay.Visibility = Visibility.Visible;
+            NoticeOk.Focus();
+        }
+
+        private void NoticeOk_Click(object sender, RoutedEventArgs e) =>
+            NoticeOverlay.Visibility = Visibility.Collapsed;
 
         private static int InstallForEveryone(bool desktop, string installDirectory)
         {

@@ -49,7 +49,7 @@ Set-StrictMode -Version Latest
 $proj         = Join-Path $PSScriptRoot "KillerPDF.csproj"
 $publishDir   = Join-Path $PSScriptRoot "bin\Release\net10.0-windows\publish"
 $portableExe   = Join-Path $publishDir "KillerPDF-Portable.exe"
-$installerExe  = Join-Path $publishDir "KillerPDF-Setup.exe"
+$installerExe  = Join-Path $publishDir "KillerPDF.exe"
 $packageBuild  = Join-Path $PSScriptRoot "build\build-packages.ps1"
 $portablePayloadDir  = Join-Path $PSScriptRoot "bin\Release\net10.0-windows\portable-package\payload"
 $installerPayloadDir = Join-Path $PSScriptRoot "bin\Release\net10.0-windows\installer-package\payload"
@@ -311,7 +311,7 @@ Write-Host "`n==> Computing final EXE SHA256 values..." -ForegroundColor Cyan
 $portableHash  = (Get-FileHash $portableExe -Algorithm SHA256).Hash
 $installerHash = (Get-FileHash $installerExe -Algorithm SHA256).Hash
 Write-Host "    KillerPDF-Portable.exe : $portableHash" -ForegroundColor Green
-Write-Host "    KillerPDF-Setup.exe    : $installerHash" -ForegroundColor Green
+Write-Host "    KillerPDF.exe          : $installerHash" -ForegroundColor Green
 if ($pdfiumPath) {
     Write-Host "    pdfium.dll    : $pdfiumHash" -ForegroundColor Green
 }
@@ -335,7 +335,7 @@ if ($PublishOnly -and (Test-Path $sumsPath)) {
     Write-Host "`n==> PublishOnly: keeping existing SHA256SUMS.txt." -ForegroundColor Yellow
 } else {
 $lines    = [System.Collections.Generic.List[string]]::new()
-$lines.Add("KillerPDF-Setup.exe     $installerHash")
+$lines.Add("KillerPDF.exe           $installerHash")
 $lines.Add("KillerPDF-Portable.exe  $portableHash")
 if ($pdfiumPath) { $lines.Add("pdfium.dll              $pdfiumHash") }
 if ($srcZip) {

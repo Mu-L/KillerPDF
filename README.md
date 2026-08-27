@@ -74,7 +74,7 @@ Chocolately:
 choco install killerpdf
 ```
 
-- Standard installer: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF-Setup.exe>
+- Standard installer: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF.exe>
 - Portable edition: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF-Portable.exe>
 - Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.7.5/KillerPDF-1.7.5-src.zip>
 
@@ -86,7 +86,7 @@ cd KillerPDF
 dotnet publish -c Release
 ```
 
-Output lands in `bin/Release/net10.0-windows/publish/`. Normal publishing produces the development build plus a versioned `KillerPDF-<version>-src.zip`. The release pipeline builds `KillerPDF-Setup.exe`, a compact framework-dependent installer, and `KillerPDF-Portable.exe`, a self-contained offline edition. Installed shortcuts launch the inner app directly for faster startup.
+Output lands in `bin/Release/net10.0-windows/publish/`. Normal publishing produces the development build plus a versioned `KillerPDF-<version>-src.zip`. The release pipeline builds `KillerPDF.exe`, a compact framework-dependent installer, and `KillerPDF-Portable.exe`, a self-contained offline edition. Installed shortcuts launch the inner app directly for faster startup.
 
 The current 1.8 development branch requires the .NET 10 SDK. Both the reusable engine and the Windows application now target .NET 10, with the application using `net10.0-windows`.
 
