@@ -24,5 +24,6 @@ namespace KillerPDF
         int[]? Pages = null,
         PageAnnotation? Annot = null,
         Dictionary<int, List<PageAnnotation>>? AnnotSnapshot = null,
-        List<PageAnnotation>? AnnotGroup = null);
+        List<PageAnnotation>? AnnotGroup = null,
+        Dictionary<int, int>? PageRotations = null);
 }

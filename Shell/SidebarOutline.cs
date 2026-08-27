@@ -526,7 +526,6 @@ namespace KillerPDF
             int page = Math.Max(0, PageList.SelectedIndex);
             if (page >= _doc!.PageCount) page = _doc.PageCount - 1;
             if (page < 0) return;
-            PushDocUndo();   // bookmark ops ride the document-snapshot undo like crop/page ops do
             string title = string.Format(Loc("Str_Bm_DefaultTitle"), page + 1);
             var added = new KillerPdf.Engine.Documents.PdfBookmarkInfo
             {
@@ -576,7 +575,6 @@ namespace KillerPDF
                 string t = box.Text.Trim();
                 if (t.Length > 0 && t != current)
                 {
-                    PushDocUndo();
                     ApplyEngineBookmarkEdit(items => TransformBookmarks(
                         items, nref.Identity, item => item with { Title = t }));
                 }
@@ -666,7 +664,6 @@ namespace KillerPDF
                                           MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (r != MessageBoxResult.Yes) return;
             }
-            PushDocUndo();   // one Ctrl+Z restores the whole set
             var removed = new HashSet<(int ObjectNumber, int Generation)>(targets.Select(t => t.Identity));
             ApplyEngineBookmarkEdit(items => RemoveBookmarks(items, removed));
         }
@@ -675,7 +672,6 @@ namespace KillerPDF
         private void MoveBookmark(OutlineNodeRef nref, int delta)
         {
             if (!CanEditBookmarks) return;
-            PushDocUndo();
             ApplyEngineBookmarkEdit(items => MoveBookmarkModel(items, nref.Identity, delta));
         }
 
@@ -686,7 +682,6 @@ namespace KillerPDF
             int page = Math.Max(0, PageList.SelectedIndex);
             if (page >= _doc!.PageCount) page = _doc.PageCount - 1;
             if (page < 0) return;
-            PushDocUndo();
             ApplyEngineBookmarkEdit(items => TransformBookmarks(items, nref.Identity,
                 item => item with
                 {
@@ -704,7 +699,6 @@ namespace KillerPDF
             var r = KillerDialog.Show(this, Loc("Str_Bm_DeleteAllConfirm"), Loc("Str_Dlg_AppTitle"),
                                       MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (r != MessageBoxResult.Yes) return;
-            PushDocUndo();
             ApplyEngineBookmarkEdit(_ => []);
         }
 

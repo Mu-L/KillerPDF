@@ -74,7 +74,8 @@ namespace KillerPDF.Features
         void SaveTempAndReload(bool keepAnnotations, bool preserveZoom,
             Action<string>? finalizeSavedFile = null,
             Action<Dictionary<int, int>>? remapRotations = null,
-            int? selectedPageAfterReload = null);
+            int? selectedPageAfterReload = null,
+            UndoEntry? documentUndo = null);
         void RecordNavJump();
         PageAnnotation? PairPartner(PageAnnotation annotation);
         void RenderStamps(int page);

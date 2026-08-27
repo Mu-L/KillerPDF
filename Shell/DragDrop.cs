@@ -168,6 +168,7 @@ namespace KillerPDF
                     new PdfEngineIntegration.ImportedDocument(extracted, importedRotations)
                 };
 
+                UndoEntry? documentUndo = CaptureDocumentUndo();
                 var annotationBackup = _annotations.ToDictionary(
                     pair => pair.Key, pair => pair.Value);
                 try
@@ -195,7 +196,8 @@ namespace KillerPDF
                         remapRotations: rotations =>
                             PdfEngineIntegration.RemapRotationsAfterDocumentInsertion(
                                 rotations, imports, insertAt),
-                        selectedPageAfterReload: insertAt);
+                        selectedPageAfterReload: insertAt,
+                        documentUndo: documentUndo);
                 }
                 catch
                 {
@@ -323,6 +325,7 @@ namespace KillerPDF
             }
             if (_doc is null) return;
             if (imports.Count == 0) { SetStatus(Loc("Str_Drop_NothingOpenable")); return; }
+            UndoEntry? documentUndo = CaptureDocumentUndo();
             int insertAt = Math.Max(0, Math.Min(insertionIndex ?? _doc.PageCount, _doc.PageCount));
             int importedCount = imports.Sum(import => import.PageRotations.Count);
             if (insertAt < _doc.PageCount && importedCount > 0)
@@ -343,7 +346,8 @@ namespace KillerPDF
                 finalizeSavedFile: path => PdfEngineIntegration.InsertDocuments(path, imports, insertAt),
                 remapRotations: rotations =>
                     PdfEngineIntegration.RemapRotationsAfterDocumentInsertion(rotations, imports, insertAt),
-                selectedPageAfterReload: insertAt);
+                selectedPageAfterReload: insertAt,
+                documentUndo: documentUndo);
             SetStatus(string.Format(Loc("Str_Status_Merged"), files.Length));
         }
 

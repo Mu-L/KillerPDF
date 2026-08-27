@@ -27,6 +27,7 @@ namespace KillerPDF
             if (selected.Count == 0) return;
             try
             {
+                UndoEntry? documentUndo = CaptureDocumentUndo();
                 var indices = new List<int>();
                 foreach (PageThumbnailVm vm in selected) indices.Add(vm.PageIndex);
                 // #169: rotation must not destroy the overlay annotations - the reload's default
@@ -43,7 +44,8 @@ namespace KillerPDF
                     keepAnnotations: true,
                     remapRotations: rotations =>
                         PdfEngineIntegration.RemapRotationsAfterPageTurns(
-                            rotations, indices, delta));
+                            rotations, indices, delta),
+                    documentUndo: documentUndo);
                 PageList.SelectedIndex = Math.Min(restoreIdx, PageList.Items.Count - 1);
                 // After a rotation the page aspect ratio changes; always fit-to-page so the
                 // full rotated page is visible regardless of the previous zoom level.

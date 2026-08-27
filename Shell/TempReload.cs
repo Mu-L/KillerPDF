@@ -27,9 +27,15 @@ namespace KillerPDF
         private void SaveTempAndReload(bool keepAnnotations = false, bool preserveZoom = false,
             Action<string>? finalizeSavedFile = null,
             Action<Dictionary<int, int>>? remapRotations = null,
-            int? selectedPageAfterReload = null)
+            int? selectedPageAfterReload = null,
+            UndoEntry? documentUndo = null)
         {
             if (_doc is null || _currentFile is null) return;
+            // Capture the previous serialized working file before any rewrite. Most operations
+            // mutate through finalizeSavedFile below, while the few that adjust side state before
+            // arriving here pass an explicit pre-mutation entry. Push only after every save,
+            // rewrite and reopen step succeeds so a failed operation creates no phantom history.
+            documentUndo ??= ActiveViewer.CaptureSerializedDocumentUndoExt(_currentFile);
             // The serialized working file is about to change, so discard its immutable engine view.
             CloseEngineDocumentSession();
             // Stop render workers tied to the outgoing file before clearing the cache. Without this,
@@ -107,6 +113,8 @@ namespace KillerPDF
                 _doc = PdfWorkingDocument.Open(tempPath);
             }
             _currentFile = tempPath;
+            if (documentUndo is { } completedUndo)
+                ActiveViewer.PushUndoExt(completedUndo);
 
             // Clear once more after the old workers have observed cancellation. This closes the race
             // where a worker was already inside PDFium when the first clear happened and published its

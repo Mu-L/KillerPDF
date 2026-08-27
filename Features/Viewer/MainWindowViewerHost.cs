@@ -41,9 +41,9 @@ namespace KillerPDF
         void IViewerHost.HideSignaturePopup() => HideSignaturePopup();
         void IViewerHost.SaveTempAndReload(bool keepAnnotations, bool preserveZoom,
             Action<string>? finalizeSavedFile, Action<Dictionary<int, int>>? remapRotations,
-            int? selectedPageAfterReload)
+            int? selectedPageAfterReload, UndoEntry? documentUndo)
             => SaveTempAndReload(keepAnnotations, preserveZoom, finalizeSavedFile,
-                remapRotations, selectedPageAfterReload);
+                remapRotations, selectedPageAfterReload, documentUndo);
         void IViewerHost.RecordNavJump() => RecordNavJump();
         PageAnnotation? IViewerHost.PairPartner(PageAnnotation annotation) => PairPartner(annotation);
         void IViewerHost.RenderStamps(int page) => RenderStamps(page);

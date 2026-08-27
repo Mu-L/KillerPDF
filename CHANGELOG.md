@@ -29,6 +29,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Grab cursors: an open hand over anything that can be picked up and a closed hand while it is being carried, on the annotation bars, the find bar and signatures popup, page panning, stamp placement and the Transform perspective handles.
 
 ### Changed
+- Document undo is now recorded automatically for every successful serialized document mutation, including page deletion, insertion, reordering, cross-pane copying, forms, links, metadata, bookmarks, crop, and rotation. Undo and redo restore annotations and page rotations with the PDF, while a 20-action and 256 MB per-document history budget prevents unbounded memory growth (#266).
 - Direct PDFium loading now uses explicit UTF-8 marshalling for document paths and passwords, preserving international characters instead of passing them through the Windows ANSI code page.
 - Engine validation failures now retain accurate public exception contracts without reporting nonexistent parameter names, and OCR downloads propagate cancellation through the response stream.
 - Portable builds identify themselves with a `PORTABLE` upgrade badge linked to the installed release instead of offering to install their temporary self-contained payload.

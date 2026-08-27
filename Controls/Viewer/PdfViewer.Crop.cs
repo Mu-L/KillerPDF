@@ -610,8 +610,6 @@ namespace KillerPDF.Controls
 
             try
             {
-                PushDocUndo();
-
                 // Convert canvas rect to PDF CropBox coords using the rotation-aware helper.
                 // This is the correct inversion of how Docnet renders the rotated bitmap.
                 _pageRotations.TryGetValue(currentPage, out int rot);
@@ -664,7 +662,6 @@ namespace KillerPDF.Controls
             PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
             try
             {
-                PushDocUndo();
                 var crops = pageIndices
                     .Where(pi => pi >= 0 && pi < engineSession.PageCount)
                     .Distinct()

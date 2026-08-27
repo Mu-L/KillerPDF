@@ -65,7 +65,7 @@ namespace KillerPDF
         private IEnumerable<Canvas> AllPageCanvases() => ActiveViewer.AllPageCanvasesExt();
 
         // ── Undo ─────────────────────────────────────────────────────────────────────────────
-        private void PushDocUndo() => ActiveViewer.PushDocUndoExt();
+        private UndoEntry? CaptureDocumentUndo() => ActiveViewer.CaptureDocumentUndoExt();
         private void PushPageSnapshotUndo(int pageIdx) => ActiveViewer.PushPageSnapshotUndoExt(pageIdx);
 
         // ── Text editing ─────────────────────────────────────────────────────────────────────

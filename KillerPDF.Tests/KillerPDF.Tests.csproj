@@ -63,6 +63,7 @@
     <Compile Include="..\Services\CombFieldLayout.cs" Link="Services\CombFieldLayout.cs" />
     <Compile Include="..\Services\SaveFileNamePolicy.cs" Link="Services\SaveFileNamePolicy.cs" />
     <Compile Include="..\Services\DeferredActionGate.cs" Link="Services\DeferredActionGate.cs" />
+    <Compile Include="..\Services\UndoHistoryBudget.cs" Link="Services\UndoHistoryBudget.cs" />
     <Compile Include="..\Packaging\KillerLauncher\PortableProcessIdentity.cs" Link="Packaging\PortableProcessIdentity.cs" />
     <Compile Include="..\Packaging\KillerLauncher\PortableLauncherPolicy.cs" Link="Packaging\PortableLauncherPolicy.cs" />
     <Compile Include="..\Packaging\KillerLauncher\PortableDirectoryCleanup.cs" Link="Packaging\PortableDirectoryCleanup.cs" />

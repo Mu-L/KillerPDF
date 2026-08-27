@@ -100,7 +100,10 @@ namespace KillerPDF.Controls
         }
 
         // ── Undo / commands bound from MainWindow.xaml and the context menu ──────────────────
-        internal void PushDocUndoExt() => PushDocUndo();
+        internal UndoEntry? CaptureDocumentUndoExt() => CaptureDocumentUndo();
+        internal UndoEntry? CaptureSerializedDocumentUndoExt(string path)
+            => CaptureSerializedDocumentUndo(path);
+        internal void PushUndoExt(UndoEntry entry) => PushUndo(entry);
         internal void PushPageSnapshotUndoExt(int pageIdx) => PushPageSnapshotUndo(pageIdx);
         internal void UndoClickExt(object sender, RoutedEventArgs e) => Undo_Click(sender, e);
         internal void RedoClickExt(object sender, RoutedEventArgs e) => Redo_Click(sender, e);

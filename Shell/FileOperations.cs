@@ -785,7 +785,6 @@ namespace KillerPDF
                     ModificationDate = info.ModificationDate,
                     Trapped = info.Trapped
                 };
-                PushDocUndo();
                 SaveTempAndReload(
                     keepAnnotations: true,
                     finalizeSavedFile: target =>

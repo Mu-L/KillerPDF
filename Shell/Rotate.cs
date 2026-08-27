@@ -86,8 +86,9 @@ namespace KillerPDF
 
             try
             {
-                // Snapshot for undo BEFORE touching the document, so one Ctrl+Z reverts the transform.
-                PushDocUndo();
+                // This operation adjusts overlay annotations before SaveTempAndReload, so retain
+                // the complete pre-transform state for the central history push.
+                UndoEntry? documentUndo = CaptureDocumentUndo();
 
                 // If the page carries annotations, bake just that page's annotations into the PDF so they
                 // rotate/scale with the page (it is being rasterized anyway, and the user was warned). The
@@ -134,7 +135,8 @@ namespace KillerPDF
                     remapRotations: rotations =>
                         PdfEngineIntegration.RemapRotationsAfterPageReplacements(
                             rotations, pages),
-                    selectedPageAfterReload: pages[0]);
+                    selectedPageAfterReload: pages[0],
+                    documentUndo: documentUndo);
                 Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)(() =>
                 {
                     PageList.SelectedItems.Clear();

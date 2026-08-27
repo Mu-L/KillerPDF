@@ -2486,16 +2486,37 @@ namespace KillerPDF.Controls
         }
 
         /// <summary>
-        /// Saves the current in-memory document bytes onto the undo stack so that
-        /// document-level operations (crop, delete page, merge, reorder) can be undone.
-        /// Must be called BEFORE modifying _doc.
+        /// Captures the complete document state before a document-level operation. The entry is
+        /// pushed only after the operation succeeds, preventing failed edits from polluting undo.
         /// </summary>
-        private void PushDocUndo()
+        private UndoEntry? CaptureDocumentUndo()
         {
-            if (_doc is null) return;
+            if (_doc is null) return null;
             using var ms = new System.IO.MemoryStream();
             _doc.Save(ms);
-            PushUndo(new UndoEntry(UndoKind.Document, DocBytes: ms.ToArray(), WasDirty: _isDirty));
+            return CreateDocumentUndoEntry(ms.ToArray());
+        }
+
+        /// <summary>Captures the serialized file that existed before SaveTempAndReload. This is
+        /// authoritative for operations whose live document has already been modified.</summary>
+        private UndoEntry? CaptureSerializedDocumentUndo(string path)
+        {
+            try { return CreateDocumentUndoEntry(System.IO.File.ReadAllBytes(path)); }
+            catch { return CaptureDocumentUndo(); }
+        }
+
+        private UndoEntry CreateDocumentUndoEntry(byte[] bytes)
+            => new(UndoKind.Document, DocBytes: bytes, WasDirty: _isDirty,
+                AnnotSnapshot: CaptureAllAnnotationState(),
+                PageRotations: new Dictionary<int, int>(_pageRotations));
+
+        private Dictionary<int, List<PageAnnotation>> CaptureAllAnnotationState()
+        {
+            var snapshot = new Dictionary<int, List<PageAnnotation>>();
+            foreach (var pair in _annotations)
+                snapshot[pair.Key] = [.. pair.Value.Select(CloneAnnotation)
+                    .Where(annotation => annotation is not null).Cast<PageAnnotation>()];
+            return snapshot;
         }
 
         // Snapshot one page's annotations (deep clones) onto the undo stack so an in-place edit - erase,
@@ -2532,7 +2553,8 @@ namespace KillerPDF.Controls
             // Capture what this undo is about to overwrite, so Ctrl+Y can bring it back.
             var inverse = CaptureInverse(entry);
             if (ApplyHistoryEntry(entry) && inverse is { } inv)
-                _redoStack.Push(inv);
+                Services.UndoHistoryBudget.PushBounded(_redoStack, inv, EstimateHistoryBytes,
+                    maximumEntries: 20, maximumBytes: 256L * 1024 * 1024);
         }
 
         /// <summary>Redo (Ctrl+Y / Ctrl+Shift+Z): re-applies the last undone action. Any new edit
@@ -2550,7 +2572,8 @@ namespace KillerPDF.Controls
             var inverse = CaptureInverse(entry);
             // Straight onto the undo stack - NOT PushUndo, which would clear the redo chain.
             if (ApplyHistoryEntry(entry) && inverse is { } inv)
-                _undoStack.Push(inv);
+                Services.UndoHistoryBudget.PushBounded(_undoStack, inv, EstimateHistoryBytes,
+                    maximumEntries: 20, maximumBytes: 256L * 1024 * 1024);
             SetStatus(Loc("Str_St_Redone"));
         }
 
@@ -2567,7 +2590,7 @@ namespace KillerPDF.Controls
                     if (_doc is null) return null;
                     using var ms = new System.IO.MemoryStream();
                     _doc.Save(ms);
-                    return new UndoEntry(UndoKind.Document, DocBytes: ms.ToArray(), WasDirty: _isDirty);
+                    return CreateDocumentUndoEntry(ms.ToArray());
                 }
                 int[] pages = entry.Kind switch
                 {
@@ -2659,6 +2682,11 @@ namespace KillerPDF.Controls
                 int selectedIdx = _currentPage;
                 var tempPath = App.MakeTempFile("undo");
                 System.IO.File.WriteAllBytes(tempPath, entry.DocBytes);
+                CloseEngineDocumentSession();
+                _secondaryRenderCts?.Cancel();
+                _continuousRenderCts?.Cancel();
+                _continuousSharpenCts?.Cancel();
+                InvalidateRenderCache(_active);
                 _doc?.Close();
                 // PdfSharpCore can write a snapshot whose xref offset points at the xref table,
                 // producing "Unexpected token 'xref'" on reopen. Repair via Import (preserves
@@ -2678,7 +2706,16 @@ namespace KillerPDF.Controls
                 }
                 _currentFile = tempPath;
                 _annotations.Clear();
+                if (entry.AnnotSnapshot is not null)
+                    foreach (var pair in entry.AnnotSnapshot)
+                        _annotations[pair.Key] = [.. pair.Value.Select(CloneAnnotation)
+                            .Where(annotation => annotation is not null).Cast<PageAnnotation>()];
+                _pageRotations.Clear();
+                if (entry.PageRotations is not null)
+                    foreach (var pair in entry.PageRotations)
+                        _pageRotations[pair.Key] = pair.Value;
                 _renderDims.Clear();
+                InvalidateRenderCache(_active);
                 ClearSelection();
                 MarkDirty(entry.WasDirty);
                 RefreshPageList();
@@ -2709,8 +2746,18 @@ namespace KillerPDF.Controls
         // (the branched future can no longer be replayed safely).
         private void PushUndo(UndoEntry entry)
         {
-            _undoStack.Push(entry);
+            Services.UndoHistoryBudget.PushBounded(_undoStack, entry, EstimateHistoryBytes,
+                maximumEntries: 20, maximumBytes: 256L * 1024 * 1024);
             _redoStack.Clear();
+        }
+
+        private static long EstimateHistoryBytes(UndoEntry entry)
+        {
+            long bytes = entry.DocBytes?.LongLength ?? 0;
+            if (entry.AnnotSnapshot is not null)
+                bytes += entry.AnnotSnapshot.Values.Sum(list => (long)list.Count * 4096);
+            if (entry.AnnotGroup is not null) bytes += (long)entry.AnnotGroup.Count * 4096;
+            return Math.Max(1, bytes);
         }
 
         // Re-renders annotations on every page that currently has a visible surface: each overlay
