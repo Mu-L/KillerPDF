@@ -7,7 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>KillerPdf.Engine</RootNamespace>
     <AssemblyName>KillerPdf.Engine</AssemblyName>
-    <Version>1.8.0-beta.5</Version>
+    <Version>1.8.0</Version>
     <PackageId>KillerPdf.Engine</PackageId>
     <Authors>Steve the Killer</Authors>
     <Description>An independent .NET PDF 2.0 document engine for reading, validating, authoring, editing, signing, encrypting, and writing PDF files.</Description>

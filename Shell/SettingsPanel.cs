@@ -699,6 +699,7 @@ namespace KillerPDF
         // Each toolbar icon button paired with its glyph and label-resource key, built once so the
         // appearance can be rebuilt without re-walking the tree.
         private readonly List<(Button btn, string glyph, string labelKey)> _toolbarButtons = [];
+        private const string TransformGlyph = "TransformBoxMove";
 
         // Maps each toolbar glyph (Segoe MDL2 Assets code point) to its caption string key. Buttons
         // whose glyph isn't listed keep their icon with no caption.
@@ -723,7 +724,7 @@ namespace KillerPDF
             [""] = "Str_Lbl_Underline",
             [""] = "Str_Lbl_Draw",
             [""] = "Str_Lbl_Crop",
-            [""] = "Str_Lbl_Rotate",
+            [TransformGlyph] = "Str_Lbl_Rotate",
             [""] = "Str_Lbl_Image",
             [""] = "Str_Lbl_Signature",
             [""] = "Str_Lbl_Undo",
@@ -747,7 +748,9 @@ namespace KillerPDF
             {
                 if (bar is null) continue;
                 foreach (var btn in DescendantButtons(bar))
-                    if (btn.Content is string g && g.Length > 0 && _toolbarLabelKeys.TryGetValue(g, out var key))
+                    if (ReferenceEquals(btn, ToolRotateBtn))
+                        _toolbarButtons.Add((btn, TransformGlyph, "Str_Lbl_Rotate"));
+                    else if (btn.Content is string g && g.Length > 0 && _toolbarLabelKeys.TryGetValue(g, out var key))
                         _toolbarButtons.Add((btn, g, key));
             }
         }
@@ -760,6 +763,45 @@ namespace KillerPDF
                 if (obj is DependencyObject d)
                     foreach (var nested in DescendantButtons(d)) yield return nested;
             }
+        }
+
+        private static FrameworkElement MakeToolbarGlyph(string glyph, double glyphSize)
+        {
+            if (glyph != TransformGlyph)
+            {
+                return new TextBlock
+                {
+                    Text = glyph,
+                    FontFamily = UiKit.IconFont,
+                    FontSize = glyphSize,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+            }
+
+            var icon = new Grid { Width = glyphSize + 2, Height = glyphSize + 2 };
+            var box = new Border
+            {
+                Width = glyphSize,
+                Height = glyphSize,
+                BorderThickness = new Thickness(1),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            box.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding(nameof(Button.Foreground))
+            {
+                RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(Button), 1)
+            });
+            icon.Children.Add(box);
+            icon.Children.Add(new TextBlock
+            {
+                Text = "\uE7C2",
+                FontFamily = UiKit.IconFont,
+                FontSize = glyphSize * 0.65,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            return icon;
         }
 
         // Rebuilds one toolbar button's content and size for the current mode. withLabel=false forces
@@ -797,13 +839,7 @@ namespace KillerPDF
             {
                 btn.Width = double.NaN; btn.MinWidth = 0; btn.Height = 34; btn.Padding = new Thickness(8, 5, 8, 5);
                 var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-                row.Children.Add(new TextBlock
-                {
-                    Text = glyph,
-                    FontFamily = UiKit.IconFont,
-                    FontSize = glyphSize,
-                    VerticalAlignment = VerticalAlignment.Center
-                });
+                row.Children.Add(MakeToolbarGlyph(glyph, glyphSize));
                 row.Children.Add(new TextBlock
                 {
                     Text = Loc(key),
@@ -821,13 +857,7 @@ namespace KillerPDF
             {
                 btn.Width = double.NaN; btn.MinWidth = 0; btn.Height = large ? 56 : 52; btn.Padding = new Thickness(6, 4, 6, 4);
                 var col = new StackPanel { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center };
-                col.Children.Add(new TextBlock
-                {
-                    Text = glyph,
-                    FontFamily = UiKit.IconFont,
-                    FontSize = glyphSize,
-                    HorizontalAlignment = HorizontalAlignment.Center
-                });
+                col.Children.Add(MakeToolbarGlyph(glyph, glyphSize));
                 col.Children.Add(new TextBlock
                 {
                     Text = Loc(key),
@@ -847,7 +877,7 @@ namespace KillerPDF
             btn.MinWidth = 0;
             btn.Height = large ? 42 : 32;
             btn.Padding = new Thickness(10, 6, 10, 6);
-            btn.Content = glyph;
+            btn.Content = MakeToolbarGlyph(glyph, glyphSize);
         }
 
         // Order in which Text-beside buttons shed their captions when the bar runs short of room:

@@ -26,10 +26,53 @@
 <body>
 <div class="topbar">
 <a href="index.html" class="tb-home" title="KillerPDF home"><img class="tb-icon" src="kp-icon.png" alt="KillerPDF" width="44" height="44"><img class="wm-logo tb-wm" src="brand/killerpdf-logo-dark-green.svg" alt="KillerPDF"></a>
-<a class="tb-dl" href="https://github.com/SteveTheKiller/KillerPDF/tree/develop/1.8.0/engine"><svg viewBox="0 0 24 24"><path d="M8 4l-6 8 6 8 2-1.5L5.2 12 10 5.5 8 4zm8 0l-2 1.5 4.8 6.5-4.8 6.5 2 1.5 6-8-6-8z"/></svg><span>Source</span></a>
+<a class="tb-dl" href="https://github.com/SteveTheKiller/KillerPDF/tree/main/engine"><svg viewBox="0 0 24 24"><path d="M8 4l-6 8 6 8 2-1.5L5.2 12 10 5.5 8 4zm8 0l-2 1.5 4.8 6.5-4.8 6.5 2 1.5 6-8-6-8z"/></svg><span>Source</span></a>
 <span class="tb-spacer"></span>
 <nav class="tb-nav"><a href="help.html">Help</a><a href="technical.html">Technical</a><a href="engine.html" class="on">Engine</a><a href="about.html">About</a></nav>
-<div class="tgrp" role="group" aria-label="Theme"><button class="swatch sw-dark" data-theme="dark" title="Dark"></button><button class="swatch sw-light" data-theme="light" title="Light"></button><button class="swatch sw-hc" data-theme="hc" title="High Contrast"></button><button class="swatch sw-blood" data-theme="blood" title="Blood"></button><button class="swatch sw-ectoplasm" data-theme="ectoplasm" title="Ectoplasm"></button></div>
+<div class="tgrp" role="group" aria-label="Theme">
+<button class="swatch sw-dark" data-theme="dark" title="Dark"></button>
+<button class="swatch sw-light" data-theme="light" title="Light"></button>
+<button class="swatch sw-hc" data-theme="hc" title="High Contrast"></button>
+<button class="swatch sw-blood" data-theme="blood" title="Blood"></button>
+<button class="swatch sw-greed" data-theme="greed" title="Greed"></button>
+<button class="swatch sw-cyanotic" data-theme="cyanotic" title="Cyanotic"></button>
+<button class="swatch sw-ectoplasm" data-theme="ectoplasm" title="Ectoplasm"></button>
+<button class="swatch sw-decay" data-theme="decay" title="Decay"></button>
+<button class="swatch sw-malaise" data-theme="malaise" title="Malaise"></button>
+<button class="swatch sw-sepulchre" data-theme="sepulchre" title="Sepulchre"></button>
+<button class="swatch sw-delirium" data-theme="delirium" title="Delirium"></button>
+<button class="swatch sw-mourning" data-theme="mourning" title="Mourning"></button>
+</div>
+<div class="acc-fly accent-switch" id="accentSwitch">
+<button class="acc-toggle" id="accentToggle" aria-haspopup="true" aria-expanded="false" title="Accent color"></button>
+<div class="acc-pop" id="accentPop" hidden role="group" aria-label="Accent color">
+<span class="acc-pop-label" data-i18n="accent_label">accent:</span>
+<button class="acc" data-accent="red" style="background:#DD504B;color:#DD504B" title="Red"></button>
+<button class="acc" data-accent="orange" style="background:#E8962C;color:#E8962C" title="Orange"></button>
+<button class="acc" data-accent="green" style="background:#1EA54C;color:#1EA54C" title="Green"></button>
+<button class="acc" data-accent="teal" style="background:#1FB8A8;color:#1FB8A8" title="Teal"></button>
+<button class="acc" data-accent="blue" style="background:#50AEE8;color:#50AEE8" title="Blue"></button>
+<button class="acc" data-accent="purple" style="background:#B982E3;color:#B982E3" title="Purple"></button>
+</div>
+</div>
+<div class="lang-switch" role="group" aria-label="Language">
+<button class="lang-toggle" id="langToggle" aria-haspopup="true" aria-expanded="false" title="Language" aria-label="Language">&#127760;</button>
+<div class="lang-menu" id="langMenu" hidden>
+<button class="lang-item" data-lang="en">English</button>
+<button class="lang-item" data-lang="bn">&#2476;&#2494;&#2434;&#2482;&#2494;</button>
+<button class="lang-item" data-lang="cs">Cestina</button>
+<button class="lang-item" data-lang="de">Deutsch</button>
+<button class="lang-item" data-lang="es">Espanol</button>
+<button class="lang-item" data-lang="fr">Francais</button>
+<button class="lang-item" data-lang="it">Italiano</button>
+<button class="lang-item" data-lang="ja">&#26085;&#26412;&#35486;</button>
+<button class="lang-item" data-lang="pl">Polski</button>
+<button class="lang-item" data-lang="hu">Magyar</button>
+<button class="lang-item" data-lang="tr">Turkce</button>
+<button class="lang-item" data-lang="zh-cn">&#20013;&#25991; (&#31616;&#20307;)</button>
+<button class="lang-item" data-lang="zh">&#20013;&#25991; (&#32321;&#39636;)</button>
+</div>
+</div>
 </div>
 
 <div class="shell">
@@ -58,7 +101,7 @@
 <div class="metric-grid" id="project-scale">
 <div class="metric"><b>151</b><span>engine source files</span></div>
 <div class="metric"><b>45,352</b><span>physical C# lines</span></div>
-<div class="metric"><b>1,427</b><span>engine tests</span></div>
+<div class="metric"><b>1,436</b><span>engine tests</span></div>
 <div class="metric"><b>2,907</b><span>hostile corpus PDFs</span></div>
 </div>
 
@@ -153,7 +196,7 @@
 
 <section class="engine-sec" id="validation">
 <h2>Validation is part of the design</h2>
-<p>Format support is not inferred from a header or from whether one generated file opens in one viewer. The release gate combines 1,427 engine tests, strict zero-warning Release builds, two 2,907-file corpus gates, qpdf structural checks, veraPDF PDF/A-4 and PDF/UA-2 validation, and OpenSSL verification of detached CMS signatures.</p>
+<p>Format support is not inferred from a header or from whether one generated file opens in one viewer. The release gate combines 1,436 engine tests, strict zero-warning Release builds, two 2,907-file corpus gates, qpdf structural checks, veraPDF PDF/A-4 and PDF/UA-2 validation, and OpenSSL verification of detached CMS signatures.</p>
 <table class="spec-table"><tr><th>Gate</th><th>What it catches</th></tr>
 <tr id="gate-tests"><td>Unit and regression tests</td><td>Syntax, graph, writer, editor and public API behavior.</td></tr>
 <tr id="gate-incremental"><td>Incremental corpus</td><td>Unexpected failures or structural damage across deliberately hostile inputs.</td></tr>
@@ -185,9 +228,9 @@
 <section class="engine-sec" id="source">
 <h2>Source, documentation and license</h2>
 <ul class="source-links" id="source-links">
-<li><a href="https://github.com/SteveTheKiller/KillerPDF/tree/develop/1.8.0/engine" target="_blank" rel="noopener">Engine source and README</a></li>
-<li><a href="https://github.com/SteveTheKiller/KillerPDF/blob/develop/1.8.0/engine/CHANGELOG.md" target="_blank" rel="noopener">Engine changelog</a></li>
-<li><a href="https://github.com/SteveTheKiller/KillerPDF/tree/develop/1.8.0/engine/docs/architecture" target="_blank" rel="noopener">Architecture decision records</a></li>
+<li><a href="https://github.com/SteveTheKiller/KillerPDF/tree/main/engine" target="_blank" rel="noopener">Engine source and README</a></li>
+<li><a href="https://github.com/SteveTheKiller/KillerPDF/blob/main/engine/CHANGELOG.md" target="_blank" rel="noopener">Engine changelog</a></li>
+<li><a href="https://github.com/SteveTheKiller/KillerPDF/tree/main/engine/docs/architecture" target="_blank" rel="noopener">Architecture decision records</a></li>
 <li><a href="technical.html">KillerPDF desktop technical guide</a></li>
 </ul>
 <p id="license">The KillerPDF.Engine is licensed under GPLv3 as part of the KillerPDF repository.</p>
@@ -196,7 +239,7 @@
 </div>
 
 <footer class="statusbar"><span class="left"><a href="https://github.com/SteveTheKiller/KillerPDF" target="_blank" rel="noopener">Source on GitHub</a> &middot; GPLv3 &middot; Part of <a href="https://killertools.net" target="_blank" rel="noopener">killertools.net</a></span><span class="right">1.8 development &middot; &copy; 2026 <b><a href="https://thekiller.net" target="_blank" rel="noopener">Steve the Killer</a></b></span></footer>
-<script src="kp.js?v=8"></script>
+<script src="kp.js?v=9"></script>
 <script>
 (function(){
 var links=[].slice.call(document.querySelectorAll('.outline a')),scroller=document.querySelector('.content-scroll'),groups=[].slice.call(document.querySelectorAll('.ol-group'));

@@ -256,9 +256,9 @@ namespace KillerPDF
             }, "G", ""));
             _ctxMenu.Items.Add(new Separator());
 
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Lbl_Rotate"), (s, e) => OpenTransformWindow(), "R", ""));
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCW"), (s, e) => RotatePages_Click(90), glyph: ""));
-            _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCCW"), (s, e) => RotatePages_Click(-90), glyph: ""));
+            _ctxMenu.Items.Add(MakeTransformMenuItem(Loc("Str_Lbl_Rotate"), (s, e) => OpenTransformWindow(), "R"));
+            _ctxMenu.Items.Add(MakeRotateMenuItem(Loc("Str_Ctx_RotateCW"), (s, e) => RotatePages_Click(90), clockwise: true));
+            _ctxMenu.Items.Add(MakeRotateMenuItem(Loc("Str_Ctx_RotateCCW"), (s, e) => RotatePages_Click(-90), clockwise: false));
             _ctxMenu.Items.Add(new Separator());
 
             _ctxMenu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DuplicatePage"), (s, e) => DuplicatePage(pageIdx), glyph: ""));
@@ -586,9 +586,9 @@ namespace KillerPDF
                 menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_Merge"), async (s, ev) => await MergeAtIndex(clickedPage + 1), glyph: ""));
                 menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_DuplicatePage"), (s, ev) => DuplicatePage(clickedPage), glyph: ""));
                 menu.Items.Add(new Separator());
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCWShort"), (s, ev) => RotatePages_Click(90), glyph: ""));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_RotateCCWShort"), (s, ev) => RotatePages_Click(-90), glyph: ""));
-                menu.Items.Add(MakeMenuItem(Loc("Str_Tf_Suffix"), (s, ev) => OpenTransformWindow(), glyph: ""));
+                menu.Items.Add(MakeRotateMenuItem(Loc("Str_Ctx_RotateCWShort"), (s, ev) => RotatePages_Click(90), clockwise: true));
+                menu.Items.Add(MakeRotateMenuItem(Loc("Str_Ctx_RotateCCWShort"), (s, ev) => RotatePages_Click(-90), clockwise: false));
+                menu.Items.Add(MakeTransformMenuItem(Loc("Str_Tf_Suffix"), (s, ev) => OpenTransformWindow()));
                 menu.Items.Add(new Separator());
                 menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_MoveUp"), (s, ev) => MoveUp_Click(s!, ev), glyph: ""));
                 menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_MoveDown"), (s, ev) => MoveDown_Click(s!, ev), glyph: ""));
@@ -716,6 +716,44 @@ namespace KillerPDF
                 };
                 item.Icon = icon;
             }
+            return item;
+        }
+
+        private static MenuItem MakeRotateMenuItem(string header, RoutedEventHandler click, bool clockwise)
+        {
+            var item = MakeMenuItem(header, click, glyph: "\uE7AD");
+            if (item.Icon is TextBlock icon)
+            {
+                icon.FontSize = 15;
+                if (!clockwise)
+                    icon.LayoutTransform = new System.Windows.Media.ScaleTransform(-1, 1);
+            }
+            return item;
+        }
+
+        private static MenuItem MakeTransformMenuItem(string header, RoutedEventHandler click, string? gesture = null)
+        {
+            var item = MakeMenuItem(header, click, gesture);
+            var icon = new Grid { Width = 16, Height = 16 };
+            var box = new Border
+            {
+                Width = 14,
+                Height = 14,
+                BorderThickness = new Thickness(1),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            box.SetBinding(Border.BorderBrushProperty, new System.Windows.Data.Binding(nameof(MenuItem.Foreground)) { Source = item });
+            icon.Children.Add(box);
+            icon.Children.Add(new TextBlock
+            {
+                Text = "\uE7C2",
+                FontFamily = new System.Windows.Media.FontFamily("Segoe MDL2 Assets"),
+                FontSize = 9,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            item.Icon = icon;
             return item;
         }
     }

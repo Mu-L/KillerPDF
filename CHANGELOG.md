@@ -4,9 +4,9 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.8.0-beta.5] - Unreleased
+## [1.8.0] - 2026-08-28
 
-KillerPDF 1.8 replaces its legacy PdfSharpCore document pipeline with an independently authored .NET 10 PDF document engine. It is responsible for reading, validating, authoring, structurally editing, and writing PDF files. PDFium remains KillerPDF's rendering and display backend, while PdfPig continues to handle text extraction. This beta is a development build, not a public release.
+KillerPDF 1.8 replaces its legacy PdfSharpCore document pipeline with an independently authored .NET 10 PDF document engine. It is responsible for reading, validating, authoring, structurally editing, and writing PDF files. PDFium remains KillerPDF's rendering and display backend, while PdfPig continues to handle text extraction.
 
 ### PDF document engine
 
@@ -21,8 +21,9 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Multiple selected page thumbnails can now be dragged as one ordered block. PDFs and images can also be dropped at an exact position or merged directly after a selected page (#233).
 - Pages can now be copied between documents in split view by dragging their thumbnails onto the other document or into its Pages panel. The panel follows the document under the cursor, and a translucent page preview with a count badge shows what is being dragged (#213, thanks MattVW).
 - Text boxes now support adjustable letter spacing with live preview, spacing-aware wrapping, and matching PDF output for aligning characters with preprinted form boxes (#232).
-- A measurement tool now draws a temporary ruler on any rendered page and reports distance in inches, millimetres, and PDF points alongside the rotated page size (#162).
+- A measurement tool now draws a temporary ruler on any rendered page and reports distance in inches, millimeters, and PDF points alongside the rotated page size (#162).
 - Italian is now available in the live language picker, with complete interface resources and matching Italian OCR support.
+- Kazakh is now available in the live language picker, with complete interface resources and matching Kazakh OCR support.
 - Touchscreen users can now pan the document viewport with one finger and pinch around a focal point to zoom in every page layout (#271).
 - Dragging a page thumbnail now shows a theme-colored insertion line at the exact before-or-after drop position in the Pages sidebar.
 - The Select tool now shows an I-beam only over selectable PDF text in every view while retaining the hand cursor over links (#221).
@@ -30,7 +31,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 
 ### Changed
 - KillerPDF now uses its own .NET 10 document engine throughout the desktop app, command line tools, tests, and packaged builds. PdfSharpCore and its compatibility code have been fully removed.
-- Release packages are self-contained .NET 10 Windows builds, so users do not need to install a separate runtime.
+- The standard installer now uses the .NET 10 Desktop Runtime, while the portable edition remains self-contained for offline use.
 - Document undo is now recorded automatically for every successful serialized document mutation, including page deletion, insertion, reordering, cross-pane copying, forms, links, metadata, bookmarks, crop, and rotation. Undo and redo restore annotations and page rotations with the PDF, while a 20-action and 256 MB per-document history budget prevents unbounded memory growth (#266).
 - Saving, exporting, flattening, printing, signing, and searchable OCR now use The KillerPDF.Engine while preserving Unicode text, transparency, rotations, form values, link targets, signatures, and annotation appearance.
 - Page insertion, deletion, duplication, extraction, reordering, merging, and Transform replacement now preserve complete page and catalog structures through The KillerPDF.Engine, including forms, tags, bookmarks, named destinations, layers, attachments, and inherited page state.

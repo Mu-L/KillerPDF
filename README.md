@@ -22,7 +22,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine, an independent and reusable .NET 
 - Print with a real in-app preview, paper size and source selection, scale / position / margins / pages-per-sheet options at 300 DPI; Save Flattened rasterizes to a fully uneditable PDF
 - Full-text search with highlighting, and column-aware text selection that copies multi-column pages in reading order
 - Night-mode inversion works independently in each split pane. Thirteen themes, live accent colors, and toolbar styles provide 33 looks, while the resizable sidebar can dock on either side.
-- Localized UI in 13 languages (contribute via `TRANSLATING.md`); full keyboard shortcut overlay on F1 with list and visual keyboard views
+- Localized UI in 14 languages, including Kazakh (contribute via `TRANSLATING.md`); full keyboard shortcut overlay on F1 with list and visual keyboard views
 - Opens password-protected PDFs (prompts instead of erroring) and repairs damaged ones
 - Separate standard and portable downloads: the compact installer supports per-user or machine-wide deployment, while the larger portable edition includes its own runtime
 - Standards-safe saves: every release is tested against a 2,900-file veraPDF conformance corpus with a zero-regressions requirement. See [validation/RESULTS.md](validation/RESULTS.md).
@@ -51,7 +51,7 @@ Full reference on the [help page](https://killerpdf.net/help.html).
 
 | | |
 | --- | --- |
-| ![KillerPDF showing a 111-page camera manual in Grid view with the language flyout open, in the Decay theme with the menu bar hidden](docs/grid-language-flyout.png)<br>**Grid view and thirteen languages** - Survey a whole document at once, with the menu bar hidden and the interface switchable between thirteen languages. | ![KillerPDF using split-pane view with a 98SE-themed Transform preview open over a scanned camera manual](docs/split-pane-transform.png)<br>**Split panes and Transform** - Work in two independent panes while previewing rotation, scale, flip, skew, perspective, and Levels before applying. |
+| ![KillerPDF showing a 111-page camera manual in Grid view with the language flyout open, in the Decay theme with the menu bar hidden](docs/grid-language-flyout.png)<br>**Grid view and fourteen languages** - Survey a whole document at once, with the menu bar hidden and the interface switchable between fourteen languages. | ![KillerPDF using split-pane view with a 98SE-themed Transform preview open over a scanned camera manual](docs/split-pane-transform.png)<br>**Split panes and Transform** - Work in two independent panes while previewing rotation, scale, flip, skew, perspective, and Levels before applying. |
 | ![KillerPDF showing its drawing controls, custom color picker, and interactive form pages in Grid view](docs/annotations-color-picker.png)<br>**Annotation colors and forms** - Draw with exact colors while viewing fillable fields, comb boxes, and the brochure's live form examples. | ![KillerPDF showing its themed image picker with a large thumbnail preview over a two-page document view](docs/image-picker-preview.png)<br>**Image picker and previews** - Browse images, inspect a large preview, and return directly to the open document. |
 
 ## Requirements
@@ -68,7 +68,7 @@ WinGet:
 winget install killerpdf
 ```
 
-Chocolately:
+Chocolatey:
 
 ```powershell
 choco install killerpdf
@@ -76,7 +76,7 @@ choco install killerpdf
 
 - Standard installer: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF.exe>
 - Portable edition: <https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF-Portable.exe>
-- Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.7.5/KillerPDF-1.7.5-src.zip>
+- Source (GPL3 corresponding source for this release): <https://github.com/SteveTheKiller/KillerPDF/releases/download/v1.8.0/KillerPDF-1.8.0-src.zip>
 
 ## Build from source
 
@@ -88,7 +88,7 @@ dotnet publish -c Release
 
 Output lands in `bin/Release/net10.0-windows/publish/`. Normal publishing produces the development build plus a versioned `KillerPDF-<version>-src.zip`. The release pipeline builds `KillerPDF.exe`, a compact framework-dependent installer, and `KillerPDF-Portable.exe`, a self-contained offline edition. Installed shortcuts launch the inner app directly for faster startup.
 
-The current 1.8 development branch requires the .NET 10 SDK. Both the reusable engine and the Windows application now target .NET 10, with the application using `net10.0-windows`.
+KillerPDF 1.8 requires the .NET 10 SDK. Both the reusable engine and the Windows application target .NET 10, with the application using `net10.0-windows`.
 
 The desktop document pipeline now uses The KillerPDF.Engine for document parsing, writing, editing, repair, forms, annotations, signatures, and preservation-sensitive page operations. PDFium remains the rendering backend, while PdfPig handles text extraction.
 
