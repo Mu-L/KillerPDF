@@ -1,0 +1,62 @@
+name: NuGet Engine Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Engine package version, for example 1.8.0'
+        required: true
+
+concurrency:
+  group: nuget-engine-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Verify Engine version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content 'engine/KillerPdf.Engine/KillerPdf.Engine.csproj'
+          $actual = [string]$project.Project.PropertyGroup.Version
+          $requested = '${{ inputs.version }}'
+          if ($actual -ne $requested) {
+              throw "Requested version $requested does not match Engine project version $actual."
+          }
+
+      - name: Restore
+        run: dotnet restore engine/KillerPdf.Engine.Tests/KillerPdf.Engine.Tests.csproj
+
+      - name: Test
+        run: dotnet test engine/KillerPdf.Engine.Tests/KillerPdf.Engine.Tests.csproj -c Release --no-restore
+
+      - name: Pack
+        run: dotnet pack engine/KillerPdf.Engine/KillerPdf.Engine.csproj -c Release --no-restore -o artifacts/nuget
+
+      - name: Sign in to NuGet
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: StevetheKiller
+
+      - name: Publish package and symbols
+        shell: pwsh
+        run: |
+          $version = '${{ inputs.version }}'
+          $key = '${{ steps.nuget-login.outputs.NUGET_API_KEY }}'
+          dotnet nuget push "artifacts/nuget/KillerPdf.Engine.$version.nupkg" --api-key $key --source https://api.nuget.org/v3/index.json --skip-duplicate
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet nuget push "artifacts/nuget/KillerPdf.Engine.$version.snupkg" --api-key $key --source https://api.nuget.org/v3/index.json --skip-duplicate
+          exit $LASTEXITCODE
