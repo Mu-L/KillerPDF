@@ -19,6 +19,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Transform can now preview settings page by page, apply them to every selected page as one undoable batch, convert pages to grayscale or thresholded black and white, resample from 72 to 600 DPI, and use selectable JPEG compression (#173, #204).
 - OCR can now use existing form-field geometry as recognition boundaries, apply numeric constraints, read comb fields cell by cell, honor maximum lengths, and validate close matches against choice lists. Plain OCR remains the default (#242).
 - Multiple selected page thumbnails can now be dragged as one ordered block. PDFs and images can also be dropped at an exact position or merged directly after a selected page (#233).
+- Pages can now be copied between documents in split view by dragging their thumbnails onto the other document or into its Pages panel. The panel follows the document under the cursor, and a translucent page preview with a count badge shows what is being dragged (#213, thanks MattVW).
 - Text boxes now support adjustable letter spacing with live preview, spacing-aware wrapping, and matching PDF output for aligning characters with preprinted form boxes (#232).
 - A measurement tool now draws a temporary ruler on any rendered page and reports distance in inches, millimetres, and PDF points alongside the rotated page size (#162).
 - Italian is now available in the live language picker, with complete interface resources and matching Italian OCR support.

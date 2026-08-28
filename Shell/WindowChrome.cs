@@ -224,7 +224,7 @@ namespace KillerPDF
         private const int HTBOTTOM         = 15;
         private const int HTBOTTOMLEFT     = 16;
         private const int HTBOTTOMRIGHT    = 17;
-        private const int ResizeBorder     = 8;
+        private const int ResizeBorder     = 12;
 
         [StructLayout(LayoutKind.Sequential)]
         private struct POINT { public int x; public int y; }

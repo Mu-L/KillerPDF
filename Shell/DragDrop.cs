@@ -96,7 +96,11 @@ namespace KillerPDF
 
         private bool _pageDragArmed;
         private int _pageDropInsertionIndex = -1;
-        private FrameworkElement? _pageDragPreview;
+        private PageDragCursor? _pageDragCursor;
+        private System.Windows.Threading.DispatcherTimer? _pageDragScrollTimer;
+        private ScrollViewer? _pageDragScrollViewer;
+        private double _pageDragScrollVelocity;
+        private Point _pageDragPointer;
         private void PageList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _dragStartPoint = e.GetPosition(null);
@@ -148,7 +152,7 @@ namespace KillerPDF
                             session.CurrentFile,
                             selected[0],
                             session.PageRotations.TryGetValue(selected[0], out int rotation) ? rotation : 0);
-                        ShowPageDragPreview(thumbnail, selected.Length);
+                        _pageDragCursor = PageDragCursor.Create(thumbnail, selected.Length);
                         GiveFeedbackEventHandler feedback = PageDrag_GiveFeedback;
                         PageList.AddHandler(DragDrop.GiveFeedbackEvent, feedback);
                         DragDropEffects result = DragDropEffects.None;
@@ -160,7 +164,10 @@ namespace KillerPDF
                         finally
                         {
                             PageList.RemoveHandler(DragDrop.GiveFeedbackEvent, feedback);
-                            HidePageDragPreview();
+                            Mouse.OverrideCursor = null;
+                            _pageDragCursor?.Dispose();
+                            _pageDragCursor = null;
+                            StopPageDragAutoScroll();
                             Viewer.HidePageImportDropIndicator();
                             ViewerB.HidePageImportDropIndicator();
                             if (result == DragDropEffects.None)
@@ -172,72 +179,19 @@ namespace KillerPDF
             }
         }
 
-        private void ShowPageDragPreview(BitmapSource? thumbnail, int pageCount)
-        {
-            if (thumbnail is null) return;
-            const double maxWidth = 104;
-            const double maxHeight = 138;
-            double scale = Math.Min(maxWidth / thumbnail.PixelWidth, maxHeight / thumbnail.PixelHeight);
-            var image = new Image
-            {
-                Source = thumbnail,
-                Width = thumbnail.PixelWidth * scale,
-                Height = thumbnail.PixelHeight * scale,
-                Stretch = Stretch.Fill,
-                Opacity = 0.5
-            };
-            var preview = new Grid();
-            preview.Children.Add(new Border
-            {
-                Child = image,
-                BorderBrush = Brushes.Black,
-                BorderThickness = new Thickness(1),
-                Background = Brushes.White
-            });
-            if (pageCount > 1)
-            {
-                preview.Children.Add(new Border
-                {
-                    Background = Brushes.Black,
-                    CornerRadius = new CornerRadius(9),
-                    Padding = new Thickness(6, 2, 6, 2),
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    VerticalAlignment = VerticalAlignment.Top,
-                    Margin = new Thickness(0, -7, -9, 0),
-                    Child = new TextBlock
-                    {
-                        Text = pageCount.ToString(),
-                        Foreground = Brushes.White,
-                        FontSize = 11,
-                        FontWeight = FontWeights.SemiBold
-                    }
-                });
-            }
-            _pageDragPreview = preview;
-            PageDragPreviewLayer.Children.Add(preview);
-            UpdatePageDragPreview();
-        }
-
         private void PageDrag_GiveFeedback(object sender, GiveFeedbackEventArgs e)
         {
-            UpdatePageDragPreview();
-            e.UseDefaultCursors = true;
+            if (_pageDragCursor is null)
+            {
+                e.UseDefaultCursors = true;
+            }
+            else
+            {
+                e.UseDefaultCursors = false;
+                Mouse.OverrideCursor = _pageDragCursor.Cursor;
+                Mouse.SetCursor(_pageDragCursor.Cursor);
+            }
             e.Handled = true;
-        }
-
-        private void UpdatePageDragPreview()
-        {
-            if (_pageDragPreview is null) return;
-            Point cursor = Mouse.GetPosition(PageDragPreviewLayer);
-            Canvas.SetLeft(_pageDragPreview, cursor.X + 16);
-            Canvas.SetTop(_pageDragPreview, cursor.Y + 16);
-        }
-
-        private void HidePageDragPreview()
-        {
-            if (_pageDragPreview is not null)
-                PageDragPreviewLayer.Children.Remove(_pageDragPreview);
-            _pageDragPreview = null;
         }
 
         internal void DropZone_Drop(object _, DragEventArgs e)
@@ -320,6 +274,7 @@ namespace KillerPDF
 
         private void PageList_DragOver(object sender, DragEventArgs e)
         {
+            UpdatePageDragAutoScroll(e.GetPosition(PageList));
             // #172: files dropped onto the Pages sidebar append to the open document,
             // so the list accepts FileDrop as well as its own page-reorder payload.
             if (e.Data.GetDataPresent(typeof(PageDragPayload))
@@ -347,7 +302,61 @@ namespace KillerPDF
             e.Handled = true;
         }
 
-        private void PageList_DragLeave(object sender, DragEventArgs e) => HidePageDropIndicator();
+        private void PageList_DragLeave(object sender, DragEventArgs e)
+        {
+            StopPageDragAutoScroll();
+            HidePageDropIndicator();
+        }
+
+        private void UpdatePageDragAutoScroll(Point pointer)
+        {
+            _pageDragPointer = pointer;
+            double edge = Math.Min(84, PageList.ActualHeight / 3);
+            double ratio = pointer.Y < edge
+                ? -(edge - Math.Max(0, pointer.Y)) / edge
+                : pointer.Y > PageList.ActualHeight - edge
+                    ? (edge - Math.Max(0, PageList.ActualHeight - pointer.Y)) / edge
+                    : 0;
+            _pageDragScrollVelocity = Math.Sign(ratio) * ratio * ratio * 32;
+            if (_pageDragScrollVelocity == 0)
+            {
+                StopPageDragAutoScroll();
+                return;
+            }
+
+            _pageDragScrollViewer ??= FindPageListScrollViewer(PageList);
+            if (_pageDragScrollViewer is null) return;
+            _pageDragScrollTimer ??= new System.Windows.Threading.DispatcherTimer(
+                TimeSpan.FromMilliseconds(30),
+                System.Windows.Threading.DispatcherPriority.Input,
+                (_, _) =>
+                {
+                    if (_pageDragScrollViewer is null) return;
+                    _pageDragScrollViewer.ScrollToVerticalOffset(
+                        _pageDragScrollViewer.VerticalOffset + _pageDragScrollVelocity);
+                    ShowPageDropIndicator(_pageDragPointer);
+                },
+                Dispatcher);
+            _pageDragScrollTimer.Start();
+        }
+
+        private void StopPageDragAutoScroll()
+        {
+            _pageDragScrollVelocity = 0;
+            _pageDragScrollTimer?.Stop();
+        }
+
+        private static ScrollViewer? FindPageListScrollViewer(DependencyObject parent)
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                DependencyObject child = VisualTreeHelper.GetChild(parent, i);
+                if (child is ScrollViewer scrollViewer) return scrollViewer;
+                ScrollViewer? nested = FindPageListScrollViewer(child);
+                if (nested is not null) return nested;
+            }
+            return null;
+        }
 
         /// <summary>Returns the insertion slot from 0 through Count and the matching visual Y.
         /// Both the marker and the drop consume this result so what the user sees is authoritative.</summary>
@@ -490,6 +499,7 @@ namespace KillerPDF
 
         private void PageList_Drop(object sender, DragEventArgs e)
         {
+            StopPageDragAutoScroll();
             if (_doc != null
                 && e.Data.GetDataPresent(typeof(PageDragPayload))
                 && e.Data.GetData(typeof(PageDragPayload)) is PageDragPayload pages

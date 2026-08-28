@@ -24,7 +24,7 @@
          min/max/close buttons opt back into hit-testing with IsHitTestVisibleInChrome. -->
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="{DynamicResource TitleBarHeight}"
-                      ResizeBorderThickness="8"
+                      ResizeBorderThickness="12"
                       CornerRadius="0"
                       GlassFrameThickness="0"
                       NonClientFrameEdges="None"
@@ -2560,8 +2560,6 @@
                  because the flush pane's own border stopped at the column edge. The pane is a
                  rounded inset card now, so a full-width rule at that ZIndex would cut straight
                  across both curved corners and over the 8px gap. (2026-07-31.) -->
-            <Canvas x:Name="PageDragPreviewLayer" Grid.ColumnSpan="3" Grid.RowSpan="2"
-                    Panel.ZIndex="1000" IsHitTestVisible="False"/>
         </Grid>
 
         <!-- Status bar.
