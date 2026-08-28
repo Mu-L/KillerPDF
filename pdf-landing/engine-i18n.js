@@ -5,7 +5,7 @@
   nodes.forEach(function (node, index) { node.setAttribute('data-i18n', 'engine_' + index); });
   var translated = {
   "it": [
-    "Fonte",
+    "Scarica",
     "Aiuto",
     "Tecnico",
     "Motore",
@@ -144,7 +144,7 @@
     "<a href=\"https://github.com/SteveTheKiller/KillerPDF\" target=\"_blank\" rel=\"noopener\">Fonte su GitHub</a> · GPLv3 · Parte di <a href=\"https://killertools.net\" target=\"_blank\" rel=\"noopener\">killertools.net</a>"
   ],
   "hu": [
-    "Forrás",
+    "Letöltés",
     "Súgó",
     "Technikai",
     "Motor",
@@ -283,7 +283,7 @@
     "<a href=\"https://github.com/SteveTheKiller/KillerPDF\" target=\"_blank\" rel=\"noopener\">Forrás a GitHubon</a> · GPLv3 · A <a href=\"https://killertools.net\" target=\"_blank\" rel=\"noopener\">killertools.net</a> része"
   ],
   "pl": [
-    "Źródło",
+    "Pobierz",
     "Pomoc",
     "Techniczna",
     "Silnik",
@@ -422,7 +422,7 @@
     "<a href=\"https://github.com/SteveTheKiller/KillerPDF\" target=\"_blank\" rel=\"noopener\">Źródło w GitHub</a> · GPLv3 · Część <a href=\"https://killertools.net\" target=\"_blank\" rel=\"noopener\">killertools.net</a>"
   ],
   "cs": [
-    "Zdroj",
+    "Stáhnout",
     "Nápověda",
     "Technická",
     "Motor",
@@ -561,7 +561,7 @@
     "<a href=\"https://github.com/SteveTheKiller/KillerPDF\" target=\"_blank\" rel=\"noopener\">Zdroj na GitHubu</a> · GPLv3 · Část <a href=\"https://killertools.net\" target=\"_blank\" rel=\"noopener\">killertools.net</a>"
   ],
   "es": [
-    "Fuente",
+    "Descargar",
     "Ayuda",
     "Técnico",
     "Motor",
@@ -700,7 +700,7 @@
     "<a href=\"https://github.com/SteveTheKiller/KillerPDF\" target=\"_blank\" rel=\"noopener\">Fuente en GitHub</a> · GPLv3 · Parte de <a href=\"https://killertools.net\" target=\"_blank\" rel=\"noopener\">killertools.net</a>"
   ],
   "de": [
-    "Quelle",
+    "Herunterladen",
     "Hilfe",
     "Technisch",
     "Engine",
@@ -839,7 +839,7 @@
     "<a href=\"https://github.com/SteveTheKiller/KillerPDF\" target=\"_blank\" rel=\"noopener\">Quelle auf GitHub</a> · GPLv3 · Teil von <a href=\"https://killertools.net\" target=\"_blank\" rel=\"noopener\">killertools.net</a>"
   ],
   "fr": [
-    "Source",
+    "Télécharger",
     "Aide",
     "Technique",
     "Moteur",
@@ -978,7 +978,7 @@
     "<a href=\"https://github.com/SteveTheKiller/KillerPDF\" target=\"_blank\" rel=\"noopener\">Source sur GitHub</a> · GPLv3 · Fait partie de <a href=\"https://killertools.net\" target=\"_blank\" rel=\"noopener\">killertools.net</a>"
   ],
   "tr": [
-    "Kaynak",
+    "İndir",
     "Yardım",
     "Teknik",
     "Motor",
@@ -1117,7 +1117,7 @@
     "<a href = \"https://github.com/SteveTheKiller/KillerPDF\" target = \"_blank\" rel = \"noopener\">GitHub'daki kaynak</a> · GPLv3 · <a href = \"https://killertools.net\" target = \"_blank\" rel = \"noopener\">killertools.net</a>"
   ],
   "zh": [
-    "來源",
+    "下載",
     "幫助",
     "技術",
     "引擎",
@@ -1256,7 +1256,7 @@
     "<a href=\"https://github.com/SteveTheKiller/KillerPDF\" target=\"_blank\" rel=\"noopener\">GitHub 上的源代碼</a> · GPLv3 · <a href=\"https://killertools.net\" target=\"_blank\" rel=\"noopener\">killkillertool>"
   ],
   "zh-cn": [
-    "来源",
+    "下载",
     "帮助",
     "技术",
     "引擎",
@@ -1395,7 +1395,7 @@
     "<a href=\"https://github.com/SteveTheKiller/KillerPDF\" target=\"_blank\" rel=\"noopener\">GitHub 上的源代码</a> · GPLv3 · <a href=\"https://killertools.net\" target=\"_blank\" rel=\"noopener\">killertools.net</a>"
   ],
   "bn": [
-    "উৎস",
+    "ডাউনলোড",
     "সহায়তা",
     "প্রযুক্তিগত",
     "ইঞ্জিন",
@@ -1534,7 +1534,7 @@
     "<a href=\"https://github.com/SteveTheKiller/KillerPDF\" target=\"_blank\" rel=\"noopener\">GitHub-এর উৎস</a> · GPLv3 · <a href=\"https://killertools.net\" target=\"_blank\" rel=\"noopener\">killertools.net</a> এর অংশ"
   ],
   "ja": [
-    "ソース",
+    "ダウンロード",
     "ヘルプ",
     "技術",
     "エンジン",
@@ -1673,7 +1673,7 @@
     "<a href=\"https://github.com/SteveTheKiller/KillerPDF\" target=\"_blank\" rel=\"noopener\">GitHub のソース</a> · GPLv3 · <a href=\"https://killertools.net\" target=\"_blank\" rel=\"noopener\">killertools.net</a>"
   ],
   "kk": [
-    "Дереккөз",
+    "Жүктеп алу",
     "Анықтама",
     "Техникалық",
     "Қозғалтқыш",
