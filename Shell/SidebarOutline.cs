@@ -473,8 +473,21 @@ namespace KillerPDF
 
         private void OutlineTree_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (!CanEditBookmarks) return;
             if (e.OriginalSource is TextBox) return;   // inline rename in progress: Delete edits text, not bookmarks
+            if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                if (!e.IsRepeat) Undo_Click(this, e);
+                e.Handled = true;
+                return;
+            }
+            if (e.Key == Key.Z
+                && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                if (!e.IsRepeat) Redo_Click(this, e);
+                e.Handled = true;
+                return;
+            }
+            if (!CanEditBookmarks) return;
             var primary = (OutlineTree.SelectedItem as TreeViewItem)?.Tag as OutlineNodeRef;
             if (e.Key == Key.Delete && (primary is not null || _bmExtraSel.Count > 0))
             {
