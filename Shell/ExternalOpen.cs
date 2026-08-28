@@ -38,8 +38,32 @@ namespace KillerPDF
                 ActiveViewer.OpenInNewTabExt(path!);
                 return;
             }
-            if (ProtocolRegistrar.TryGetTargetUrl(path, out var target) && target != null)
+            if (ProtocolRegistrar.TryGetTargetUrl(path, out var target, out var rejection) && target != null)
+            {
                 await OpenProtocolUrlAsync(target);
+                return;
+            }
+            // #267 follow-up: say why a killerpdf: launch was refused. Without this the browser
+            // hands off, the app comes up on an empty viewer and nothing explains it. NotAHandoff
+            // stays silent because that is a plain path that simply is not on disk any more.
+            if (rejection != ProtocolRegistrar.HandoffRejection.NotAHandoff)
+                ShowRefusedHandoff(rejection);
+        }
+
+        /// <summary>The same dialog a failed browser download gets, with the refusal as the reason.</summary>
+        private void ShowRefusedHandoff(ProtocolRegistrar.HandoffRejection rejection)
+        {
+            string reason = rejection switch
+            {
+                ProtocolRegistrar.HandoffRejection.UnknownCommand => Loc("Str_Handoff_UnknownCommand"),
+                ProtocolRegistrar.HandoffRejection.MissingUrl => Loc("Str_Handoff_MissingUrl"),
+                ProtocolRegistrar.HandoffRejection.MalformedUrl => Loc("Str_Handoff_MalformedUrl"),
+                ProtocolRegistrar.HandoffRejection.SchemeNotAllowed => Loc("Str_Handoff_SchemeNotAllowed"),
+                _ => Loc("Str_Handoff_Unusable"),
+            };
+            KillerDialog.Show(this,
+                Loc("Str_Handoff_Failed") + "\n\n" + reason,
+                "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         /// <summary>Replay whatever arrived during startup. No-op in the normal case.</summary>
