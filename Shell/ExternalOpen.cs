@@ -21,6 +21,21 @@ namespace KillerPDF
         /// <summary>A forwarded path that arrived before the panes existed, replayed from Loaded.</summary>
         private string? _pendingExternalPath;
 
+        private enum BrowserOpenFailure
+        {
+            TooLarge,
+            NotPdf,
+            DownloadFailed,
+            TimedOut,
+            FileError,
+            Unusable,
+        }
+
+        private sealed class BrowserOpenException(BrowserOpenFailure failure) : System.Exception
+        {
+            internal BrowserOpenFailure Failure { get; } = failure;
+        }
+
         public async void OpenFromExternal(string? path)
         {
             // A second launch is forwarded here off the pipe thread, and Application.MainWindow is
@@ -85,7 +100,7 @@ namespace KillerPDF
                 response.EnsureSuccessStatusCode();
                 const long MaxBytes = 256L * 1024 * 1024;
                 if (response.Content.Headers.ContentLength is long length && length > MaxBytes)
-                    throw new InvalidDataException("The PDF is larger than the 256 MB browser handoff limit.");
+                    throw new BrowserOpenException(BrowserOpenFailure.TooLarge);
 
                 using (var input = await response.Content.ReadAsStreamAsync())
                 using (var output = File.Create(temp))
@@ -96,7 +111,8 @@ namespace KillerPDF
                     while ((read = await input.ReadAsync(buffer)) > 0)
                     {
                         total += read;
-                        if (total > MaxBytes) throw new InvalidDataException("The PDF is larger than the 256 MB browser handoff limit.");
+                        if (total > MaxBytes)
+                            throw new BrowserOpenException(BrowserOpenFailure.TooLarge);
                         await output.WriteAsync(buffer.AsMemory(0, read));
                     }
                 }
@@ -106,17 +122,39 @@ namespace KillerPDF
                     var magic = new byte[5];
                     if (check.Read(magic, 0, magic.Length) != magic.Length ||
                         System.Text.Encoding.ASCII.GetString(magic) != "%PDF-")
-                        throw new InvalidDataException("The downloaded file is not a PDF.");
+                        throw new BrowserOpenException(BrowserOpenFailure.NotPdf);
                 }
                 ActiveViewer.OpenInNewTabExt(temp);
             }
             catch (System.Exception ex)
             {
                 try { File.Delete(temp); } catch { }
-                KillerDialog.Show(this,
-                    $"KillerPDF could not open the browser PDF.\n\n{ex.Message}",
-                    "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Warning);
+                BrowserOpenFailure failure = ex switch
+                {
+                    BrowserOpenException known => known.Failure,
+                    TaskCanceledException => BrowserOpenFailure.TimedOut,
+                    HttpRequestException => BrowserOpenFailure.DownloadFailed,
+                    IOException => BrowserOpenFailure.FileError,
+                    _ => BrowserOpenFailure.Unusable,
+                };
+                ShowBrowserOpenFailure(failure);
             }
+        }
+
+        private void ShowBrowserOpenFailure(BrowserOpenFailure failure)
+        {
+            string reason = failure switch
+            {
+                BrowserOpenFailure.TooLarge => Loc("Str_Handoff_TooLarge"),
+                BrowserOpenFailure.NotPdf => Loc("Str_Handoff_NotPdf"),
+                BrowserOpenFailure.DownloadFailed => Loc("Str_Handoff_DownloadFailed"),
+                BrowserOpenFailure.TimedOut => Loc("Str_Handoff_TimedOut"),
+                BrowserOpenFailure.FileError => Loc("Str_Handoff_FileError"),
+                _ => Loc("Str_Handoff_Unusable"),
+            };
+            KillerDialog.Show(this,
+                Loc("Str_Handoff_Failed") + "\n\n" + reason,
+                "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         public void RestoreAndActivate()

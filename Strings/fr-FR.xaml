@@ -984,4 +984,9 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Handoff_MalformedUrl">The PDF address in the handoff could not be read.</sys:String>
     <sys:String x:Key="Str_Handoff_SchemeNotAllowed">KillerPDF only opens browser handoffs over https.</sys:String>
     <sys:String x:Key="Str_Handoff_Unusable">The browser handoff could not be used.</sys:String>
+    <sys:String x:Key="Str_Handoff_TooLarge">The PDF is larger than the 256 MB browser handoff limit.</sys:String>
+    <sys:String x:Key="Str_Handoff_NotPdf">The downloaded file is not a PDF.</sys:String>
+    <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF could not download the PDF.</sys:String>
+    <sys:String x:Key="Str_Handoff_TimedOut">The PDF download timed out.</sys:String>
+    <sys:String x:Key="Str_Handoff_FileError">KillerPDF could not save or read the downloaded PDF.</sys:String>
 </ResourceDictionary>

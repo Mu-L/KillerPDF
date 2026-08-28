@@ -74,6 +74,25 @@ public sealed class LocalizationParityTests
         }
     }
 
+    [Fact]
+    public void BrowserHandoffMessagesAreNotHardcoded()
+    {
+        string root = Directory.GetParent(StringsDirectory)!.FullName;
+        string source = File.ReadAllText(Path.Combine(root, "Shell", "ExternalOpen.cs"));
+        string[] messages =
+        [
+            "KillerPDF could not open the browser PDF.",
+            "The PDF is larger than the 256 MB browser handoff limit.",
+            "The downloaded file is not a PDF.",
+            "KillerPDF could not download the PDF.",
+            "The PDF download timed out.",
+            "KillerPDF could not save or read the downloaded PDF."
+        ];
+
+        foreach (string message in messages)
+            Assert.DoesNotContain(message, source);
+    }
+
     private static Dictionary<string, string> ReadStrings(string path) =>
         XDocument.Load(path).Root!.Elements()
             .Where(e => e.Attribute(Xaml + "Key") is not null)
