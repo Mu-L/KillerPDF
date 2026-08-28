@@ -1,6 +1,6 @@
 /* Generated translations for engine.html. English remains in the page as the fallback. */
 (function () {
-  var selector = ".tb-dl span,.tb-nav a,.sb-tabs .on,.outline a,.page-hero .eyebrow,.page-hero p,.metric span,.engine-sec h2,.engine-sec>p,.boundary strong,.boundary li,.cap h3,.cap p,.spec-table th,.spec-table td,.callout,.engine-sec>h3,.workflow li,.source-links a,.statusbar .left";
+  var selector = ".tb-dl span,.tb-nav a,.sb-tabs .on,.outline a,.page-hero .eyebrow,.page-hero p,.metric span,.engine-sec h2,.engine-sec>p,.boundary strong,.boundary li,.cap h3,.cap p,.spec-table th,.spec-table td,.callout,.engine-sec>h3,.workflow li,.source-links a:not(.nuget-package),.statusbar .left";
   var nodes = [].slice.call(document.querySelectorAll(selector));
   nodes.forEach(function (node, index) { node.setAttribute('data-i18n', 'engine_' + index); });
   var translated = {
@@ -1818,4 +1818,3 @@
     translated[locale].forEach(function (value, index) { window.I18N[locale]['engine_' + index] = value; });
   });
 })();
-

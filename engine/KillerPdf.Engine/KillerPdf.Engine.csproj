@@ -9,13 +9,22 @@
     <AssemblyName>KillerPdf.Engine</AssemblyName>
     <Version>1.8.0</Version>
     <PackageId>KillerPdf.Engine</PackageId>
+    <Title>The KillerPDF.Engine</Title>
     <Authors>Steve the Killer</Authors>
+    <Copyright>Copyright (c) 2026 Steve the Killer</Copyright>
     <Description>An independent .NET PDF 2.0 document engine for reading, validating, authoring, editing, signing, encrypting, and writing PDF files.</Description>
+    <PackageTags>pdf;pdf-2.0;pdf-a;pdf-ua;validation;authoring;signing;encryption;document-processing;csharp</PackageTags>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/SteveTheKiller/KillerPDF</PackageProjectUrl>
+    <PackageProjectUrl>https://killerpdf.net/engine.html</PackageProjectUrl>
     <RepositoryUrl>https://github.com/SteveTheKiller/KillerPDF</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReleaseNotes>https://github.com/SteveTheKiller/KillerPDF/blob/main/engine/CHANGELOG.md</PackageReleaseNotes>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
@@ -25,6 +34,7 @@
 
   <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include="icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
