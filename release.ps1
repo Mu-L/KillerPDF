@@ -413,7 +413,7 @@ try {
     # Ported from Killendar's release.ps1 step 7 (the family standard - KillerNotes has it
     # too; KillerPDF was the odd one out and its hero went stale by hand every release).
     # killerpdf.net is a MANUAL Cloudflare Pages drop, so nothing here deploys - the hero
-    # block (version, released, size, sha256), the verEgg footer on every page, and the ten
+    # block (version, released, size, sha256), the verEgg footer on every page, and the
     # translated footers in kp-i18n.js are rewritten and committed BEFORE the tag.
     # Two site-specific differences from Killendar's copy: the hash is stored LOWERCASE
     # here, and the size row carries a '~' prefix. ReadAllText/WriteAllText keep the files
@@ -446,14 +446,14 @@ try {
         Write-Host "      released : $releaseDate"
         Write-Host "      size     : ~$exeMB MB exe"
         Write-Host "      sha256   : $hashLower"
-        Write-Host "      verEgg   : v$Version on index, help, technical, about + kp-i18n.js"
+        Write-Host "      verEgg   : v$Version on index, help, technical, engine, about + kp-i18n.js"
     } else {
         if ($indexNew -ne $indexRaw) { [System.IO.File]::WriteAllText($indexPath, $indexNew) }
 
-        # Footer version on every page, plus the ten translated footer strings in kp-i18n.js
+        # Footer version on every page, plus the translated footer strings in kp-i18n.js
         # (their verEgg span is spelled with escaped quotes there, hence the \\? in the
         # pattern matching both id="verEgg" and id=\"verEgg\").
-        foreach ($page in 'index.html', 'help.html', 'technical.html', 'about.html', 'kp-i18n.js') {
+        foreach ($page in 'index.html', 'help.html', 'technical.html', 'engine.html', 'about.html', 'kp-i18n.js') {
             $p = Join-Path $siteDir $page
             if (-not (Test-Path $p)) { continue }
             $raw = [System.IO.File]::ReadAllText($p)
