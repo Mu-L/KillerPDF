@@ -479,6 +479,7 @@
                               HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Auto"
                               PanningMode="Both"
+                              IsManipulationEnabled="True"
                               Background="Transparent"
                               FocusVisualStyle="{x:Null}"
                               PreviewMouseWheel="PagePreview_PreviewMouseWheel"

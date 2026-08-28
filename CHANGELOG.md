@@ -22,7 +22,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Text boxes now support adjustable letter spacing with live preview, spacing-aware wrapping, and matching PDF output for aligning characters with preprinted form boxes (#232).
 - A measurement tool now draws a temporary ruler on any rendered page and reports distance in inches, millimetres, and PDF points alongside the rotated page size (#162).
 - Italian is now available in the live language picker, with complete interface resources and matching Italian OCR support.
-- Touchscreen users can now pan the document viewport with one finger in every page layout (#271).
+- Touchscreen users can now pan the document viewport with one finger and pinch around a focal point to zoom in every page layout (#271).
 - Dragging a page thumbnail now shows a theme-colored insertion line at the exact before-or-after drop position in the Pages sidebar.
 - The Select tool now shows an I-beam only over selectable PDF text in every view while retaining the hand cursor over links (#221).
 - Draggable controls now show open-hand and closed-hand cursors across annotation bars, the find bar, signature popup, page panning, stamp placement, and Transform perspective handles.

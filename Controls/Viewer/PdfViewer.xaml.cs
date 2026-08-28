@@ -29,7 +29,18 @@ namespace KillerPDF.Controls
         /// gets its own simply by existing.</summary>
         internal ViewerState State { get; } = new();
 
-        public PdfViewer() => InitializeComponent();
+        public PdfViewer()
+        {
+            InitializeComponent();
+            // ScrollViewer consumes manipulation events for one-finger panning. Listen even when
+            // they are already marked handled so a two-finger scale can share that input surface.
+            PagePreviewPanel.AddHandler(ManipulationStartingEvent,
+                new EventHandler<ManipulationStartingEventArgs>(PagePreview_ManipulationStarting), true);
+            PagePreviewPanel.AddHandler(ManipulationDeltaEvent,
+                new EventHandler<ManipulationDeltaEventArgs>(PagePreview_ManipulationDelta), true);
+            PagePreviewPanel.AddHandler(ManipulationCompletedEvent,
+                new EventHandler<ManipulationCompletedEventArgs>(PagePreview_ManipulationCompleted), true);
+        }
 
         /// <summary>
         /// Build this pane's tile tree. Every pane must do this for itself: routed through

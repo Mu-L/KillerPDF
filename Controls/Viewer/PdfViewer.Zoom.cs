@@ -28,6 +28,7 @@ namespace KillerPDF.Controls
     public partial class PdfViewer
     {
         private readonly WheelPageFlipGate _wheelPageFlipGate = new();
+        private bool _pinchZooming;
 
         // ============================================================
         // Zoom
@@ -163,6 +164,55 @@ namespace KillerPDF.Controls
         // Zoom ratio per full wheel notch (e.Delta = 120) for Ctrl+scroll. 1.1 lands close to the
         // old additive step at 100% zoom but stays a constant 10% everywhere on the range.
         private const double WheelZoomFactor = 1.1;
+
+        private void PagePreview_ManipulationStarting(object? sender, ManipulationStartingEventArgs e)
+        {
+            _pinchZooming = false;
+            e.ManipulationContainer = PagePreviewPanel;
+            e.Mode = ManipulationModes.Translate | ManipulationModes.Scale;
+        }
+
+        private void PagePreview_ManipulationDelta(object? sender, ManipulationDeltaEventArgs e)
+        {
+            double scale = (e.DeltaManipulation.Scale.X + e.DeltaManipulation.Scale.Y) / 2.0;
+            if (!double.IsFinite(scale) || scale <= 0) return;
+
+            // A one-finger gesture reports a scale of 1 and belongs to the ScrollViewer's normal
+            // panning path. Once a second finger changes the scale, own the rest of this gesture so
+            // ScrollViewer does not translate the document underneath the pinch focal point (#271).
+            if (!_pinchZooming && Math.Abs(scale - 1.0) < 0.002) return;
+            _pinchZooming = true;
+            e.Handled = true;
+            if (_doc is null) return;
+
+            Point origin = e.ManipulationOrigin;
+            PinchZoomResult result = PinchZoomMath.Apply(
+                _zoomLevel, scale, ZoomMin, ZoomMax,
+                PagePreviewPanel.HorizontalOffset, PagePreviewPanel.VerticalOffset,
+                origin.X, origin.Y);
+            if (Math.Abs(result.Zoom - _zoomLevel) < 0.000001) return;
+
+            _fitMode = FitMode.None;
+            _zoomLevel = result.Zoom;
+            ApplyZoom(lite: true);
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)(() =>
+            {
+                PagePreviewPanel.ScrollToHorizontalOffset(result.HorizontalOffset);
+                PagePreviewPanel.ScrollToVerticalOffset(result.VerticalOffset);
+            }));
+        }
+
+        private void PagePreview_ManipulationCompleted(object? sender, ManipulationCompletedEventArgs e)
+        {
+            if (!_pinchZooming) return;
+            e.Handled = true;
+            _pinchZooming = false;
+            if (_doc is null) return;
+            _zoomSettleTimer?.Stop();
+            ApplyZoom();
+            if (_currentPage >= 0)
+                SetStatus(string.Format(Loc("Str_PageOf"), _currentPage + 1, _doc.PageCount) + $" - {DisplayZoomPct():F0}%");
+        }
 
         // Wheel over the toolbar zoom dropdown: same multiplicative step as Ctrl+scroll, without
         // the cursor anchoring (the cursor is on the toolbar, not the page). Handled is set so the
