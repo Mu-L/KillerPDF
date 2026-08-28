@@ -128,6 +128,7 @@ public sealed class PdfIncrementalPageEditor
     ];
 
     private readonly PdfDocument _document;
+    private List<AppearanceFontResource>? _reusableAppearanceFonts;
     private readonly PdfPageTree _tree;
     private readonly List<PageState> _pages;
     private bool _orderChanged;
@@ -3109,19 +3110,22 @@ public sealed class PdfIncrementalPageEditor
         }
     }
 
-    private static void SeedCompatibleAppearanceFonts(
+    private void SeedCompatibleAppearanceFonts(
         PdfDocument sourceDocument, PdfObject sourceNormal,
         PdfDocument destinationDocument, PdfDictionary destinationAppearance,
         PdfObjectGraphImporter importer)
     {
-        if (!destinationAppearance.TryGetValue(
-                NormalAppearanceName, out PdfObject? destinationNormal))
-            return;
-
         IReadOnlyList<AppearanceFontResource> sourceFonts = AppearanceFonts(
             sourceDocument, sourceNormal);
-        IReadOnlyList<AppearanceFontResource> destinationFonts = AppearanceFonts(
-            destinationDocument, destinationNormal);
+        var destinationFonts = new List<AppearanceFontResource>();
+        if (destinationAppearance.TryGetValue(
+                NormalAppearanceName, out PdfObject? destinationNormal))
+            destinationFonts.AddRange(AppearanceFonts(destinationDocument, destinationNormal));
+        // A field can temporarily switch back to a standard Latin font, leaving a wider Unicode
+        // subset from an earlier revision outside its current /AP graph. Search every current xref
+        // object for KillerPDF Type0 fonts so that earlier superset remains reusable (#256).
+        destinationFonts.AddRange(ReusableAppearanceFonts().Where(candidate =>
+            destinationFonts.All(current => !current.Reference.Equals(candidate.Reference))));
         var seededDestinations = new HashSet<(int ObjectNumber, int Generation)>();
         foreach (AppearanceFontResource source in sourceFonts)
         {
@@ -3133,6 +3137,30 @@ public sealed class PdfIncrementalPageEditor
             importer.SeedReference(source.Reference, match.Reference);
             seededDestinations.Add((match.Reference.ObjectNumber, match.Reference.Generation));
         }
+    }
+
+    private IReadOnlyList<AppearanceFontResource> ReusableAppearanceFonts()
+    {
+        if (_reusableAppearanceFonts is not null) return _reusableAppearanceFonts;
+        _reusableAppearanceFonts = [];
+        foreach (var entry in _document.CrossReferences.Values)
+        {
+            if (entry.Type is not (KillerPdf.Engine.CrossReference.PdfCrossReferenceEntryType.InUse
+                or KillerPdf.Engine.CrossReference.PdfCrossReferenceEntryType.Compressed)) continue;
+            int generation = entry.Type == KillerPdf.Engine.CrossReference.PdfCrossReferenceEntryType.InUse
+                ? entry.Field2 : 0;
+            var reference = new PdfIndirectReference(entry.ObjectNumber, generation);
+            PdfObject resolved;
+            try { resolved = _document.Resolve(reference); }
+            catch { continue; } // unrelated malformed objects must not prevent a valid field edit
+            if (resolved is not PdfDictionary font
+                || !font.TryGetValue(SubtypeName, out PdfObject? subtypeValue)
+                || ResolveValue(_document, subtypeValue) is not PdfName subtype
+                || subtype.ValueAsLatin1() != "Type0") continue;
+            var resource = new AppearanceFontResource(reference, font, _document);
+            if (IsKillerPdfIdentityFont(resource)) _reusableAppearanceFonts.Add(resource);
+        }
+        return _reusableAppearanceFonts;
     }
 
     private static List<AppearanceFontResource> AppearanceFonts(
@@ -3173,31 +3201,56 @@ public sealed class PdfIncrementalPageEditor
     private static bool CompatibleAppearanceFont(
         AppearanceFontResource source, AppearanceFontResource destination)
     {
-        return SameName(source, destination, BaseFontName)
-            && SameStream(source, destination, EncodingName)
-            && SameStream(source, destination, ToUnicodeName);
+        return SameFontFace(source, destination)
+            && IsKillerPdfIdentityFont(destination)
+            && CMapCovers(source, destination, EncodingName)
+            && CMapCovers(source, destination, ToUnicodeName);
     }
 
-    private static bool SameName(
-        AppearanceFontResource source, AppearanceFontResource destination, PdfName key)
+    private static bool SameFontFace(
+        AppearanceFontResource source, AppearanceFontResource destination)
     {
-        return source.Dictionary.TryGetValue(key, out PdfObject? sourceValue)
-            && destination.Dictionary.TryGetValue(key, out PdfObject? destinationValue)
+        return source.Dictionary.TryGetValue(BaseFontName, out PdfObject? sourceValue)
+            && destination.Dictionary.TryGetValue(BaseFontName, out PdfObject? destinationValue)
             && ResolveValue(source.Document, sourceValue) is PdfName sourceName
             && ResolveValue(destination.Document, destinationValue) is PdfName destinationName
-            && sourceName.Equals(destinationName);
+            && string.Equals(WithoutSubsetPrefix(sourceName.ValueAsLatin1()),
+                WithoutSubsetPrefix(destinationName.ValueAsLatin1()),
+                StringComparison.Ordinal);
     }
 
-    private static bool SameStream(
+    private static bool IsKillerPdfIdentityFont(AppearanceFontResource font)
+    {
+        if (!font.Dictionary.TryGetValue(EncodingName, out PdfObject? value)
+            || ResolveValue(font.Document, value) is not PdfStream stream) return false;
+        return Encoding.ASCII.GetString(PdfStreamDecoder.Decode(stream))
+            .Contains("/CMapName /KillerPDF-Identity", StringComparison.Ordinal);
+    }
+
+    private static bool CMapCovers(
         AppearanceFontResource source, AppearanceFontResource destination, PdfName key)
     {
-        return source.Dictionary.TryGetValue(key, out PdfObject? sourceValue)
+        if (!(source.Dictionary.TryGetValue(key, out PdfObject? sourceValue)
             && destination.Dictionary.TryGetValue(key, out PdfObject? destinationValue)
             && ResolveValue(source.Document, sourceValue) is PdfStream sourceStream
-            && ResolveValue(destination.Document, destinationValue) is PdfStream destinationStream
-            && PdfStreamDecoder.Decode(sourceStream).AsSpan().SequenceEqual(
-                PdfStreamDecoder.Decode(destinationStream));
+            && ResolveValue(destination.Document, destinationValue) is PdfStream destinationStream))
+            return false;
+        return CMapBytesCover(PdfStreamDecoder.Decode(sourceStream),
+            PdfStreamDecoder.Decode(destinationStream));
     }
+
+    internal static bool CMapBytesCover(byte[] requiredBytes, byte[] availableBytes) =>
+        CMapEntries(requiredBytes).IsSubsetOf(CMapEntries(availableBytes));
+
+    private static HashSet<string> CMapEntries(byte[] bytes) =>
+        new(Encoding.ASCII.GetString(bytes).Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => line.StartsWith('<') && (line.Contains("> <", StringComparison.Ordinal)
+                || line.Contains("> ", StringComparison.Ordinal))), StringComparer.Ordinal);
+
+    private static string WithoutSubsetPrefix(string name) =>
+        name.Length > 7 && name[6] == '+' && name[..6].All(character => character is >= 'A' and <= 'Z')
+            ? name[7..] : name;
 
     private static PdfObject ResolveValue(PdfDocument document, PdfObject value) =>
         value is PdfIndirectReference reference ? document.Resolve(reference) : value;

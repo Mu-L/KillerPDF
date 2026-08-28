@@ -89,6 +89,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine. Its detailed development history 
 - Transform now replaces its rasterized result page through The KillerPDF.Engine and resets that page's effective rotation while retaining its position in the document.
 
 ### Fixed
+- Repeated Unicode form edits now reuse any previously embedded KillerPDF font subset that covers the new value, even after an intervening Latin-only value or a different glyph set, so revisiting earlier form text no longer embeds another duplicate font program (#256, thanks Ryokoxx).
 - Silent all-users installation now refuses with exit code 10 before writing any files when the .NET 10 Desktop Runtime is unavailable, and portable payload verification accepts the launcher's own identity marker while continuing to reject unrelated unlisted files (#275, #279, thanks Ryokoxx).
 - Typewriter text keeps its on-screen vertical position after saving, and clicking dotted or underscored blanks on flattened forms now creates an empty text entry box over the detected field instead of selecting the surrounding label (#273, thanks bel57).
 - Typst bookmark outlines now remain enabled and navigate correctly when an `/XYZ` destination uses the valid zero value for retaining the current zoom (#269).

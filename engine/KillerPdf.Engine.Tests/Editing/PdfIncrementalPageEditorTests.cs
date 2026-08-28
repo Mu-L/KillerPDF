@@ -12908,6 +12908,46 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void SetTextFieldValue_ReusesEarlierSubsetAfterStandardFontIntervenes()
+    {
+        TrueTypeFont font = TrueTypeFont.Load(
+            TrueTypeFontTests.BuildTestFont(format12: true));
+        byte[] source = new PdfDocumentBuilder().AddBlankPage()
+            .AddTextField(0, "unicode", 20, 20, 160, 24, string.Empty, 11,
+                embeddedFont: font)
+            .Build();
+
+        byte[] unicode = new PdfIncrementalPageEditor(PdfDocument.Open(source))
+            .SetTextFieldValue("unicode", "😀", font)
+            .Build();
+        byte[] latin = new PdfIncrementalPageEditor(PdfDocument.Open(unicode))
+            .SetTextFieldValue("unicode", "Café")
+            .Build();
+        byte[] repeatedUnicode = new PdfIncrementalPageEditor(PdfDocument.Open(latin))
+            .SetTextFieldValue("unicode", "😀", font)
+            .Build();
+
+        Assert.Equal(2, CountAsciiOccurrences(unicode, "/FontFile2"));
+        Assert.Equal(2, CountAsciiOccurrences(latin, "/FontFile2"));
+        Assert.Equal(2, CountAsciiOccurrences(repeatedUnicode, "/FontFile2"));
+        Assert.True(repeatedUnicode.Length - latin.Length < 20_000);
+    }
+
+    [Fact]
+    public void EmbeddedFontCMapCoverageAcceptsSupersetAndRejectsMissingMapping()
+    {
+        byte[] narrow = Encoding.ASCII.GetBytes("<0001> <0041>\n<0002> <20AC>\n");
+        byte[] wide = Encoding.ASCII.GetBytes("<0001> <0041>\n<0002> <20AC>\n<0003> <2013>\n");
+        byte[] missing = Encoding.ASCII.GetBytes("<0001> <0041>\n");
+
+        var method = typeof(PdfIncrementalPageEditor).GetMethod("CMapBytesCover",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Assert.NotNull(method);
+        Assert.True((bool)method.Invoke(null, [narrow, wide])!);
+        Assert.False((bool)method.Invoke(null, [narrow, missing])!);
+    }
+
+    [Fact]
     public void SetFormWidgetRectangle_MovesIndirectWidgetAndPreservesFieldState()
     {
         byte[] source = new PdfDocumentBuilder().AddBlankPage()
