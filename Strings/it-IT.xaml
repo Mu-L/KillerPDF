@@ -375,7 +375,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Print_Source">Alimentazione carta</sys:String>
     <sys:String x:Key="Str_Print_SourceAuto">Predefinita stampante</sys:String>
     <sys:String x:Key="Str_Print_SecPrinter">STAMPANTE</sys:String>
-    <sys:String x:Key="Str_Print_SecLayout">LAYOUT</sys:String>
+    <sys:String x:Key="Str_Print_SecLayout">DISPOSIZIONE</sys:String>
     <sys:String x:Key="Str_Print_SecOutput">DESTINAZIONE</sys:String>
     <sys:String x:Key="Str_Print_Orientation">Orientamento</sys:String>
     <sys:String x:Key="Str_Print_Portrait">Verticale</sys:String>
@@ -472,7 +472,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Bar_LetterSpacing">Spaziatura:</sys:String>
     <sys:String x:Key="Str_Bar_Opacity">Opacità:</sys:String>
     <sys:String x:Key="Str_Bar_FillOpacity">Opacità riempimento:</sys:String>
-    <sys:String x:Key="Str_Bar_Font">Font:</sys:String>
+    <sys:String x:Key="Str_Bar_Font">Carattere:</sys:String>
     <sys:String x:Key="Str_Bar_Level">Livello</sys:String>
     <sys:String x:Key="Str_Bar_Eraser">Gomma</sys:String>
     <sys:String x:Key="Str_Bar_MoreColors">Altri colori...</sys:String>
@@ -557,7 +557,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Tf_CorrectPerspective">Correggi distorsione trapezoidale</sys:String>
     <sys:String x:Key="Str_Tf_PerspectiveHint">Trascina i quattro angoli sul contorno della pagina fotografata. Applica il raddrizzamento nel rettangolo.</sys:String>
     <sys:String x:Key="Str_Tf_ResetCorners">Ripristina angoli</sys:String>
-    <sys:String x:Key="Str_Tf_Output">Output: {0} × {1} in</sys:String>
+    <sys:String x:Key="Str_Tf_Output">Risultato: {0} × {1} pollici</sys:String>
     <sys:String x:Key="Str_Tf_ResetAll">Ripristina tutto</sys:String>
     <sys:String x:Key="Str_Tf_Reset">Ripristina</sys:String>
     <sys:String x:Key="Str_Tf_Cancel">Annulla</sys:String>
@@ -715,7 +715,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Key_Tab">Tab</sys:String>
     <sys:String x:Key="Str_Key_Scroll">Scorri</sys:String>
     <sys:String x:Key="Str_Key_Click">Clic</sys:String>
-    <sys:String x:Key="Str_Key_Or">or</sys:String>
+    <sys:String x:Key="Str_Key_Or">o</sys:String>
     <sys:String x:Key="Str_Key_WheelView">Rotella in visualizza</sys:String>
     <sys:String x:Key="Str_Key_WheelLogo">Rotella nel logo</sys:String>
     <sys:String x:Key="Str_Key_MiddleDrag">Trascinamento medio</sys:String>
@@ -900,8 +900,8 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Busy_OpeningProtected">Apertura PDF protetto...</sys:String>
     <sys:String x:Key="Str_St_HqAlready">Tutte le lingue selezionate sono già in alta qualità</sys:String>
     <sys:String x:Key="Str_St_HqNextTime">Alla successiva esecuzione dell'OCR verranno usati modelli in alta qualità</sys:String>
-    <sys:String x:Key="Str_Ocr_SuffixDownload">(download)</sys:String>
-    <sys:String x:Key="Str_Ocr_SuffixDownloadHq">(download HQ)</sys:String>
+    <sys:String x:Key="Str_Ocr_SuffixDownload">(scarica)</sys:String>
+    <sys:String x:Key="Str_Ocr_SuffixDownloadHq">(scarica HQ)</sys:String>
     <sys:String x:Key="Str_Dlg_SearchableSaved" xml:space="preserve">PDF ricercabile salvato:&#10;{0}&#10;&#10;{1} pagine elaborate, {2} parole riconosciute.</sys:String>
     <sys:String x:Key="Str_Dlg_Repaired" xml:space="preserve">'{0}' è stato correttamente riparato.&#10;&#10;Segnalibri, moduli, e altre funzionalità interattive potrebbero essere andate perse.&#10;Usa 'Salva con nome' per salvare il file riparato in una nuova posizione.</sys:String>
     <sys:String x:Key="Str_Dlg_RepairedRaster" xml:space="preserve">'{0}' è stato riparato rasterizzandolo con PDFium.&#10;&#10;Il testo non è selezionabile nella copia riparata.&#10;Usa 'Salva con nome' per salvare il file riparato in una nuova posizione.</sys:String>

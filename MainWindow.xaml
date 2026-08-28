@@ -2107,6 +2107,19 @@
                                                        Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
+                                    <RadioButton x:Name="LangItRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangItRadio_Checked">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Italiano" VerticalAlignment="Center"
+                                                       FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
+                                            <TextBlock Grid.Column="1" Text="it-IT" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
+                                                       Foreground="{DynamicResource MutedTextBrush}"/>
+                                        </Grid>
+                                    </RadioButton>
                                     <RadioButton x:Name="LangJaRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
                                                  Checked="LangJaRadio_Checked">
                                         <Grid>

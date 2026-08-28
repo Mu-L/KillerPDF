@@ -4,7 +4,7 @@ using System.Windows;
 
 namespace KillerPDF.Services
 {
-    internal enum Locale { EnUS, Es, ZhTW, ZhCN, Bn, TrTR, De, Fr, JaJP, CsCZ, PlPL, HuHU }
+    internal enum Locale { EnUS, Bn, CsCZ, De, Es, Fr, HuHU, ItIT, JaJP, PlPL, TrTR, ZhCN, ZhTW }
 
     internal static class LocaleManager
     {
@@ -73,17 +73,18 @@ namespace KillerPDF.Services
 
             Uri? overrideUri = locale switch
             {
+                Locale.Bn   => new Uri("pack://application:,,,/Strings/bn.xaml"),
+                Locale.CsCZ => new Uri("pack://application:,,,/Strings/cs-CZ.xaml"),
+                Locale.De   => new Uri("pack://application:,,,/Strings/de-DE.xaml"),
                 Locale.Es   => new Uri("pack://application:,,,/Strings/es.xaml"),
                 Locale.Fr   => new Uri("pack://application:,,,/Strings/fr-FR.xaml"),
-                Locale.ZhTW => new Uri("pack://application:,,,/Strings/zh-TW.xaml"),
-                Locale.ZhCN => new Uri("pack://application:,,,/Strings/zh-CN.xaml"),
-                Locale.Bn   => new Uri("pack://application:,,,/Strings/bn.xaml"),
-                Locale.TrTR => new Uri("pack://application:,,,/Strings/tr-TR.xaml"),
-                Locale.De   => new Uri("pack://application:,,,/Strings/de-DE.xaml"),
-                Locale.JaJP => new Uri("pack://application:,,,/Strings/ja-JP.xaml"),
-                Locale.CsCZ => new Uri("pack://application:,,,/Strings/cs-CZ.xaml"),
-                Locale.PlPL => new Uri("pack://application:,,,/Strings/pl-PL.xaml"),
                 Locale.HuHU => new Uri("pack://application:,,,/Strings/hu-HU.xaml"),
+                Locale.ItIT => new Uri("pack://application:,,,/Strings/it-IT.xaml"),
+                Locale.JaJP => new Uri("pack://application:,,,/Strings/ja-JP.xaml"),
+                Locale.PlPL => new Uri("pack://application:,,,/Strings/pl-PL.xaml"),
+                Locale.TrTR => new Uri("pack://application:,,,/Strings/tr-TR.xaml"),
+                Locale.ZhCN => new Uri("pack://application:,,,/Strings/zh-CN.xaml"),
+                Locale.ZhTW => new Uri("pack://application:,,,/Strings/zh-TW.xaml"),
                 _           => null,   // English: base only
             };
 

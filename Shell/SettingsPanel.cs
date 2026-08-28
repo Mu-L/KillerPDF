@@ -59,6 +59,7 @@ namespace KillerPDF
             LangJaRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.JaJP;
             LangPlRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.PlPL;
             LangHuRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.HuHU;
+            LangItRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.ItIT;
             // Sync view mode radios. Against the PENDING mode while a fade-wrapped switch is in
             // flight (_viewMode lags until the fade-out lands), so wheel-cycling with the flyout
             // open moves the checkmark in step instead of one notch behind.
@@ -536,6 +537,7 @@ namespace KillerPDF
         private void LangJaRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.JaJP);
         private void LangPlRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.PlPL);
         private void LangHuRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.HuHU);
+        private void LangItRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.ItIT);
 
         private void SelectLocale(KillerPDF.Services.Locale loc)
         {
@@ -645,7 +647,10 @@ namespace KillerPDF
             KillerPDF.Services.Locale.Bn   => "বাংলা",
             KillerPDF.Services.Locale.TrTR => "Türkçe",
             KillerPDF.Services.Locale.De   => "Deutsch",
+            KillerPDF.Services.Locale.HuHU => "Magyar",
+            KillerPDF.Services.Locale.ItIT => "Italiano",
             KillerPDF.Services.Locale.JaJP => "日本語",
+            KillerPDF.Services.Locale.PlPL => "Polski",
             _                              => "English",
         };
 
