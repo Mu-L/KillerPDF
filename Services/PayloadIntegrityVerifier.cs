@@ -12,6 +12,7 @@ internal sealed record PayloadIntegrityResult(
 internal static class PayloadIntegrityVerifier
 {
     private const string ManifestName = "payload.manifest";
+    private const string PortableMarkerName = ".killerpdf-portable";
 
     internal static PayloadIntegrityResult Verify(string directory)
     {
@@ -89,6 +90,9 @@ internal static class PayloadIntegrityVerifier
             if (string.Equals(file, manifestPath, StringComparison.OrdinalIgnoreCase)) continue;
             string relative = Path.GetRelativePath(root, file)
                 .Replace(Path.DirectorySeparatorChar, '/');
+            // The portable launcher writes this identity marker after verifying extraction. It is
+            // launcher-owned metadata, not an untrusted payload addition (#279).
+            if (string.Equals(relative, PortableMarkerName, StringComparison.OrdinalIgnoreCase)) continue;
             if (!seen.Contains(relative))
                 errors.Add($"Unexpected file: {relative}");
         }

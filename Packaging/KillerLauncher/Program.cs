@@ -51,8 +51,15 @@ namespace KillerLauncher
                         destinationOverride: ReadInstallDirectory(args));
                 }
                 if (args.Any(a => string.Equals(a, "/silent", StringComparison.OrdinalIgnoreCase)))
+                {
+                    // Unattended installs cannot show the prerequisite wizard. Refuse before
+                    // extraction so automation receives a stable failure code and the machine is
+                    // left completely untouched when the .NET 10 Desktop Runtime is absent (#275).
+                    int? rejection = InstallerPrerequisitePolicy.SilentInstallRejection(HasDesktopRuntime10());
+                    if (rejection.HasValue) return rejection.Value;
                     return Install(machine: true, desktop: args.Any(a =>
                         string.Equals(a, "/desktop", StringComparison.OrdinalIgnoreCase)), destinationOverride: ReadInstallDirectory(args));
+                }
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 return InstallerWizard.Run(args);

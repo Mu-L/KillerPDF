@@ -53,6 +53,27 @@ public sealed class PayloadIntegrityVerifierTests
     }
 
     [Fact]
+    public void Verify_AcceptsPortableMarkerButStillRejectsOtherUnexpectedFiles()
+    {
+        WithPayload((root, file) =>
+        {
+            File.WriteAllText(Path.Combine(root, ".killerpdf-portable"), "launcher metadata");
+
+            PayloadIntegrityResult markerOnly = PayloadIntegrityVerifier.Verify(root);
+
+            Assert.True(markerOnly.Success);
+            Assert.Empty(markerOnly.Errors);
+
+            File.WriteAllText(Path.Combine(root, "unlisted.dll"), "not trusted");
+
+            PayloadIntegrityResult withUntrustedFile = PayloadIntegrityVerifier.Verify(root);
+
+            Assert.False(withUntrustedFile.Success);
+            Assert.Contains("Unexpected file: unlisted.dll", withUntrustedFile.Errors);
+        });
+    }
+
+    [Fact]
     public void Verify_ReportsMissingManifest()
     {
         string root = NewTemporaryDirectory();
