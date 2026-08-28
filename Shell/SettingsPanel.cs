@@ -59,7 +59,13 @@ namespace KillerPDF
             LangJaRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.JaJP;
             LangPlRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.PlPL;
             LangHuRadio.IsChecked   = curLoc == KillerPDF.Services.Locale.HuHU;
-            LangItalianRadio.IsChecked = curLoc == KillerPDF.Services.Locale.ItIT;
+            // Visual Studio can retain an older design-time XAML field name in MainWindow.g.i.cs
+            // after this picker changes. Resolve the radio through the stable submenu namescope so
+            // both a fresh build and a stale design-time pass remain valid.
+            var italianRadio = LangSubmenu.FindName("LangItalianRadio") as RadioButton
+                ?? LangSubmenu.FindName("LangItRadio") as RadioButton;
+            if (italianRadio is not null)
+                italianRadio.IsChecked = curLoc == KillerPDF.Services.Locale.ItIT;
             // Sync view mode radios. Against the PENDING mode while a fade-wrapped switch is in
             // flight (_viewMode lags until the fade-out lands), so wheel-cycling with the flyout
             // open moves the checkmark in step instead of one notch behind.
@@ -538,6 +544,10 @@ namespace KillerPDF
         private void LangPlRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.PlPL);
         private void LangHuRadio_Checked(object sender, RoutedEventArgs e)   => SelectLocale(KillerPDF.Services.Locale.HuHU);
         private void LangItalianRadio_Checked(object sender, RoutedEventArgs e) => SelectLocale(KillerPDF.Services.Locale.ItIT);
+
+        // Compatibility for Visual Studio's stale design-time MainWindow.g.i.cs. The real XAML
+        // uses LangItalianRadio_Checked, but an older generated file may still bind this name.
+        private void LangItRadio_Checked(object sender, RoutedEventArgs e) => SelectLocale(KillerPDF.Services.Locale.ItIT);
 
         private void SelectLocale(KillerPDF.Services.Locale loc)
         {
