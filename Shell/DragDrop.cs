@@ -37,7 +37,7 @@ namespace KillerPDF
         // Drag/drop: file open
         // ============================================================
 
-        internal static void DropZone_DragOver(PdfViewer viewer, object _sender, DragEventArgs e)
+        internal static void DropZone_DragOver(PdfViewer viewer, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(typeof(PageDragPayload))
                 && e.Data.GetData(typeof(PageDragPayload)) is PageDragPayload pages
@@ -55,11 +55,11 @@ namespace KillerPDF
             e.Handled = true;
         }
 
-        internal void DropZone_DragOver(object sender, DragEventArgs e)
-            => DropZone_DragOver(ActiveViewer, sender, e);
+        internal void DropZone_DragOver(object _, DragEventArgs e)
+            => DropZone_DragOver(ActiveViewer, e);
 
         // internal: PdfViewer's XAML binds these three and forwards to them.
-        internal void DropZone_Drop(PdfViewer viewer, object _sender, DragEventArgs e)
+        internal void DropZone_Drop(PdfViewer viewer, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(typeof(PageDragPayload))
                 && e.Data.GetData(typeof(PageDragPayload)) is PageDragPayload pages
@@ -145,8 +145,8 @@ namespace KillerPDF
             }
         }
 
-        internal void DropZone_Drop(object sender, DragEventArgs e)
-            => DropZone_Drop(ActiveViewer, sender, e);
+        internal void DropZone_Drop(object _, DragEventArgs e)
+            => DropZone_Drop(ActiveViewer, e);
 
         private void ImportDraggedPages(PdfViewer target, PageDragPayload payload, int insertionIndex)
         {

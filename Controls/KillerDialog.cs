@@ -86,7 +86,7 @@ namespace KillerPDF
                 wmTb.Inlines.Add(new System.Windows.Documents.Run("Killer") { FontFamily = UiKit.WordmarkFont, FontWeight = FontWeights.Normal, FontSize = 15, Foreground = R("TextBrush") });
                 wmTb.Inlines.Add(new System.Windows.Documents.Run("PDF") { FontFamily = UiKit.WordmarkFontPdf, FontWeight = FontWeights.Bold, FontSize = 19.5, Foreground = R("AccentLogo") });
                 if (title.Length > "KillerPDF".Length)
-                    wmTb.Inlines.Add(new System.Windows.Documents.Run("  " + title.Substring("KillerPDF".Length).TrimStart())
+                    wmTb.Inlines.Add(new System.Windows.Documents.Run("  " + title["KillerPDF".Length..].TrimStart())
                     {
                         FontFamily = UiKit.WordmarkFont,
                         FontWeight = FontWeights.Normal,

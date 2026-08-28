@@ -3139,7 +3139,7 @@ public sealed class PdfIncrementalPageEditor
         }
     }
 
-    private IReadOnlyList<AppearanceFontResource> ReusableAppearanceFonts()
+    private List<AppearanceFontResource> ReusableAppearanceFonts()
     {
         if (_reusableAppearanceFonts is not null) return _reusableAppearanceFonts;
         _reusableAppearanceFonts = [];

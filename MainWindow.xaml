@@ -2107,8 +2107,8 @@
                                                        Foreground="{DynamicResource MutedTextBrush}"/>
                                         </Grid>
                                     </RadioButton>
-                                    <RadioButton x:Name="LangItRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
-                                                 Checked="LangItRadio_Checked">
+                                    <RadioButton x:Name="LangItalianRadio" GroupName="LangGroup" Style="{StaticResource ThemeRadio}"
+                                                 Checked="LangItalianRadio_Checked">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>

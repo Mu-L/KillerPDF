@@ -183,13 +183,13 @@ namespace KillerPDF
         void IViewerHost.ViewerSizeChanged(PdfViewer viewer, object sender, SizeChangedEventArgs e)
             => DocPane_SizeChanged(sender, e);
 
-        void IViewerHost.ViewerDrop(PdfViewer viewer, object sender, DragEventArgs e)
+        void IViewerHost.ViewerDrop(PdfViewer viewer, object _, DragEventArgs e)
         {
-            DropZone_Drop(viewer, sender, e);
+            DropZone_Drop(viewer, e);
         }
 
-        void IViewerHost.ViewerDragOver(PdfViewer viewer, object sender, DragEventArgs e)
-            => DropZone_DragOver(viewer, sender, e);
+        void IViewerHost.ViewerDragOver(PdfViewer viewer, object _, DragEventArgs e)
+            => DropZone_DragOver(viewer, e);
 
         void IViewerHost.ViewerDropZoneClick(object sender, MouseButtonEventArgs e)
             => DropZone_Click(sender, e);
