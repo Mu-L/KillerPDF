@@ -64,8 +64,7 @@ namespace KillerPDF
             // both a fresh build and a stale design-time pass remain valid.
             var italianRadio = LangSubmenu.FindName("LangItalianRadio") as RadioButton
                 ?? LangSubmenu.FindName("LangItRadio") as RadioButton;
-            if (italianRadio is not null)
-                italianRadio.IsChecked = curLoc == KillerPDF.Services.Locale.ItIT;
+            italianRadio?.IsChecked = curLoc == KillerPDF.Services.Locale.ItIT;
             // Sync view mode radios. Against the PENDING mode while a fade-wrapped switch is in
             // flight (_viewMode lags until the fade-out lands), so wheel-cycling with the flyout
             // open moves the checkmark in step instead of one notch behind.
