@@ -423,19 +423,15 @@ html[data-theme="light"] .engine-lockup { text-shadow: none; }
   }
 
   var SHOTS = [
-    { key: 'shot_08', src: 'screenshots/08.png', desc: 'Mourning theme, menu bar hidden, night mode inverting images too' },
-    { key: 'shot_09', src: 'screenshots/09.png', desc: 'Decay theme, menu bar hidden, the language flyout listing twelve languages' },
-    { key: 'shot_02', src: 'screenshots/02.png', desc: 'Insert Image file picker in the 98SE theme' },
-    { key: 'shot_03', src: 'screenshots/03.png', desc: 'Split-pane grid view with the outline open in Bengali' },
-    { key: 'shot_04', src: 'screenshots/04.png', desc: 'Night mode with a Traditional Chinese page context menu' },
-    { key: 'shot_05', src: 'screenshots/05.png', desc: 'Shape tools and Book layout in the Black theme' },
-    { key: 'shot_06', src: 'screenshots/06.png', desc: 'Drawing, shapes, and the custom color picker' },
-    { key: 'shot_07', src: 'screenshots/07.png', desc: 'Filled shapes and opacity over a two-page spread, in Traditional Chinese' },
-    { key: 'shot_01', src: 'screenshots/01.png', desc: 'Six-page grid view of the KillerPDF brochure' }
+    { key: 'shot_180_03', src: 'screenshots/03.png', desc: 'PDF comparison with synchronized pages and highlighted differences' },
+    { key: 'shot_180_04', src: 'screenshots/04.png', desc: 'Transform preview in Kazakh over a split Grid workspace' },
+    { key: 'shot_180_06', src: 'screenshots/06.png', desc: 'Reusable signatures and live PDF form fields in a two-page view' },
+    { key: 'shot_180_02', src: 'screenshots/02.png', desc: 'Grid view with the language picker showing all fourteen interface languages' },
+    { key: 'shot_180_01', src: 'screenshots/01.png', desc: 'About card over a split workspace with Grid and Two-Page views' },
+    { key: 'shot_180_05', src: 'screenshots/05.png', desc: 'Live form fields and annotation pages in the Italian 98SE theme' }
   ];
   // EVERY file in screenshots/ belongs in the list above - the strip is this array, not the
-  // folder, so a new .png dropped in the folder is invisible until it is added here. 07 sat
-  // unreferenced for exactly that reason.
+  // folder, so a new .png dropped in the folder is invisible until it is added here.
 
   // These captions cannot use data-i18n: that mechanism swaps innerHTML on a node, and a caption
   // has to land in alt, title and aria-label as well. So the shot's key is resolved against the
