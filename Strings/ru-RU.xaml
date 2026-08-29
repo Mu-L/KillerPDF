@@ -26,6 +26,7 @@
     <sys:String x:Key="Str_TT_MovePageDown">Переместить страницу вниз (изменить порядок)</sys:String>
     <sys:String x:Key="Str_TT_SelectTool">Выберите инструмент - щелкните аннотации, перетащите, чтобы выделить текст, дважды щелкните, чтобы отредактировать (V)</sys:String>
     <sys:String x:Key="Str_TT_TextTool">Текстовый инструмент - нажмите, чтобы добавить текст (T)</sys:String>
+    <sys:String x:Key="Str_TT_FormFieldTool">Заполняемое текстовое поле - создание, выбор, перемещение, изменение размера или удаление полей (F)</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">Инструмент выделения - перетащите его, чтобы выделить (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">Зачеркивание - перетаскивание по тексту</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">Подчеркивание - перетаскивание по тексту</sys:String>
@@ -278,6 +279,7 @@ KillerPDF не будет создавать две установленные �
     <sys:String x:Key="Str_Lbl_MoveUp">Переместить страницу вверх</sys:String>
     <sys:String x:Key="Str_Lbl_MoveDown">Переместить страницу вниз</sys:String>
     <sys:String x:Key="Str_Lbl_Text">Текст</sys:String>
+    <sys:String x:Key="Str_Lbl_FormField">Поля форм (F)</sys:String>
     <sys:String x:Key="Str_Lbl_Highlight">Выделить</sys:String>
     <sys:String x:Key="Str_Lbl_Strike">Зачеркнуть</sys:String>
     <sys:String x:Key="Str_Lbl_Underline">Подчеркнуть</sys:String>

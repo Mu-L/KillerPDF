@@ -26,6 +26,7 @@
     <sys:String x:Key="Str_TT_MovePageDown">Bajar página (reordenar)</sys:String>
     <sys:String x:Key="Str_TT_SelectTool">Herramienta de selección - clic en anotaciones, arrastrar para seleccionar texto, doble clic para editar (V)</sys:String>
     <sys:String x:Key="Str_TT_TextTool">Herramienta de texto - clic para agregar texto (T)</sys:String>
+    <sys:String x:Key="Str_TT_FormFieldTool">Fillable text field - create, select, move, resize, or delete fields (F)</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">Herramienta de resaltado - arrastrar para resaltar (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">Tachado - arrastra sobre el texto</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">Subrayado - arrastra sobre el texto</sys:String>
@@ -224,6 +225,7 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Lbl_MoveUp">Subir página</sys:String>
     <sys:String x:Key="Str_Lbl_MoveDown">Bajar página</sys:String>
     <sys:String x:Key="Str_Lbl_Text">Texto</sys:String>
+    <sys:String x:Key="Str_Lbl_FormField">Forms (F)</sys:String>
     <sys:String x:Key="Str_Lbl_Highlight">Resaltar</sys:String>
     <sys:String x:Key="Str_Lbl_Strike">Tachado</sys:String>
     <sys:String x:Key="Str_Lbl_Underline">Subrayado</sys:String>

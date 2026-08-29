@@ -46,6 +46,8 @@ namespace KillerPDF.Controls
         internal void UngroupAnnotationExt(PageAnnotation a) => UngroupAnnotation(a);
         internal void RemoveFromGroupExt(PageAnnotation a) => RemoveFromGroup(a);
         internal void DeleteSelectedExt() => DeleteSelected();
+        internal bool HasSelectedFormFieldExt => HasSelectedFormField;
+        internal void DeleteSelectedFormFieldExt() => DeleteSelectedFormField();
         internal bool SelectAllAnnotationsExt() => SelectAllAnnotations();
         internal void HideBrushPreviewExt() => HideBrushPreview();
         internal void ClearMeasurementExt() => ClearMeasurement();

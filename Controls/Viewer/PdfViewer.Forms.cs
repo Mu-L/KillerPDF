@@ -34,6 +34,7 @@ namespace KillerPDF.Controls
         private Point _formDragOrigin;
         private Size _formDragSize;
         private bool _formDragIsResize;
+        private string? _selectedFormFieldName;
 
         private const double FormResizeGripSize = 14;
 
@@ -112,7 +113,7 @@ namespace KillerPDF.Controls
             if (control is not FrameworkElement element) return;
             if (_currentTool == EditTool.FormField && field.ObjNum > 0)
             {
-                element.Cursor = element is TextBox or CombTextBox ? Cursors.IBeam : Cursors.SizeAll;
+                element.Cursor = Cursors.SizeAll;
                 element.ForceCursor = true;
                 if (element is ComboBox comboBox) comboBox.IsEnabled = false;
             }
@@ -123,9 +124,7 @@ namespace KillerPDF.Controls
                 Point local = e.GetPosition(element);
                 bool resize = local.X >= element.ActualWidth - FormResizeGripSize
                     && local.Y >= element.ActualHeight - FormResizeGripSize;
-                if (element is TextBox or CombTextBox && !resize
-                    && !IsFormMoveBorder(local, element.ActualWidth, element.ActualHeight))
-                    return;
+                _selectedFormFieldName = field.FieldName;
                 _formDragControl = element;
                 _formDragCanvas = canvas;
                 _formDragField = field;
@@ -151,10 +150,7 @@ namespace KillerPDF.Controls
                         Point local = e.GetPosition(element);
                         bool resize = local.X >= element.ActualWidth - FormResizeGripSize
                             && local.Y >= element.ActualHeight - FormResizeGripSize;
-                        element.Cursor = resize ? Cursors.SizeNWSE
-                            : element is TextBox or CombTextBox
-                                && !IsFormMoveBorder(local, element.ActualWidth, element.ActualHeight)
-                                ? Cursors.IBeam : Cursors.SizeAll;
+                        element.Cursor = resize ? Cursors.SizeNWSE : Cursors.SizeAll;
                     }
                     return;
                 }
@@ -196,11 +192,21 @@ namespace KillerPDF.Controls
             };
         }
 
-        private static bool IsFormMoveBorder(Point point, double width, double height)
+        internal bool HasSelectedFormField => _currentTool == EditTool.FormField
+            && !string.IsNullOrEmpty(_selectedFormFieldName);
+
+        internal void DeleteSelectedFormField()
         {
-            const double edge = 6;
-            return point.X <= edge || point.Y <= edge
-                || point.X >= width - edge || point.Y >= height - edge;
+            if (_currentFile is null || string.IsNullOrEmpty(_selectedFormFieldName)) return;
+            string fieldName = _selectedFormFieldName;
+            _selectedFormFieldName = null;
+            int pageIndex = _currentPage;
+            SaveTempAndReload(
+                keepAnnotations: true,
+                preserveZoom: true,
+                finalizeSavedFile: path => PdfEngineIntegration.RemoveFormField(path, fieldName),
+                selectedPageAfterReload: pageIndex);
+            SetStatus($"Deleted fillable field {fieldName}");
         }
 
         private void CommitFormFieldRectangle(

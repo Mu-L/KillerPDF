@@ -125,6 +125,18 @@ internal static class PdfEngineIntegration
         ReplaceWithBuiltResult(path, result);
     }
 
+    /// <summary>Removes one native form field and all of its widgets.</summary>
+    internal static void RemoveFormField(string path, string fieldName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fieldName);
+        PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
+        byte[] result = new PdfIncrementalPageEditor(document)
+            .RemoveFormField(fieldName)
+            .Build();
+        ReplaceWithBuiltResult(path, result);
+    }
+
     /// <summary>Replaces the document bookmark hierarchy as one engine revision.</summary>
     internal static void ReplaceBookmarks(string path, IReadOnlyList<PdfBookmarkInfo> bookmarks)
     {

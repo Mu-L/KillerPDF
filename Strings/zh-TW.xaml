@@ -28,6 +28,7 @@
     <sys:String x:Key="Str_TT_MovePageDown">向下移動頁面（重新排序）</sys:String>
     <sys:String x:Key="Str_TT_SelectTool">選取工具 - 點選注釋、拖曳選取文字、雙擊編輯 (V)</sys:String>
     <sys:String x:Key="Str_TT_TextTool">文字工具 - 點選以新增文字 (T)</sys:String>
+    <sys:String x:Key="Str_TT_FormFieldTool">Fillable text field - create, select, move, resize, or delete fields (F)</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">螢光筆工具 - 拖曳以螢光標記 (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">刪除線 - 拖曳劃過文字</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">底線 - 拖曳劃過文字</sys:String>
@@ -226,6 +227,7 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Lbl_MoveUp">向上移動頁面</sys:String>
     <sys:String x:Key="Str_Lbl_MoveDown">向下移動頁面</sys:String>
     <sys:String x:Key="Str_Lbl_Text">文字</sys:String>
+    <sys:String x:Key="Str_Lbl_FormField">Forms (F)</sys:String>
     <sys:String x:Key="Str_Lbl_Highlight">螢光標記</sys:String>
     <sys:String x:Key="Str_Lbl_Strike">刪除線</sys:String>
     <sys:String x:Key="Str_Lbl_Underline">底線</sys:String>

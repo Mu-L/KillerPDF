@@ -26,6 +26,7 @@
     <sys:String x:Key="Str_TT_MovePageDown">Move Page Down (reorder)</sys:String>
     <sys:String x:Key="Str_TT_SelectTool">Select Tool - click annotations, drag to select text, double-click to edit (V)</sys:String>
     <sys:String x:Key="Str_TT_TextTool">Text Tool - click to add text (T)</sys:String>
+    <sys:String x:Key="Str_TT_FormFieldTool">Fillable text field - create, select, move, resize, or delete fields (F)</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">Highlight Tool - drag to highlight (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">Strikethrough - drag across text</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">Underline - drag across text</sys:String>
@@ -278,6 +279,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Lbl_MoveUp">Move Page Up</sys:String>
     <sys:String x:Key="Str_Lbl_MoveDown">Move Page Down</sys:String>
     <sys:String x:Key="Str_Lbl_Text">Text</sys:String>
+    <sys:String x:Key="Str_Lbl_FormField">Forms (F)</sys:String>
     <sys:String x:Key="Str_Lbl_Highlight">Highlight</sys:String>
     <sys:String x:Key="Str_Lbl_Strike">Strikethrough</sys:String>
     <sys:String x:Key="Str_Lbl_Underline">Underline</sys:String>

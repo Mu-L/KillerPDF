@@ -26,6 +26,7 @@
     <sys:String x:Key="Str_TT_MovePageDown">Przesuń stronę w dół (zmiana kolejności)</sys:String>
     <sys:String x:Key="Str_TT_SelectTool">Wybierz Narzędzie - kliknij adnotacje, przeciągnij, aby zaznaczyć tekst, kliknij dwukrotnie, aby edytować (V)</sys:String>
     <sys:String x:Key="Str_TT_TextTool">Narzędzie Tekstu - kliknij, aby dodać tekst (T)</sys:String>
+    <sys:String x:Key="Str_TT_FormFieldTool">Fillable text field - create, select, move, resize, or delete fields (F)</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">Narzędzie Podświetl - przeciągnij, aby podświetlić (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">Przekreślenie - przeciągnij po tekście</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">Podkreślenie - przeciągnij po tekście</sys:String>
@@ -270,6 +271,7 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Lbl_MoveUp">Przesuń stronę w górę</sys:String>
     <sys:String x:Key="Str_Lbl_MoveDown">Przesuń stronę w dół</sys:String>
     <sys:String x:Key="Str_Lbl_Text">Tekst</sys:String>
+    <sys:String x:Key="Str_Lbl_FormField">Forms (F)</sys:String>
     <sys:String x:Key="Str_Lbl_Highlight">Podświetl</sys:String>
     <sys:String x:Key="Str_Lbl_Strike">Przekreśl</sys:String>
     <sys:String x:Key="Str_Lbl_Underline">Podkreśl</sys:String>

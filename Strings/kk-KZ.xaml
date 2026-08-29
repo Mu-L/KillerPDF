@@ -26,6 +26,7 @@
     <sys:String x:Key="Str_TT_MovePageDown">Бетті төмен жылжыту (қайта реттеу)</sys:String>
     <sys:String x:Key="Str_TT_SelectTool">Таңдау құралы - ескертпелерді басыңыз, мәтінді таңдау үшін сүйреңіз, өңдеу үшін екі рет басыңыз (V)</sys:String>
     <sys:String x:Key="Str_TT_TextTool">Мәтін құралы - мәтін қосу үшін басыңыз (T)</sys:String>
+    <sys:String x:Key="Str_TT_FormFieldTool">Fillable text field - create, select, move, resize, or delete fields (F)</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">Бояп белгілеу құралы - белгілеу үшін сүйреңіз (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">Сызып тастау - мәтіннің үстінен сүйреңіз</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">Астын сызу - мәтіннің үстінен сүйреңіз</sys:String>
@@ -277,6 +278,7 @@ Windows параметрлері - Әдепкі қолданбалар ашыл�
     <sys:String x:Key="Str_Lbl_MoveUp">Бетті жоғары жылжыту</sys:String>
     <sys:String x:Key="Str_Lbl_MoveDown">Бетті төмен жылжыту</sys:String>
     <sys:String x:Key="Str_Lbl_Text">Мәтін</sys:String>
+    <sys:String x:Key="Str_Lbl_FormField">Forms (F)</sys:String>
     <sys:String x:Key="Str_Lbl_Highlight">Бояп белгілеу</sys:String>
     <sys:String x:Key="Str_Lbl_Strike">Сызып тастау</sys:String>
     <sys:String x:Key="Str_Lbl_Underline">Астын сызу</sys:String>

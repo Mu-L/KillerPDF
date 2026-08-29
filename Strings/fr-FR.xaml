@@ -25,6 +25,7 @@
     <sys:String x:Key="Str_TT_MovePageDown">Déplacer la page vers le bas (réorganiser)</sys:String>
     <sys:String x:Key="Str_TT_SelectTool">Outil Sélection - cliquer sur les annotations, glisser pour sélectionner du texte, double-cliquer pour modifier (V)</sys:String>
     <sys:String x:Key="Str_TT_TextTool">Outil Texte - cliquer pour ajouter du texte (T)</sys:String>
+    <sys:String x:Key="Str_TT_FormFieldTool">Fillable text field - create, select, move, resize, or delete fields (F)</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">Outil Surlignage - glisser pour surligner (H)</sys:String>
     <sys:String x:Key="Str_TT_DrawTool">Outil Dessin - dessin à main levée (D)</sys:String>
     <sys:String x:Key="Str_TT_ShapeTool">Formes - rectangle, ellipse ou polygone à main levée</sys:String>
@@ -233,6 +234,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Lbl_MoveUp">Monter la page</sys:String>
     <sys:String x:Key="Str_Lbl_MoveDown">Descendre la page</sys:String>
     <sys:String x:Key="Str_Lbl_Text">Texte</sys:String>
+    <sys:String x:Key="Str_Lbl_FormField">Forms (F)</sys:String>
     <sys:String x:Key="Str_Lbl_Highlight">Surligner</sys:String>
     <sys:String x:Key="Str_Lbl_Strike">Barré</sys:String>
     <sys:String x:Key="Str_Lbl_Underline">Souligné</sys:String>

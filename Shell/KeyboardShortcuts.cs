@@ -268,6 +268,11 @@ namespace KillerPDF
                 Delete_Click(this, e);
                 e.Handled = true;
             }
+            else if (e.Key == Key.Delete && Viewer.HasSelectedFormFieldExt)
+            {
+                Viewer.DeleteSelectedFormFieldExt();
+                e.Handled = true;
+            }
             else if (e.Key == Key.Delete && (_selectedAnnotation is not null || _selectedSet.Count > 0))
             {
                 DeleteSelected();

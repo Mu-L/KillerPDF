@@ -26,6 +26,7 @@
     <sys:String x:Key="Str_TT_MovePageDown">Sayfayı Aşağı Taşı (yeniden sırala)</sys:String>
     <sys:String x:Key="Str_TT_SelectTool">Seçim Aracı - açıklamalara tıkla, metin seçmek için sürükle, düzenlemek için çift tıkla (V)</sys:String>
     <sys:String x:Key="Str_TT_TextTool">Metin Aracı - metin eklemek için tıkla (T)</sys:String>
+    <sys:String x:Key="Str_TT_FormFieldTool">Fillable text field - create, select, move, resize, or delete fields (F)</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">Vurgulama Aracı - vurgulamak için sürükle (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">Üstü çizili - metin boyunca sürükle</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">Altı çizili - metin boyunca sürükle</sys:String>
@@ -224,6 +225,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Lbl_MoveUp">Sayfayı Yukarı Taşı</sys:String>
     <sys:String x:Key="Str_Lbl_MoveDown">Sayfayı Aşağı Taşı</sys:String>
     <sys:String x:Key="Str_Lbl_Text">Metin</sys:String>
+    <sys:String x:Key="Str_Lbl_FormField">Forms (F)</sys:String>
     <sys:String x:Key="Str_Lbl_Highlight">Vurgula</sys:String>
     <sys:String x:Key="Str_Lbl_Strike">Üstü çizili</sys:String>
     <sys:String x:Key="Str_Lbl_Underline">Altı çizili</sys:String>

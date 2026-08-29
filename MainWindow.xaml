@@ -1340,7 +1340,7 @@
                     <Button x:Name="ToolStampBtn" Content="&#xE932;" Style="{StaticResource ToolbarButton}" Click="ToolStamp_Click" ToolTip="{DynamicResource Str_TT_StampTool}"/>
                     <StackPanel x:Name="GrpFormField" Orientation="Horizontal">
                         <Rectangle Width="1" Fill="{DynamicResource CardBorderBrush}" Margin="4,6"/>
-                        <Button x:Name="ToolFormFieldBtn" Style="{StaticResource ToolbarButton}" Padding="8,6" Click="ToolFormField_Click" ToolTip="Fillable text field - create, type, move, or resize fields (F)">
+                        <Button x:Name="ToolFormFieldBtn" Style="{StaticResource ToolbarButton}" Padding="8,6" Click="ToolFormField_Click" ToolTip="{DynamicResource Str_TT_FormFieldTool}">
                             <Grid Width="18" Height="16">
                                 <Border BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" BorderThickness="1" CornerRadius="1" Margin="1,2,1,1"/>
                                 <TextBlock Text="T" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,1,0,0"/>
@@ -1438,7 +1438,7 @@
                                             <Border Width="18" Height="14" BorderBrush="{DynamicResource TextBrush}" BorderThickness="1" CornerRadius="1"/>
                                             <TextBlock Text="T" FontFamily="Segoe UI" FontWeight="SemiBold" FontSize="10" Foreground="{DynamicResource TextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Grid>
-                                        <TextBlock Text="Forms (F)" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{DynamicResource Str_Lbl_FormField}" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Button>
                                 <Button x:Name="MiUnderline" Style="{StaticResource OverflowMenuButton}" Visibility="Collapsed" Click="ToolLine_Click">
