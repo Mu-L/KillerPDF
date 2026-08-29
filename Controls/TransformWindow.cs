@@ -123,7 +123,14 @@ namespace KillerPDF
             var root = new DockPanel();
 
             // ---- Right sidebar (transparent so it blends with the dark title bar, like Print Preview) ----
-            var sidebar = new Border { Width = 288, Background = Brushes.Transparent, Padding = new Thickness(16, 8, 16, 14) };
+            var sidebar = new Border
+            {
+                Width = 288,
+                Background = Brushes.Transparent,
+                Padding = ThemeManager.Current == Theme.SE98
+                    ? new Thickness(16, 8, 4, 14)
+                    : new Thickness(16, 8, 16, 14)
+            };
             DockPanel.SetDock(sidebar, Dock.Right);
 
             var side = new DockPanel();
@@ -382,8 +389,8 @@ namespace KillerPDF
             stack.Children.Add(qualityReset);
             WrapSection(stack, qualityStart, S("Str_Tf_Quality"), expanded: false);
 
-            // The classic 98SE scrollbar has a wider visual edge than the modern themes.
-            // Keep the expanded quality controls from touching it without widening the sidebar.
+            // The classic scrollbar sits near the window edge to return width to translated
+            // controls, while this small inner gap keeps those controls from touching it.
             if (ThemeManager.Current == Theme.SE98)
                 stack.Margin = new Thickness(0, 0, 6, 0);
 
