@@ -135,7 +135,7 @@ namespace KillerPDF
 
             // Bottom: a "Reset all" text link on its own line (translations like "Tout reinitialiser" are
             // long), with Cancel / Apply right-aligned beneath it - so nothing crowds or clips.
-            var bottom = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+            var bottom = new StackPanel { Margin = new Thickness(0, 10, 12, 0) };
             var resetAll = new TextBlock
             {
                 Text = S("Str_Tf_ResetAll"), FontFamily = UiKit.UiFont, FontSize = 12,
