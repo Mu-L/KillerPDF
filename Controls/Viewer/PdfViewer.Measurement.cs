@@ -45,7 +45,10 @@ public partial class PdfViewer
         _measurementLine = new Line
         {
             X1 = start.X, Y1 = start.Y, X2 = start.X, Y2 = start.Y,
-            Stroke = accent, StrokeThickness = 2, IsHitTestVisible = false
+            Stroke = accent, StrokeThickness = 2,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            IsHitTestVisible = false
         };
         _measurementStartCap = MeasurementCap(accent);
         _measurementEndCap = MeasurementCap(accent);
@@ -60,10 +63,12 @@ public partial class PdfViewer
             Child = new TextBlock
             {
                 Foreground = Brushes.White,
-                FontFamily = new FontFamily("Consolas"),
-                FontSize = 11
+                FontFamily = UiKit.UiFont,
+                FontSize = 12
             }
         };
+        TextOptions.SetTextFormattingMode(_measurementReadout, TextFormattingMode.Ideal);
+        TextOptions.SetTextRenderingMode(_measurementReadout, TextRenderingMode.Grayscale);
 
         foreach (UIElement element in new UIElement[]
                  { _measurementLine, _measurementStartCap, _measurementEndCap, _measurementReadout })
@@ -80,6 +85,8 @@ public partial class PdfViewer
     {
         Stroke = brush,
         StrokeThickness = 2,
+        StrokeStartLineCap = PenLineCap.Round,
+        StrokeEndLineCap = PenLineCap.Round,
         IsHitTestVisible = false
     };
 
@@ -99,7 +106,7 @@ public partial class PdfViewer
         _measurementReadout.CornerRadius = new CornerRadius(3 * inv);
         _measurementReadout.Padding = new Thickness(8 * inv, 5 * inv, 8 * inv, 5 * inv);
         if (_measurementReadout.Child is TextBlock readoutText)
-            readoutText.FontSize = 11 * inv;
+            readoutText.FontSize = 12 * inv;
 
         Vector direction = end - _drawStart;
         double length = direction.Length;
