@@ -19,7 +19,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Damaged-file repair prompts now use the active interface language (#299).
 - Tagged PDFs can now be added after untagged pages or other imported documents (#300).
 - Transform now removes superseded page-image data so grayscale, black-and-white, DPI, and JPEG settings reduce the saved file size (#287).
-- The fillable text field tool is now localizable, selects fields across their full area, and deletes the selected field with Delete (#295).
+- The fillable text field tool is now localizable and supports selecting, moving, resizing, recoloring, and deleting fields (#295).
 - Turning off two-sided printing now explicitly overrides printer-driver duplex defaults (#284).
 - Measurement rulers and readouts now remain legible at fitted and multi-page zoom levels.
 - Duplicate installation repair now uses KillerPDF's themed dialog after theme and locale initialization, clearly identifies both installation scopes, explains why the duplicate may exist, and confirms that settings and PDF files are preserved.

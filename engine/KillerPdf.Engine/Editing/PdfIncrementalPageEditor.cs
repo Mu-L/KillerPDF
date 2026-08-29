@@ -243,8 +243,23 @@ public sealed class PdfIncrementalPageEditor
         _radioButtonValues.Remove(fieldName);
         _choiceFieldValues.Remove(fieldName);
         _resetFieldValues.Remove(fieldName);
-        _textFieldValues[fieldName] = new PendingTextFieldValue(value, embeddedFont, fontSize);
+        _textFieldValues[fieldName] = new PendingTextFieldValue(
+            value, embeddedFont, fontSize, false, null);
         _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>Changes an existing text field's background color and regenerates its appearance.</summary>
+    public PdfIncrementalPageEditor SetTextFieldBackgroundColor(
+        string fieldName, string value, PdfRgbColor? backgroundColor,
+        TrueTypeFont? embeddedFont = null, double? fontSize = null)
+    {
+        SetTextFieldValue(fieldName, value, embeddedFont, fontSize);
+        _textFieldValues[fieldName] = _textFieldValues[fieldName] with
+        {
+            HasBackgroundColor = true,
+            BackgroundColor = backgroundColor
+        };
         return this;
     }
 
@@ -2711,7 +2726,7 @@ public sealed class PdfIncrementalPageEditor
                     $"The text field '{fieldName}' /DV value is not a string.")
             };
             UpdateTextField(update, fieldReference, field, form, fieldName,
-                new PendingTextFieldValue(text, embeddedFont, null));
+                new PendingTextFieldValue(text, embeddedFont, null, false, null));
             return;
         }
         if (fieldType.Equals(ButtonFieldName))
@@ -3024,6 +3039,8 @@ public sealed class PdfIncrementalPageEditor
             (double width, double height) = WidgetSize(widget, fieldName);
             PdfFormFieldAppearanceStyle style = ExistingAppearanceStyle(
                 widget, textColor, fieldName);
+            if (pending.HasBackgroundColor)
+                style = style with { BackgroundColor = pending.BackgroundColor };
             byte[] authored = new PdfDocumentBuilder()
                 .AddBlankPage(Math.Max(1, width), Math.Max(1, height))
                 .AddTextField(0, "field", 0, 0, width, height, pending.Value,
@@ -3062,7 +3079,9 @@ public sealed class PdfIncrementalPageEditor
                 });
             var replacements = new Dictionary<PdfName, PdfObject>
             {
-                [AppearanceName] = replacementAppearance
+                [AppearanceName] = replacementAppearance,
+                [AppearanceCharacteristicsName] = importer.Import(
+                    appearanceField[AppearanceCharacteristicsName])
             };
             if (widgetReference.Equals(fieldReference))
             {
@@ -17567,7 +17586,8 @@ public sealed class PdfIncrementalPageEditor
         string? Condition, string? RegistryName,
         string? Information);
     private sealed record PendingTextFieldValue(
-        string Value, TrueTypeFont? EmbeddedFont, double? FontSize);
+        string Value, TrueTypeFont? EmbeddedFont, double? FontSize,
+        bool HasBackgroundColor, PdfRgbColor? BackgroundColor);
     private sealed record PendingChoiceFieldValue(
         IReadOnlyList<string> Values, TrueTypeFont? EmbeddedFont,
         bool AllowEmptySingle);

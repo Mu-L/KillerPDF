@@ -872,6 +872,35 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void SetTextFieldBackground_PersistsColorAndPreservesValue()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-form-color-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder()
+                .AddBlankPage()
+                .AddTextField(0, "customer.name", 20, 20, 140, 24, "Original")
+                .Build());
+
+            PdfEngineIntegration.SetTextFieldBackground(
+                path, "customer.name", "Original",
+                System.Windows.Media.Color.FromRgb(0x22, 0x88, 0xCC), null);
+
+            PdfFormWidgetInfo field = Assert.Single(PdfFormWidgetReader.ReadPage(
+                PdfDocument.Open(File.ReadAllBytes(path)), 0));
+            Assert.Equal("Original", field.Value);
+            Assert.NotNull(field.BackgroundColor);
+            Assert.Equal(0x22 / 255d, field.BackgroundColor.Value.Red, 6);
+            Assert.Equal(0x88 / 255d, field.BackgroundColor.Value.Green, 6);
+            Assert.Equal(0xCC / 255d, field.BackgroundColor.Value.Blue, 6);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void ReplacePagesAndCompact_RemovesSupersededImageData()
     {
         string path = Path.Combine(Path.GetTempPath(), $"killerpdf-compact-pages-{Guid.NewGuid():N}.pdf");

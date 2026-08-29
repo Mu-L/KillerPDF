@@ -26,7 +26,7 @@
     <sys:String x:Key="Str_TT_MovePageDown">向下移动页面（重新排序）</sys:String>
     <sys:String x:Key="Str_TT_SelectTool">选取工具 - 点击注释、拖曳选取文本、双击编辑 (V)</sys:String>
     <sys:String x:Key="Str_TT_TextTool">文本工具 - 点击以添加文本 (T)</sys:String>
-    <sys:String x:Key="Str_TT_FormFieldTool">Fillable text field - create, select, move, resize, or delete fields (F)</sys:String>
+    <sys:String x:Key="Str_TT_FormFieldTool">Fillable text field - create, select, move, resize, or delete fields; right-click to change fill color (F)</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">高亮笔工具 - 拖曳以高亮标记 (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">删除线 - 拖曳划过文本</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">底线 - 拖曳划过文本</sys:String>

@@ -141,6 +141,12 @@ namespace KillerPDF.Controls
                     : $"Moving fillable field {field.FieldName}");
                 e.Handled = true;
             };
+            element.PreviewMouseRightButtonDown += (_, e) =>
+            {
+                if (_currentTool != EditTool.FormField || field.FieldType != "/Tx") return;
+                e.Handled = true;
+                OpenFormFieldColorPicker(field, pageIndex);
+            };
             element.PreviewMouseMove += (_, e) =>
             {
                 if (!ReferenceEquals(_formDragControl, element))
@@ -209,6 +215,27 @@ namespace KillerPDF.Controls
             SetStatus($"Deleted fillable field {fieldName}");
         }
 
+        private void OpenFormFieldColorPicker(FormFieldInfo field, int pageIndex)
+        {
+            Color initial = field.BackgroundColor ?? Colors.White;
+            var dialog = new ColorPickerDialog(Window.GetWindow(this), initial);
+            dialog.ShowDialog();
+            if (!dialog.Accepted || _currentFile is null) return;
+            string value = _formTextValues.TryGetValue(field.FieldName, out string? pending)
+                ? pending : field.CurrentValue;
+            double? fontSize = _formFontSizes.TryGetValue(field.FieldName, out double size)
+                ? size : null;
+            Color selected = dialog.SelectedColor;
+            SaveTempAndReload(
+                keepAnnotations: true,
+                preserveZoom: true,
+                finalizeSavedFile: path => PdfEngineIntegration.SetTextFieldBackground(
+                    path, field.FieldName, value, selected, fontSize),
+                selectedPageAfterReload: pageIndex);
+            _selectedFormFieldName = field.FieldName;
+            SetStatus($"Changed fill color for {field.FieldName}");
+        }
+
         private void CommitFormFieldRectangle(
             int pageIndex, FormFieldInfo field, FrameworkElement element, Canvas canvas, bool resized)
         {
@@ -255,7 +282,8 @@ namespace KillerPDF.Controls
             double DaFontPt,   // font size from the field's /DA (points); 0 = auto-size
             double Scale,      // canvas units per PDF point, for converting DaFontPt to canvas size
             bool   IsComb,     // #158: /Tx with the Comb flag (bit 25) and a MaxLen
-            int    MaxLen);    // #158: comb cell count (also the input length cap)
+            int    MaxLen,     // #158: comb cell count (also the input length cap)
+            Color? BackgroundColor);
 
         /// <summary>
         /// Scans the current page's /Annots for Widget subtypes and overlays interactive
@@ -339,7 +367,8 @@ namespace KillerPDF.Controls
                         // fill hides those dividers and makes it look like an ordinary text box.
                         // Keep the overlay transparent so the cells remain visible while the
                         // editable characters, selection, and caret stay above the page artwork.
-                        Background       = f.IsComb ? Brushes.Transparent : fieldBg,
+                        Background       = f.IsComb ? Brushes.Transparent
+                            : new SolidColorBrush(f.BackgroundColor ?? fieldBg.Color),
                         Foreground       = Brushes.Black,
                         CaretBrush       = Brushes.Black,
                         Cursor           = Cursors.IBeam,
@@ -648,7 +677,13 @@ namespace KillerPDF.Controls
                         (flags & 1) != 0, cx, cy, cw, ch,
                         [.. widget.Options.Select(option => new FormChoiceItem(
                             option.ExportValue, option.DisplayValue))],
-                        fontSize, scale, isComb, widget.MaximumLength));
+                        fontSize, scale, isComb, widget.MaximumLength,
+                        widget.BackgroundColor is { } background
+                            ? Color.FromRgb(
+                                (byte)Math.Round(background.Red * 255),
+                                (byte)Math.Round(background.Green * 255),
+                                (byte)Math.Round(background.Blue * 255))
+                            : null));
                 }
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"GetPageFormFields (engine): {ex}"); }

@@ -1,3 +1,5 @@
+using KillerPdf.Engine.Authoring;
+
 namespace KillerPdf.Engine.Documents;
 
 /// <summary>Identifies the effective AcroForm field type of a widget.</summary>
@@ -47,6 +49,8 @@ public sealed record PdfFormWidgetInfo
     public IReadOnlyList<string> Values { get; init; } = [];
     /// <summary>Gets the effective default appearance string.</summary>
     public required string DefaultAppearance { get; init; }
+    /// <summary>Gets the widget background color, or null when none is defined.</summary>
+    public PdfRgbColor? BackgroundColor { get; init; }
     /// <summary>Gets the effective maximum text length, or zero when unspecified.</summary>
     public required int MaximumLength { get; init; }
     /// <summary>Gets the widget's button on-state name, including the leading slash.</summary>

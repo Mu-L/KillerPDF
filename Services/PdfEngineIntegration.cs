@@ -137,6 +137,22 @@ internal static class PdfEngineIntegration
         ReplaceWithBuiltResult(path, result);
     }
 
+    /// <summary>Changes one text field's background color while preserving its value.</summary>
+    internal static void SetTextFieldBackground(
+        string path, string fieldName, string value, System.Windows.Media.Color color,
+        double? fontSize)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fieldName);
+        PdfDocument document = PdfDocument.Open(File.ReadAllBytes(path));
+        var background = new PdfRgbColor(
+            color.R / 255d, color.G / 255d, color.B / 255d);
+        byte[] result = new PdfIncrementalPageEditor(document)
+            .SetTextFieldBackgroundColor(fieldName, value, background, fontSize: fontSize)
+            .Build();
+        ReplaceWithBuiltResult(path, result);
+    }
+
     /// <summary>Replaces the document bookmark hierarchy as one engine revision.</summary>
     internal static void ReplaceBookmarks(string path, IReadOnlyList<PdfBookmarkInfo> bookmarks)
     {

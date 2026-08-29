@@ -1,4 +1,5 @@
 using System.Text;
+using KillerPdf.Engine.Authoring;
 using KillerPdf.Engine.Objects;
 
 namespace KillerPdf.Engine.Documents;
@@ -22,6 +23,8 @@ public static class PdfFormWidgetReader
     private static readonly PdfName ActionName = Name("A");
     private static readonly PdfName AppearanceStateName = Name("AS");
     private static readonly PdfName NormalAppearanceName = Name("N");
+    private static readonly PdfName AppearanceCharacteristicsName = Name("MK");
+    private static readonly PdfName BackgroundColorName = Name("BG");
     private static readonly PdfName CropBoxName = Name("CropBox");
     private static readonly PdfName MediaBoxName = Name("MediaBox");
     private static readonly PdfName RotateName = Name("Rotate");
@@ -129,6 +132,7 @@ public static class PdfFormWidgetReader
                 Value = value,
                 Values = values,
                 DefaultAppearance = defaultAppearance,
+                BackgroundColor = WidgetBackgroundColor(document, widget),
                 MaximumLength = maximumLength,
                 OnValue = ButtonOnValue(document, widget),
                 HasAction = widget.ContainsKey(ActionName),
@@ -142,6 +146,21 @@ public static class PdfFormWidgetReader
             });
         }
         return result;
+    }
+
+    private static PdfRgbColor? WidgetBackgroundColor(
+        PdfDocument document, PdfDictionary widget)
+    {
+        if (!widget.TryGetValue(AppearanceCharacteristicsName, out PdfObject? characteristicsValue)
+            || Resolve(document, characteristicsValue, "A widget /MK value") is not PdfDictionary characteristics
+            || !characteristics.TryGetValue(BackgroundColorName, out PdfObject? colorValue)
+            || Resolve(document, colorValue, "A widget /MK /BG value") is not PdfArray color
+            || color.Count != 3) return null;
+        double red = Number(document, color[0], "A widget background color component");
+        double green = Number(document, color[1], "A widget background color component");
+        double blue = Number(document, color[2], "A widget background color component");
+        if (red is < 0 or > 1 || green is < 0 or > 1 || blue is < 0 or > 1) return null;
+        return new PdfRgbColor(red, green, blue);
     }
 
     private static List<PdfFormChoiceInfo> ReadOptions(PdfDocument document, PdfObject value)
