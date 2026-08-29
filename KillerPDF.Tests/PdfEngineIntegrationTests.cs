@@ -872,6 +872,35 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void ReplacePagesAndCompact_RemovesSupersededImageData()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-compact-pages-{Guid.NewGuid():N}.pdf");
+        string replacement = Path.Combine(Path.GetTempPath(), $"killerpdf-compact-replacement-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            byte[] rgba = new byte[512 * 512 * 4];
+            Random.Shared.NextBytes(rgba);
+            byte[] source = new PdfDocumentBuilder().AddPage(612, 792,
+                new PdfContentStreamBuilder().DrawImage(
+                    PdfImage.FromRgba(512, 512, rgba), 0, 0, 612, 792)).Build();
+            File.WriteAllBytes(path, source);
+            File.WriteAllBytes(replacement, new PdfDocumentBuilder().AddBlankPage(612, 792).Build());
+
+            PdfEngineIntegration.ReplacePagesAndCompact(path,
+                new Dictionary<int, string> { [0] = replacement });
+
+            byte[] result = File.ReadAllBytes(path);
+            Assert.True(result.Length < source.Length / 10);
+            Assert.Equal(1, PageCount(PdfDocument.Open(result)));
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+            if (File.Exists(replacement)) File.Delete(replacement);
+        }
+    }
+
+    [Fact]
     public void ExtractPages_WritesSelectedOrderWithEffectiveRotations()
     {
         string sourcePath = Path.Combine(Path.GetTempPath(), $"killerpdf-extract-source-{Guid.NewGuid():N}.pdf");

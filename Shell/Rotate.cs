@@ -131,7 +131,7 @@ namespace KillerPDF
                 SaveTempAndReload(
                     keepAnnotations: true,
                     finalizeSavedFile: path =>
-                        PdfEngineIntegration.ReplacePages(path, replacements),
+                        PdfEngineIntegration.ReplacePagesAndCompact(path, replacements),
                     remapRotations: rotations =>
                         PdfEngineIntegration.RemapRotationsAfterPageReplacements(
                             rotations, pages),

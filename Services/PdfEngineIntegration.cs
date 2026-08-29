@@ -932,6 +932,14 @@ internal static class PdfEngineIntegration
         ReplaceWithBuiltResult(path, editor.Build());
     }
 
+    /// <summary>Replaces pages and removes the superseded page data from the saved file.</summary>
+    internal static void ReplacePagesAndCompact(
+        string path, IReadOnlyDictionary<int, string> replacements)
+    {
+        ReplacePages(path, replacements);
+        RebuildDocument(path, path);
+    }
+
     /// <summary>Resets the replaced page's application rotation.</summary>
     internal static void RemapRotationsAfterPageReplacement(
         Dictionary<int, int> rotations, int pageIndex)
