@@ -4,6 +4,8 @@
 **Date:** 2026-08-22
 **Decider:** Steve the Killer
 
+**Implementation:** Completed and released on `main` in KillerPDF 1.8.0 on 2026-08-28. The branch policy below records the development process used before release.
+
 ## Context
 
 KillerPDF 1.7.x uses PDFium for rendering, PdfPig for text extraction, and a vendored PdfSharpCore writer. That combination is proven for the current Windows application and its preservation-focused save pipeline, but it cannot provide complete PDF 2.0 authoring.

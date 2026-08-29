@@ -178,8 +178,6 @@ namespace KillerPDF
                 Services.ProtocolRegistrar.Register(Registry.CurrentUser, registrationPath);
             StartupTrace.Mark("Protocol registration refresh complete");
 
-            OfferInstallConflictRepair();
-
             ShutdownMode = ShutdownMode.OnLastWindowClose;
             CleanupStaleTemps();
             StartupTrace.Mark("Stale temporary-file cleanup complete");
@@ -193,6 +191,7 @@ namespace KillerPDF
                 { try { LocaleManager.ExternalFile = Path.GetFullPath(e.Args[i + 1]); } catch { /* bad path: normal locale */ } }
             LocaleManager.Initialize();
             StartupTrace.Mark("Locale initialized");
+            OfferInstallConflictRepair();
             var mainWindow = new MainWindow();
             StartupTrace.Mark("MainWindow constructed");
             mainWindow.Show();
@@ -785,9 +784,11 @@ namespace KillerPDF
                             || string.Equals(current, LegacyUserInstallExe, StringComparison.OrdinalIgnoreCase);
             if (!runningMachine && !runningUser) return;
 
-            string other = runningMachine ? "per-user" : "all-users";
-            if (MessageBox.Show($"KillerPDF is installed twice. Remove the other {other} copy now?\n\nYour settings will not be removed.",
-                $"{AppName} installation conflict", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            string message = runningMachine
+                ? "KillerPDF found two installed copies on this computer.\n\nYou are currently running the all-users installation. An older per-user copy is also present, usually because it was in use during an earlier update.\n\nRemove the unused per-user copy now? Your settings and PDF files will not be removed."
+                : "KillerPDF found two installed copies on this computer.\n\nYou are currently running the per-user installation. An all-users copy is also present.\n\nRemove the unused all-users copy now? Windows will ask for administrator permission. Your settings and PDF files will not be removed.";
+            if (KillerDialog.Show(Current.MainWindow, message,
+                $"{AppName} duplicate installation", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
 
             if (runningMachine)
             {

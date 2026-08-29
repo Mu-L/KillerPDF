@@ -89,26 +89,56 @@ public partial class PdfViewer
             _measurementEndCap is null || _measurementReadout is null ||
             _measurementPage < 0 || _currentFile is null) return;
 
+        double inv = MeasurementInversePageScale();
         _measurementLine.X2 = end.X;
         _measurementLine.Y2 = end.Y;
+        _measurementLine.StrokeThickness = 2 * inv;
+        _measurementStartCap.StrokeThickness = 2 * inv;
+        _measurementEndCap.StrokeThickness = 2 * inv;
+        _measurementReadout.BorderThickness = new Thickness(inv);
+        _measurementReadout.CornerRadius = new CornerRadius(3 * inv);
+        _measurementReadout.Padding = new Thickness(8 * inv, 5 * inv, 8 * inv, 5 * inv);
+        if (_measurementReadout.Child is TextBlock readoutText)
+            readoutText.FontSize = 11 * inv;
 
         Vector direction = end - _drawStart;
         double length = direction.Length;
         Vector normal = length > 0.001
-            ? new Vector(-direction.Y / length * 6, direction.X / length * 6)
-            : new Vector(0, 6);
+            ? new Vector(-direction.Y / length * 6 * inv, direction.X / length * 6 * inv)
+            : new Vector(0, 6 * inv);
         PositionCap(_measurementStartCap, _drawStart, normal);
         PositionCap(_measurementEndCap, end, normal);
 
         string text = MeasurementText(direction);
         if (_measurementReadout.Child is TextBlock tb) tb.Text = text;
         _measurementReadout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        double x = Math.Min(Math.Max(4, end.X + 12),
-            Math.Max(4, _activeCanvas.ActualWidth - _measurementReadout.DesiredSize.Width - 4));
-        double y = Math.Min(Math.Max(4, end.Y + 12),
-            Math.Max(4, _activeCanvas.ActualHeight - _measurementReadout.DesiredSize.Height - 4));
+        double edge = 4 * inv;
+        double offset = 12 * inv;
+        double x = Math.Min(Math.Max(edge, end.X + offset),
+            Math.Max(edge, _activeCanvas.ActualWidth - _measurementReadout.DesiredSize.Width - edge));
+        double y = Math.Min(Math.Max(edge, end.Y + offset),
+            Math.Max(edge, _activeCanvas.ActualHeight - _measurementReadout.DesiredSize.Height - edge));
         Canvas.SetLeft(_measurementReadout, x);
         Canvas.SetTop(_measurementReadout, y);
+    }
+
+    private double MeasurementInversePageScale()
+    {
+        double scale = 1.0;
+        DependencyObject? current = _activeCanvas;
+        while (current is not null && !ReferenceEquals(current, this))
+        {
+            if (current is FrameworkElement element &&
+                element.LayoutTransform is ScaleTransform layoutScale &&
+                layoutScale.ScaleX > 0.0001)
+                scale *= layoutScale.ScaleX;
+            if (current is UIElement visual &&
+                visual.RenderTransform is ScaleTransform renderScale &&
+                renderScale.ScaleX > 0.0001)
+                scale *= renderScale.ScaleX;
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return scale > 0.0001 ? 1.0 / scale : 1.0;
     }
 
     private static void PositionCap(Line cap, Point center, Vector normal)

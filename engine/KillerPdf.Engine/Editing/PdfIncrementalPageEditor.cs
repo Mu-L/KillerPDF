@@ -6781,11 +6781,6 @@ public sealed class PdfIncrementalPageEditor
                         catalogReplacements[name] = importer.Import(value);
                 return;
             }
-            bool everyResultPageIsTagged = _pages.All(page =>
-                taggedGroups.Any(group => group.Contains(page)));
-            if (!destinationIsEmpty || !everyResultPageIsTagged)
-                throw new NotSupportedException(
-                    "Tagged content cannot be introduced alongside existing or newly added untagged pages.");
         }
         bool targetHadStructure = _tree.Catalog.TryGetValue(
             StructTreeRootName, out PdfObject? targetRootValue);

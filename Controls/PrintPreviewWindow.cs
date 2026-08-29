@@ -1275,7 +1275,7 @@ namespace KillerPDF
                 // Relying on PrintTicket.CopyCount produced an extra copy on some printers (issue #83).
                 ticket.CopyCount      = 1;
                 ticket.PageOrientation = _landscape ? PageOrientation.Landscape : PageOrientation.Portrait;
-                if (_duplex) ticket.Duplexing = Duplexing.TwoSidedLongEdge;
+                ticket.Duplexing = _duplex ? Duplexing.TwoSidedLongEdge : Duplexing.OneSided;
                 ticket.OutputColor = _grayscale ? OutputColor.Grayscale : OutputColor.Color;
                 // Same paper pick the preview used: the manual combo choice when one is set,
                 // otherwise the automatic document-size match (see MediaSizeForDocument, #186).

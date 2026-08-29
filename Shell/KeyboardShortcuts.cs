@@ -94,9 +94,14 @@ namespace KillerPDF
             }
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control)
             {
-                // Prefer selecting all annotations (shows where everything is, makes stacked annotations
-                // editable); fall back to selecting page text when there are none on screen.
-                if (!SelectAllAnnotations()) SelectAllText();
+                if (PageList.IsKeyboardFocusWithin)
+                    PageList.SelectAll();
+                else
+                {
+                    // Prefer selecting all annotations (shows where everything is, makes stacked annotations
+                    // editable); fall back to selecting page text when there are none on screen.
+                    if (!SelectAllAnnotations()) SelectAllText();
+                }
                 e.Handled = true;
             }
             else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
@@ -256,6 +261,11 @@ namespace KillerPDF
             else if (e.Key == Key.P && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 Print_Click(this, e);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Delete && PageList.IsKeyboardFocusWithin && PageList.SelectedItems.Count > 0)
+            {
+                Delete_Click(this, e);
                 e.Handled = true;
             }
             else if (e.Key == Key.Delete && (_selectedAnnotation is not null || _selectedSet.Count > 0))

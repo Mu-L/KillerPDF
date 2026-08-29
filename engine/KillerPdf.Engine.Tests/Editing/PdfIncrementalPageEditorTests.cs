@@ -7010,7 +7010,7 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
-    public void TaggedImports_SupportSelectedAndCombinedPageSetsButRejectUntaggedDestinations()
+    public void TaggedImports_SupportSelectedCombinedAndUntaggedDestinations()
     {
         PdfDocument tagged = PdfDocument.Open(BuildTaggedDocument());
         PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
@@ -7034,9 +7034,14 @@ public sealed class PdfIncrementalPageEditorTests
                 .AddImportedDocument(tagged).RemovePage(1).Build());
         Assert.True(ResolveDictionary(reducedImport, reducedImport.Trailer[Name("Root")])
             .ContainsKey(Name("StructTreeRoot")));
-        Assert.Throws<NotSupportedException>(() =>
+        PdfDocument appendedToUntagged = PdfDocument.Open(
             new PdfIncrementalPageEditor(occupied)
                 .AddImportedDocument(tagged).Build());
+        PdfDictionary appendedCatalog = ResolveDictionary(
+            appendedToUntagged, appendedToUntagged.Trailer[Name("Root")]);
+        Assert.True(appendedCatalog.ContainsKey(Name("StructTreeRoot")));
+        Assert.False(FlatPages(appendedToUntagged).Pages[0].ContainsKey(Name("StructParents")));
+        Assert.True(FlatPages(appendedToUntagged).Pages[1].ContainsKey(Name("StructParents")));
         PdfDocument combined = PdfDocument.Open(
             new PdfIncrementalPageEditor(empty)
                 .AddImportedDocument(tagged)

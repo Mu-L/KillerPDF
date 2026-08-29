@@ -125,7 +125,7 @@ namespace KillerPDF
                 {
                     // ReadOnly also failed - offer to repair.
                     var result = KillerDialog.Show(this,
-                        $"This PDF has a damaged structure and couldn't be opened.\n\nWould you like KillerPDF to attempt a repair? A repaired copy will be created - the original file will not be changed.\n\nNote: repaired files may be missing bookmarks, forms, and other interactive features.",
+                        string.Format(Loc("Str_Dlg_RepairAsk"), System.IO.Path.GetFileName(path)),
                         "KillerPDF", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                     if (result == MessageBoxResult.Yes)
                         TryRepairAndOpen(srcPath);

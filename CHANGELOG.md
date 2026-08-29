@@ -4,6 +4,24 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - Unreleased
+
+1.8.1 fixes urgent 1.8 regressions and adds several focused page-management improvements.
+
+### Added
+
+- The Pages panel now supports Ctrl+A to select every page and Delete to remove the selected pages (#289, #296).
+
+### Fixed
+
+- Clicking or dragging the title-bar logo no longer crashes because of an invalid Windows entry point (#298).
+- Damaged-file repair prompts now use the active interface language (#299).
+- Tagged PDFs can now be added after untagged pages or other imported documents (#300).
+- Turning off two-sided printing now explicitly overrides printer-driver duplex defaults (#284).
+- Measurement rulers and readouts now remain legible at fitted and multi-page zoom levels.
+- Duplicate installation repair now uses KillerPDF's themed dialog after theme and locale initialization, clearly identifies both installation scopes, explains why the duplicate may exist, and confirms that settings and PDF files are preserved.
+- The Help and How To page now explains every 1.8 tool and workflow, including PDF comparison, measurement, touch navigation, letter spacing, Transform batches and output controls, form-aware OCR, token signing, page transfer, packaging, all fourteen OCR languages, and The KillerPDF.Engine.
+
 ## [1.8.0] - 2026-08-28
 
 KillerPDF 1.8 replaces its legacy PdfSharpCore document pipeline with an independently authored .NET 10 PDF document engine. It is responsible for reading, validating, authoring, structurally editing, and writing PDF files. PDFium remains KillerPDF's rendering and display backend, while PdfPig continues to handle text extraction.
