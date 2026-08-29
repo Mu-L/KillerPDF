@@ -11,6 +11,9 @@ obj/
 publish/
 *.pubxml.user
 
+# Generated NuGet packages
+/artifacts/nuget/
+
 # Local notes / scratch
 *.odt
 

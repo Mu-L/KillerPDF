@@ -14,6 +14,8 @@ public partial class PdfViewer
     private Line? _measurementStartCap;
     private Line? _measurementEndCap;
     private Border? _measurementReadout;
+    private TextBlock? _measurementReadoutText;
+    private Border? _measurementGrainLayer;
     private int _measurementPage = -1;
     private PdfPageInformation? _measurementPageInfo;
     private (int w, int h) _measurementRenderSize;
@@ -52,21 +54,32 @@ public partial class PdfViewer
         };
         _measurementStartCap = MeasurementCap(accent);
         _measurementEndCap = MeasurementCap(accent);
+        var readoutContent = new Grid();
+        _measurementGrainLayer = new Border
+        {
+            CornerRadius = UiKit.RadCard,
+            IsHitTestVisible = false
+        };
+        _measurementGrainLayer.SetResourceReference(Border.BackgroundProperty, "GrainBrushShared");
+        _measurementGrainLayer.SetResourceReference(UIElement.OpacityProperty, "GrainOpacity");
+        readoutContent.Children.Add(_measurementGrainLayer);
+        _measurementReadoutText = new TextBlock
+        {
+            FontFamily = UiKit.UiFont,
+            FontSize = 12,
+            Margin = new Thickness(8, 5, 8, 5)
+        };
+        _measurementReadoutText.SetResourceReference(TextBlock.ForegroundProperty, "TextBrush");
+        readoutContent.Children.Add(_measurementReadoutText);
         _measurementReadout = new Border
         {
-            Background = new SolidColorBrush(Color.FromArgb(235, 32, 32, 32)),
             BorderBrush = accent,
             BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(8, 5, 8, 5),
+            CornerRadius = UiKit.RadCard,
             IsHitTestVisible = false,
-            Child = new TextBlock
-            {
-                Foreground = Brushes.White,
-                FontFamily = UiKit.UiFont,
-                FontSize = 12
-            }
+            Child = readoutContent
         };
+        _measurementReadout.SetResourceReference(Border.BackgroundProperty, "BgFlyout");
         TextOptions.SetTextFormattingMode(_measurementReadout, TextFormattingMode.Ideal);
         TextOptions.SetTextRenderingMode(_measurementReadout, TextRenderingMode.Grayscale);
 
@@ -103,11 +116,15 @@ public partial class PdfViewer
         _measurementStartCap.StrokeThickness = 2 * inv;
         _measurementEndCap.StrokeThickness = 2 * inv;
         _measurementReadout.BorderThickness = new Thickness(inv);
-        _measurementReadout.CornerRadius = new CornerRadius(3 * inv);
-        _measurementReadout.Padding = new Thickness(8 * inv, 5 * inv, 8 * inv, 5 * inv);
-        if (_measurementReadout.Child is TextBlock readoutText)
-            readoutText.FontSize = 12 * inv;
-
+        double radius = UiKit.RadCard.TopLeft * inv;
+        _measurementReadout.CornerRadius = new CornerRadius(radius);
+        if (_measurementGrainLayer is not null)
+            _measurementGrainLayer.CornerRadius = new CornerRadius(Math.Max(0, radius - inv));
+        if (_measurementReadoutText is not null)
+        {
+            _measurementReadoutText.FontSize = 12 * inv;
+            _measurementReadoutText.Margin = new Thickness(8 * inv, 5 * inv, 8 * inv, 5 * inv);
+        }
         Vector direction = end - _drawStart;
         double length = direction.Length;
         Vector normal = length > 0.001
@@ -117,7 +134,7 @@ public partial class PdfViewer
         PositionCap(_measurementEndCap, end, normal);
 
         string text = MeasurementText(direction);
-        if (_measurementReadout.Child is TextBlock tb) tb.Text = text;
+        if (_measurementReadoutText is not null) _measurementReadoutText.Text = text;
         _measurementReadout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         double edge = 4 * inv;
         double offset = 12 * inv;
@@ -189,6 +206,8 @@ public partial class PdfViewer
         _measurementStartCap = null;
         _measurementEndCap = null;
         _measurementReadout = null;
+        _measurementReadoutText = null;
+        _measurementGrainLayer = null;
         _measurementPage = -1;
         _measurementPageInfo = null;
         _measurementRenderSize = default;
