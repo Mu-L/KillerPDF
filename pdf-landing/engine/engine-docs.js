@@ -3,6 +3,9 @@
 
   var root = document.documentElement;
   var docId = document.body.getAttribute('data-doc') || 'overview';
+  var lang = 'en';
+  try { lang = localStorage.getItem('kpdf-lang') || 'en'; } catch (e) {}
+  var L10N = null;
   var pages = [
     { id: 'overview', title: 'Overview', file: 'index.html', group: 'Engine' },
     { id: 'getting-started', title: 'Getting started', file: 'getting-started.html', group: 'Start here' },
@@ -68,7 +71,7 @@
   }
 
   function slug(value) {
-    return value.toLowerCase().replace(/<[^>]*>/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return value.toLowerCase().replace(/<[^>]*>/g, '').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '');
   }
 
   function splitCells(line) {
@@ -178,11 +181,12 @@
   }
 
   function pager() {
+    var labels = (L10N && L10N.ui) || {};
     var index = pages.findIndex(function (page) { return page.id === docId; });
     var previous = index > 0 ? pages[index - 1] : null;
     var next = index >= 0 && index < pages.length - 1 ? pages[index + 1] : null;
-    var html = previous ? '<a href="' + previous.file + '"><small>Previous</small><span>' + previous.title + '</span></a>' : '<span></span>';
-    html += next ? '<a href="' + next.file + '"><small>Next</small><span>' + next.title + '</span></a>' : '<span></span>';
+    var html = previous ? '<a href="' + previous.file + '"><small>' + (labels.previous || 'Previous') + '</small><span>' + previous.title + '</span></a>' : '<span></span>';
+    html += next ? '<a href="' + next.file + '"><small>' + (labels.next || 'Next') + '</small><span>' + next.title + '</span></a>' : '<span></span>';
     document.getElementById('docPager').innerHTML = html;
   }
 
@@ -226,7 +230,43 @@
   }
 
   function showLoadError() {
-    document.getElementById('engineDoc').innerHTML = '<div class="doc-error"><strong>The guide could not be loaded.</strong><p>Open this page through the KillerPDF website or a local web server.</p></div>';
+    var ui = (L10N && L10N.ui) || {};
+    document.getElementById('engineDoc').innerHTML = '<div class="doc-error"><strong>' + (ui.loadErrorTitle || 'The guide could not be loaded.') + '</strong><p>' + (ui.loadErrorBody || 'Open this page through the KillerPDF website or a local web server.') + '</p></div>';
+  }
+
+  function applyDocsL10n() {
+    var l10n = window.KPDF_ENGINE_DOCS_L10N;
+    if (!l10n || l10n.lang !== lang) return;
+    L10N = l10n;
+    var ui = l10n.ui || {};
+    pages.forEach(function (page) {
+      if (ui.titles && ui.titles[page.id]) page.title = ui.titles[page.id];
+      if (ui.groups && ui.groups[page.group]) page.group = ui.groups[page.group];
+    });
+    var docsNav = document.querySelector('.docs-nav');
+    if (docsNav) docsNav.innerHTML = navigation();
+    var sbTab = document.querySelector('.sb-tabs .on');
+    if (sbTab && ui.devguide) sbTab.textContent = ui.devguide;
+    if (ui.nav) {
+      var navLinks = document.querySelectorAll('.tb-nav a');
+      var navKeys = ['help', 'technical', 'engine', 'about'];
+      [].forEach.call(navLinks, function (link, index) {
+        if (ui.nav[navKeys[index]]) link.textContent = ui.nav[navKeys[index]];
+      });
+    }
+    var sourceLink = document.querySelector('.statusbar .left a');
+    if (sourceLink && ui.engineSource) sourceLink.textContent = ui.engineSource;
+    if (l10n.docs && l10n.docs[docId]) showMarkdown(l10n.docs[docId]);
+    pager();
+  }
+
+  function loadDocsL10n() {
+    if (lang === 'en' || !/^[a-z]{2}(-[a-z]{2})?$/.test(lang)) return;
+    var script = document.createElement('script');
+    script.async = false;
+    script.src = './docs-i18n/' + lang + '.js?v=1';
+    script.onload = applyDocsL10n;
+    document.body.appendChild(script);
   }
 
   shell();
@@ -242,6 +282,7 @@
         if (window.location.protocol === 'file:') loadLocalMarkdown(); else showLoadError();
       });
   }
-  loadSharedScript('../kp-i18n.js?v=8');
-  loadSharedScript('../kp.js?v=9');
+  loadDocsL10n();
+  loadSharedScript('../kp-i18n.js?v=9');
+  loadSharedScript('../kp.js?v=10');
 })(window);
