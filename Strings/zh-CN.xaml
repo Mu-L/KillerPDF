@@ -59,6 +59,8 @@
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">页面</sys:String>
     <sys:String x:Key="Str_TabOutlines">大纲</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">全部折叠</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">全部展开</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
     <sys:String x:Key="Str_Theme">主题</sys:String>

@@ -61,6 +61,8 @@
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">СТРАНИЦЫ</sys:String>
     <sys:String x:Key="Str_TabOutlines">СХЕМА</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">Свернуть все</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">Развернуть все</sys:String>
     <sys:String x:Key="Str_PageLabel">Страница {0}</sys:String>
     <sys:String x:Key="Str_Outline_Untitled">(без названия)</sys:String>
 

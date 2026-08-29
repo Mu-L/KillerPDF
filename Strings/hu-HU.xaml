@@ -61,6 +61,8 @@
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">OLDALAK</sys:String>
     <sys:String x:Key="Str_TabOutlines">VÁZLAT</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">Összes összecsukása</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">Összes kibontása</sys:String>
     <sys:String x:Key="Str_PageLabel">{0}. oldal</sys:String>
     <sys:String x:Key="Str_Outline_Untitled">(névtelen)</sys:String>
 

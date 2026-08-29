@@ -13,6 +13,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - The Pages panel now supports Ctrl+A to select every page and Delete to remove the selected pages (#289, #296).
 - OCR now recognizes every selected page and copies the combined text (#297).
 - Russian is now available for the complete interface and downloadable OCR support (#293, thanks 1mk3r).
+- The outline sidebar can now expand or collapse every bookmark branch at once.
 
 ### Fixed
 

@@ -59,6 +59,8 @@
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">PÁGINAS</sys:String>
     <sys:String x:Key="Str_TabOutlines">ESQUEMA</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">Contraer todo</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">Expandir todo</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
     <sys:String x:Key="Str_Theme">Tema</sys:String>

@@ -59,6 +59,8 @@
     <!-- ── Kenar çubuğu sekmeleri ───────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">SAYFALAR</sys:String>
     <sys:String x:Key="Str_TabOutlines">ANA HATLAR</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">Tümünü daralt</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">Tümünü genişlet</sys:String>
 
     <!-- ── Ayarlar paneli ───────────────────────────────────────────── -->
     <sys:String x:Key="Str_Theme">Tema</sys:String>

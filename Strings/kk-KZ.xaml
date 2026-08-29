@@ -60,6 +60,8 @@
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">БЕТТЕР</sys:String>
     <sys:String x:Key="Str_TabOutlines">МАЗМҰН</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">Барлығын жию</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">Барлығын жаю</sys:String>
     <sys:String x:Key="Str_PageLabel">Бет {0}</sys:String>
     <sys:String x:Key="Str_Outline_Untitled">(атаусыз)</sys:String>
 

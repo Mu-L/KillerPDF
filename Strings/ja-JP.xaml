@@ -61,6 +61,8 @@
     <!-- ── サイドバータブ ────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">ページ</sys:String>
     <sys:String x:Key="Str_TabOutlines">アウトライン</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">すべて折りたたむ</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">すべて展開</sys:String>
     <sys:String x:Key="Str_PageLabel">ページ {0}</sys:String>
     <sys:String x:Key="Str_Outline_Untitled">(無題)</sys:String>
 

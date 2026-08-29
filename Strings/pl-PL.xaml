@@ -61,6 +61,8 @@
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">STRONY</sys:String>
     <sys:String x:Key="Str_TabOutlines">ZARYS</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">Zwiń wszystko</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">Rozwiń wszystko</sys:String>
     <sys:String x:Key="Str_PageLabel">Strona {0}</sys:String>
     <sys:String x:Key="Str_Outline_Untitled">(bez tytułu)</sys:String>
 

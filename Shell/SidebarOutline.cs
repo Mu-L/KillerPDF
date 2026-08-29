@@ -36,6 +36,7 @@ namespace KillerPDF
             _sidebarShowingOutlines = false;
             PageList.Visibility = Visibility.Visible;
             OutlineScrollViewer.Visibility = Visibility.Collapsed;
+            OutlineControlsRow.Visibility = Visibility.Collapsed;
             PageControlsRow.Visibility = _doc != null ? Visibility.Visible : Visibility.Collapsed;   // no empty box when nothing is open
             SidebarPagesTab.Foreground = (Brush)FindResource("PrimaryBrush");
             SidebarOutlinesTab.Foreground = (Brush)FindResource("MutedTextBrush");
@@ -63,6 +64,7 @@ namespace KillerPDF
             _sidebarShowingOutlines = true;
             PageList.Visibility = Visibility.Collapsed;
             OutlineScrollViewer.Visibility = Visibility.Visible;
+            OutlineControlsRow.Visibility = Visibility.Visible;
             PageControlsRow.Visibility = Visibility.Collapsed;
             SidebarPagesTab.Foreground = (Brush)FindResource("MutedTextBrush");
             SidebarOutlinesTab.Foreground = (Brush)FindResource("PrimaryBrush");
@@ -177,6 +179,10 @@ namespace KillerPDF
                 // Malformed outline - show a placeholder and don't crash
                 SidebarOutlinesTab.IsEnabled = false;
             }
+            finally
+            {
+                UpdateOutlineExpandCollapseButton();
+            }
         }
 
         private IReadOnlyList<KillerPdf.Engine.Documents.PdfBookmarkInfo> ReadEngineBookmarks()
@@ -212,10 +218,53 @@ namespace KillerPDF
                     ToolTip = pageIdx >= 0 ? string.Format(Loc("Str_PageLabel"), pageIdx + 1) : null,
                     Style = (Style)FindResource("OutlineItemStyle")
                 };
+                item.Expanded += OutlineItemExpansionChanged;
+                item.Collapsed += OutlineItemExpansionChanged;
                 if (outline.Children.Count > 0)
                     AddOutlineItems(item.Items, outline.Children, depth + 1);
                 target.Add(item);
             }
+        }
+
+        private void OutlineItemExpansionChanged(object sender, RoutedEventArgs e) =>
+            UpdateOutlineExpandCollapseButton();
+
+        private void OutlineExpandCollapseAll_Click(object sender, RoutedEventArgs e)
+        {
+            bool collapse = HasExpandedOutline(OutlineTree.Items);
+            SetOutlineExpansion(OutlineTree.Items, !collapse);
+            CaptureOutlineExpandState();
+            UpdateOutlineExpandCollapseButton();
+        }
+
+        private static bool HasExpandedOutline(ItemCollection items)
+        {
+            foreach (var value in items)
+                if (value is TreeViewItem item && item.Tag is OutlineNodeRef &&
+                    item.Items.Count > 0 && item.IsExpanded)
+                    return true;
+            return false;
+        }
+
+        private static void SetOutlineExpansion(ItemCollection items, bool expanded)
+        {
+            foreach (var value in items)
+            {
+                if (value is not TreeViewItem item || item.Tag is not OutlineNodeRef) continue;
+                if (item.Items.Count > 0) item.IsExpanded = expanded;
+                SetOutlineExpansion(item.Items, expanded);
+            }
+        }
+
+        private void UpdateOutlineExpandCollapseButton()
+        {
+            bool hasBranches = OutlineTree.Items.OfType<TreeViewItem>()
+                .Any(item => item.Tag is OutlineNodeRef && item.Items.Count > 0);
+            bool collapse = hasBranches && HasExpandedOutline(OutlineTree.Items);
+            string key = collapse ? "Str_Outline_CollapseAll" : "Str_Outline_ExpandAll";
+            OutlineExpandCollapseAllButton.IsEnabled = hasBranches;
+            OutlineExpandCollapseAllButton.SetResourceReference(ContentControl.ContentProperty, key);
+            OutlineExpandCollapseAllButton.SetResourceReference(FrameworkElement.ToolTipProperty, key);
         }
 
         // Sticky expand/collapse per file, keyed by index path ("2/0/1", ghost row excluded).

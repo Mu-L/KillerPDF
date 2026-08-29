@@ -61,6 +61,8 @@
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">STRÁNKY</sys:String>
     <sys:String x:Key="Str_TabOutlines">OSNOVA</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">Sbalit vše</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">Rozbalit vše</sys:String>
     <sys:String x:Key="Str_PageLabel">Stránka {0}</sys:String>
     <sys:String x:Key="Str_Outline_Untitled">(bez názvu)</sys:String>
 

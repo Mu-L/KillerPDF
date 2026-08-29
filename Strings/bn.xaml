@@ -59,6 +59,8 @@
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">পৃষ্ঠাসমূহ</sys:String>
     <sys:String x:Key="Str_TabOutlines">আউটলাইন</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">সব সংকুচিত করুন</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">সব প্রসারিত করুন</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
     <sys:String x:Key="Str_Theme">থিম</sys:String>

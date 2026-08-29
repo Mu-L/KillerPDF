@@ -55,6 +55,8 @@
     <!-- Sidebar tabs -->
     <sys:String x:Key="Str_TabPages">PAGES</sys:String>
     <sys:String x:Key="Str_TabOutlines">PLAN</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">Tout réduire</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">Tout développer</sys:String>
 
     <!-- Settings panel -->
     <sys:String x:Key="Str_Theme">Thème</sys:String>

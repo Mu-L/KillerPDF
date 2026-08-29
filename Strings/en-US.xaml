@@ -61,6 +61,8 @@
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">PAGES</sys:String>
     <sys:String x:Key="Str_TabOutlines">OUTLINE</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">Collapse all</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">Expand all</sys:String>
     <sys:String x:Key="Str_PageLabel">Page {0}</sys:String>
     <sys:String x:Key="Str_Outline_Untitled">(untitled)</sys:String>
 

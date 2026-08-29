@@ -59,6 +59,8 @@
     <!-- ── Sidebar tabs ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_TabPages">SEITEN</sys:String>
     <sys:String x:Key="Str_TabOutlines">GLIEDERUNG</sys:String>
+    <sys:String x:Key="Str_Outline_CollapseAll">Alle reduzieren</sys:String>
+    <sys:String x:Key="Str_Outline_ExpandAll">Alle erweitern</sys:String>
 
     <!-- ── Settings panel ───────────────────────────────────────────── -->
     <sys:String x:Key="Str_Theme">Design</sys:String>
