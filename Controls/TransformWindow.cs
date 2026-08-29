@@ -127,9 +127,7 @@ namespace KillerPDF
             {
                 Width = 288,
                 Background = Brushes.Transparent,
-                Padding = ThemeManager.Current == Theme.SE98
-                    ? new Thickness(16, 8, 4, 14)
-                    : new Thickness(16, 8, 16, 14)
+                Padding = new Thickness(16, 8, 4, 14)
             };
             DockPanel.SetDock(sidebar, Dock.Right);
 
@@ -408,7 +406,7 @@ namespace KillerPDF
             var previewWrap = new Border
             {
                 BorderThickness = new Thickness(1),
-                CornerRadius = UiKit.RadControl,
+                CornerRadius = UiKit.RadCard,
                 Margin = new Thickness(8, 4, 8, 12),
                 ClipToBounds = true
             };
@@ -481,7 +479,13 @@ namespace KillerPDF
 
             previewWrap.Child = previewGrid;
             _previewArea = previewWrap;
-            previewWrap.SizeChanged += (_, _2) => SizePreviewImage();
+            previewWrap.SizeChanged += (_, _2) =>
+            {
+                double radius = previewWrap.CornerRadius.TopLeft;
+                previewGrid.Clip = new RectangleGeometry(
+                    new Rect(0, 0, previewGrid.ActualWidth, previewGrid.ActualHeight), radius, radius);
+                SizePreviewImage();
+            };
 
             var previewColumn = new DockPanel();
             if (pages.Count > 1)
