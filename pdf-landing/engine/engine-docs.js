@@ -162,7 +162,7 @@
   function shell() {
     document.body.innerHTML = '<div class="topbar">' +
       '<a href="../index.html" class="tb-home" title="KillerPDF home"><img class="tb-icon" src="../kp-icon.png" alt="KillerPDF" width="44" height="44"><img class="wm-logo tb-wm" src="../brand/killerpdf-logo-dark-green.svg" alt="KillerPDF"></a>' +
-      '<a class="tb-dl" href="https://www.nuget.org/packages/KillerPdf.Engine"><span>NuGet</span></a>' +
+      '<a class="tb-dl" href="https://github.com/SteveTheKiller/KillerPDF/releases/latest/download/KillerPDF.exe"><svg viewBox="0 0 24 24"><path d="M11 4h2v7h3l-4 5-4-5h3V4zM5 18h14v2H5z"></path></svg><span data-i18n="nav_dl">Download</span></a>' +
       '<span class="tb-spacer"></span><nav class="tb-nav"><a href="../help.html">Help</a><a href="../technical.html">Technical</a><a href="./index.html" class="on">Engine</a><a href="../about.html">About</a></nav>' +
       '<div class="tgrp" role="group" aria-label="Theme">' + themeButtons() + '</div>' +
       '<div class="acc-fly accent-switch" id="accentSwitch"><button class="acc-toggle" id="accentToggle" aria-haspopup="true" aria-expanded="false" title="Accent color"></button><div class="acc-pop" id="accentPop" hidden role="group" aria-label="Accent color"><span class="acc-pop-label">accent:</span>' +
