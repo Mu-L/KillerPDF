@@ -18,6 +18,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 ### Fixed
 
 - Completed the interface translations for all 15 supported languages (#286, #295).
+- Document scrolling now follows the line count configured in Windows Mouse Properties (#301).
 - Clicking or dragging the title-bar logo no longer crashes because of an invalid Windows entry point (#298).
 - Damaged-file repair prompts now use the active interface language (#299).
 - Tagged PDFs can now be added after untagged pages or other imported documents (#300).

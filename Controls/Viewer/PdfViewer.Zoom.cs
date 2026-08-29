@@ -254,19 +254,23 @@ namespace KillerPDF.Controls
             _zoomSettleTimer.Start();
         }
 
-        // The ScrollViewer default (3 lines = 48 DIP per wheel notch) feels slow on tall documents,
-        // so scroll WheelScrollFactor times that instead. e.Delta is +-120 per notch on a standard
-        // wheel (precision touchpads send smaller, more frequent deltas, which scale the same way).
-        // ScrollToVerticalOffset clamps to the valid range itself.
-        // internal: PageSelection.cs reuses it so the sidebar scrolls at the document's speed.
+        // Horizontal scrolling and the page sidebar retain the established speed multiplier.
+        // Document wheel scrolling follows the Windows mouse setting below.
         internal const double WheelScrollFactor = 3.0;
 
         private void ScrollWheel(MouseWheelEventArgs e)
         {
             _sidebarSelectionPinned = -1;
             e.Handled = true;
+
+            // Honor the Wheel tab in Windows Mouse Properties. A value of -1 means one screen
+            // at a time. Scaling by the raw delta preserves smooth precision-touchpad movement.
+            int lines = SystemParameters.WheelScrollLines;
+            double distance = lines < 0
+                ? PagePreviewPanel.ViewportHeight
+                : lines * 16.0;
             PagePreviewPanel.ScrollToVerticalOffset(
-                PagePreviewPanel.VerticalOffset - e.Delta * (48.0 / 120.0) * WheelScrollFactor);
+                PagePreviewPanel.VerticalOffset - e.Delta * (distance / 120.0));
         }
 
         // #196: horizontal scroll fed from the window's WM_MOUSEHWHEEL hook (WPF surfaces no
