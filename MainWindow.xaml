@@ -1544,26 +1544,47 @@
                     <DockPanel x:Name="SidebarContentPanel">
                         <!-- Sticky header - lives outside the ScrollViewer so it never scrolls away -->
                         <!-- Tab row: PAGES (left) | OUTLINES (right) -->
-                        <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="10,6,8,0">
+                        <DockPanel DockPanel.Dock="Top" LastChildFill="False" Height="20" Margin="10,6,8,0">
                             <Button x:Name="SidebarPagesTab" Content="{DynamicResource Str_TabPages}"
                                     DockPanel.Dock="Left"
                                     Style="{StaticResource SidebarTabBtn}"
+                                    VerticalAlignment="Center"
                                     Foreground="{DynamicResource PrimaryBrush}"
                                     Click="SidebarPagesTab_Click"/>
                             <Button x:Name="SidebarOutlinesTab" Content="{DynamicResource Str_TabOutlines}"
                                     DockPanel.Dock="Right"
                                     Style="{StaticResource SidebarTabBtn}"
+                                    VerticalAlignment="Center"
                                     IsEnabled="False"
                                     Click="SidebarOutlinesTab_Click"/>
                             <Button x:Name="OutlineExpandCollapseAllButton"
                                     DockPanel.Dock="Right"
-                                    Content="-"
                                     ToolTip="{DynamicResource Str_Outline_CollapseAll}"
                                     Style="{StaticResource SidebarTabBtn}"
                                     Width="18" Height="18" Padding="0" Margin="0,0,3,0"
-                                    FontFamily="Segoe UI Symbol" FontSize="14"
+                                    VerticalAlignment="Center"
                                     Visibility="Collapsed"
-                                    Click="OutlineExpandCollapseAll_Click"/>
+                                    Click="OutlineExpandCollapseAll_Click">
+                                <Grid Width="18" Height="18" IsHitTestVisible="False">
+                                    <Rectangle Width="8" Height="1"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                                    <Rectangle x:Name="OutlineExpandVerticalStroke"
+                                               Width="1" Height="8"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                               Visibility="Collapsed"/>
+                                </Grid>
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Width="18" Height="18"
+                                                Background="{TemplateBinding Background}">
+                                            <ContentPresenter HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
                         </DockPanel>
                         <!-- Page controls row (hidden in outlines mode) -->
                         <DockPanel x:Name="PageControlsRow" DockPanel.Dock="Top" LastChildFill="False" Margin="12,2,8,4" Visibility="Collapsed">

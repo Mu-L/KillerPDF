@@ -118,8 +118,7 @@ public partial class PdfViewer
         _measurementReadout.BorderThickness = new Thickness(inv);
         double radius = UiKit.RadCard.TopLeft * inv;
         _measurementReadout.CornerRadius = new CornerRadius(radius);
-        if (_measurementGrainLayer is not null)
-            _measurementGrainLayer.CornerRadius = new CornerRadius(Math.Max(0, radius - inv));
+        _measurementGrainLayer?.CornerRadius = new CornerRadius(Math.Max(0, radius - inv));
         if (_measurementReadoutText is not null)
         {
             _measurementReadoutText.FontSize = 12 * inv;
@@ -134,7 +133,7 @@ public partial class PdfViewer
         PositionCap(_measurementEndCap, end, normal);
 
         string text = MeasurementText(direction);
-        if (_measurementReadoutText is not null) _measurementReadoutText.Text = text;
+        _measurementReadoutText?.Text = text;
         _measurementReadout.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         double edge = 4 * inv;
         double offset = 12 * inv;

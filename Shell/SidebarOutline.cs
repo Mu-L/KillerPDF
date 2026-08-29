@@ -263,7 +263,7 @@ namespace KillerPDF
             bool collapse = hasBranches && HasExpandedOutline(OutlineTree.Items);
             string key = collapse ? "Str_Outline_CollapseAll" : "Str_Outline_ExpandAll";
             OutlineExpandCollapseAllButton.IsEnabled = hasBranches;
-            OutlineExpandCollapseAllButton.Content = collapse ? "\u2212" : "+";
+            OutlineExpandVerticalStroke.Visibility = collapse ? Visibility.Collapsed : Visibility.Visible;
             OutlineExpandCollapseAllButton.SetResourceReference(FrameworkElement.ToolTipProperty, key);
         }
 

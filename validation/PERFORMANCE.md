@@ -1,26 +1,31 @@
-# Performance validation results: KillerPDF 1.8.0
+# Performance validation results
 
-Benchmark date: 2026-08-28
+Results are listed newest first. Earlier release benchmarks remain here so changes
+between releases can be compared against their original measurements.
 
-KillerPDF 1.8.0 completed the shared 2,236-file batch-resave workload in a median
-10.013 seconds, compared with 16.167 seconds for KillerPDF 1.7.5. That is a 38.1%
-reduction in elapsed time. Median throughput increased from 138.31 to 223.32 files
-per second.
+## KillerPDF 1.8.1 compared with 1.8.0
+
+Benchmark date: 2026-08-29
+
+KillerPDF 1.8.1 completed the shared 2,236-file batch-resave workload in a median
+7.057 seconds, compared with 7.015 seconds for KillerPDF 1.8.0. The 0.6% throughput
+difference is within ordinary run-to-run variation and far below the 10% slowdown
+threshold that requires investigation.
 
 This is a regression benchmark for KillerPDF's real batch-resave path. It is not a
 claim that one PDF engine will be faster for every document or workload.
 
-## Builds under test
+### Builds under test
 
 | Version | Build | SHA-256 |
 |---|---|---|
-| KillerPDF 1.7.5 | Official GitHub release executable | `C53B34C5847ABE24228226656C00EFF5F76396D2BD8AD1BE8FDBAC56B153B136` |
 | KillerPDF 1.8.0 | Installed final release | `3D3C53B66A165C9BD26F1DCC1679AF131E69FB0305FF84BB52F53412EA657FCF` |
+| KillerPDF 1.8.1 | Release candidate built from the current source | `B80687668D9ADA6DF4E01D7772E909B90CA8DA9A4B4ACEAC37702AE5FF43F4E9` |
 
-The downloaded 1.7.5 executable matched the digest published for the v1.7.5 GitHub
-release asset. Both executables reported their expected final product versions.
+Both executables reported their expected product versions. The 1.8.1 candidate used
+the same installed-payload build shape as the official 1.8.0 application.
 
-## Test system
+### Test system
 
 | Component | Value |
 |---|---|
@@ -29,16 +34,15 @@ release asset. Both executables reported their expected final product versions.
 | Memory | 32 GB DDR4-3200 |
 | Storage | 2 TB SPCC M.2 PCIe NVMe SSD |
 
-## Corpus
+### Corpus
 
-The input was the 2,236-file subset of the public conformance corpus supported by
-both versions. KillerPDF 1.7.5 could not process the PDF 2.0 files in the full
-2,907-file corpus, so those files were excluded to keep the comparison equivalent.
+The input was the same 2,236-file public conformance subset used for the 1.8.0
+release benchmark. Keeping the input fixed makes the two runs directly comparable.
 
 The shared input contains public veraPDF, Isartor, and TWG conformance files. The
 same input directory was supplied to both versions for every run.
 
-## Method
+### Method
 
 1. Verify that both executables report the intended final product versions.
 2. Verify the release asset hashes and count the input PDFs recursively.
@@ -53,7 +57,43 @@ same input directory was supplied to both versions for every run.
 
 Every measured run processed all 2,236 files and returned exit code 0.
 
-## Results
+### Results
+
+| Version | Runs | Median time | Minimum | Maximum | Median files per second |
+|---|---:|---:|---:|---:|---:|
+| KillerPDF 1.8.0 | 5 | 7.015 seconds | 6.916 seconds | 7.217 seconds | 318.73 |
+| KillerPDF 1.8.1 | 5 | 7.057 seconds | 6.815 seconds | 7.326 seconds | 316.86 |
+
+The raw measurements are preserved in
+[`benchmarks/1.8.1/benchmark-results.csv`](benchmarks/1.8.1/benchmark-results.csv),
+with the calculated medians in
+[`benchmarks/1.8.1/benchmark-summary.csv`](benchmarks/1.8.1/benchmark-summary.csv).
+
+## KillerPDF 1.8.0 compared with 1.7.5
+
+Benchmark date: 2026-08-28
+
+KillerPDF 1.8.0 completed the shared 2,236-file batch-resave workload in a median
+10.013 seconds, compared with 16.167 seconds for KillerPDF 1.7.5. That is a 38.1%
+reduction in elapsed time. Median throughput increased from 138.31 to 223.32 files
+per second.
+
+### Builds under test
+
+| Version | Build | SHA-256 |
+|---|---|---|
+| KillerPDF 1.7.5 | Official GitHub release executable | `C53B34C5847ABE24228226656C00EFF5F76396D2BD8AD1BE8FDBAC56B153B136` |
+| KillerPDF 1.8.0 | Installed final release | `3D3C53B66A165C9BD26F1DCC1679AF131E69FB0305FF84BB52F53412EA657FCF` |
+
+The downloaded 1.7.5 executable matched the digest published for the v1.7.5 GitHub
+release asset. Both executables reported their expected final product versions.
+
+### Corpus note
+
+KillerPDF 1.7.5 could not process the PDF 2.0 files in the full 2,907-file corpus,
+so those files were excluded from both runs to keep the comparison equivalent.
+
+### Results
 
 | Version | Runs | Median time | Minimum | Maximum | Median files per second |
 |---|---:|---:|---:|---:|---:|

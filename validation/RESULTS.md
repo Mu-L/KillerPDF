@@ -1,9 +1,9 @@
-# Standards-conformance validation results: KillerPDF 1.8.0
+# Standards-conformance validation results: KillerPDF 1.8.1
 
-Validation date: 2026-08-28
+Validation date: 2026-08-29
 
-KillerPDF 1.8.0 rewrote 2,898 of 2,907 deliberately hostile conformance PDFs through
-The KillerPDF.Engine. The final release build completed with zero rewrite failures, zero new
+KillerPDF 1.8.1 rewrote 2,898 of 2,907 deliberately hostile conformance PDFs through
+The KillerPDF.Engine. The release candidate completed with zero rewrite failures, zero new
 veraPDF failures, and zero qpdf structural regressions.
 
 Question under test: does saving a PDF through KillerPDF degrade its
@@ -19,7 +19,7 @@ out more conformant than they went in.**
 |---|---|---|
 | veraPDF | 1.30.2 | PDF/A + PDF/UA validation (the industry reference validator) |
 | qpdf | 12.3.2 | Structural check (`--check` exit codes) |
-| KillerPDF | 1.8.0 | `--batch-resave` through the standard open/save pipeline |
+| KillerPDF | 1.8.1 | `--batch-resave` through the standard open/save pipeline |
 | Compare-VeraPDF.ps1 | this folder | Diffs the two veraPDF reports file by file |
 | QpdfSweep.ps1 | this folder | Structural before/after sweep (`qpdf --check` exit codes) |
 
@@ -77,13 +77,13 @@ No file's structural health got worse; 374 files with qpdf warnings came out cle
 
 ## Build under test
 
-KillerPDF 1.8 replaces the legacy document pipeline with The KillerPDF.Engine. This final
-gate used the 1.8.0 Release build from the current source tree.
+KillerPDF 1.8 replaces the legacy document pipeline with The KillerPDF.Engine. This gate
+used the 1.8.1 Release candidate built from the current source tree.
 
 | Gate | Result |
 |---|---|
 | Engine tests | 1,436 passed |
-| Application tests | 270 passed |
+| Application tests | 272 passed |
 | Release build | 0 warnings, 0 errors |
 | veraPDF | 1.30.2 |
 | qpdf | 12.3.2 |
