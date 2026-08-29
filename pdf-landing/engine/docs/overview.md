@@ -10,7 +10,9 @@ Install the package from [NuGet.org](https://www.nuget.org/packages/KillerPdf.En
 dotnet add package KillerPdf.Engine
 ```
 
-Continue with [Getting started](getting-started.html) for a complete first project, or use the task guides in the sidebar when you already know what you need to do.
+[Getting started](getting-started.html)
+
+Use the task guides in the sidebar when you already know what you need to do.
 
 ## What the engine covers
 

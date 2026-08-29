@@ -19,6 +19,42 @@
     return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  function token(kind, value) {
+    return '<span class="syntax-' + kind + '">' + esc(value) + '</span>';
+  }
+
+  function highlightCode(source, language) {
+    var lang = String(language || '').toLowerCase();
+    if (lang === 'xml' || lang === 'html') {
+      return esc(source).replace(/(&lt;!--[\s\S]*?--&gt;)|(&lt;\/?)([A-Za-z_:][\w:.-]*)([\s\S]*?)(\/?&gt;)/g, function (_, comment, open, name, attributes, close) {
+        if (comment) return '<span class="syntax-comment">' + comment + '</span>';
+        attributes = attributes.replace(/([A-Za-z_:][\w:.-]*)(\s*=\s*)(&quot;[^&]*?&quot;|'[^']*')/g, '<span class="syntax-attr">$1</span>$2<span class="syntax-string">$3</span>');
+        return '<span class="syntax-punctuation">' + open + '</span><span class="syntax-tag">' + name + '</span>' + attributes + '<span class="syntax-punctuation">' + close + '</span>';
+      });
+    }
+
+    var csharpKeywords = /^(?:abstract|as|async|await|base|bool|break|byte|case|catch|char|checked|class|const|continue|decimal|default|delegate|do|double|else|enum|event|explicit|extern|false|finally|fixed|float|for|foreach|from|get|global|goto|if|implicit|in|int|interface|internal|is|lock|long|namespace|new|null|object|operator|out|override|params|partial|private|protected|public|readonly|record|ref|required|return|sbyte|sealed|set|short|sizeof|stackalloc|static|string|struct|switch|this|throw|true|try|typeof|uint|ulong|unchecked|unsafe|ushort|using|var|virtual|void|volatile|where|while|with|yield)$/;
+    var powershellKeywords = /^(?:begin|break|catch|class|continue|data|do|dynamicparam|else|elseif|end|enum|exit|filter|finally|for|foreach|from|function|if|in|param|process|return|switch|throw|trap|try|until|using|while)$/i;
+    var pattern = lang === 'powershell'
+      ? /#[^\n]*|'(?:''|[^'])*'|"(?:`.|[^"`])*"|\$[A-Za-z_][\w:]*(?:\.[A-Za-z_]\w*)?|\b\d+(?:\.\d+)?\b|\b[A-Za-z_][\w-]*\b|[^\s]/g
+      : /\/\*[\s\S]*?\*\/|\/\/[^\n]*|@?\$?"(?:""|\\.|[^"\\])*"|'(?:\\.|[^'\\])'|\b\d+(?:\.\d+)?(?:[fFdDmMuUlL]*)\b|\b[A-Za-z_]\w*\b|[^\s]/g;
+    var output = '', last = 0, match;
+    while ((match = pattern.exec(source))) {
+      output += esc(source.slice(last, match.index));
+      var value = match[0], kind = '';
+      if (/^(?:\/\/|\/\*|#)/.test(value)) kind = 'comment';
+      else if (/^(?:@?\$?"|')/.test(value)) kind = 'string';
+      else if (lang === 'powershell' && /^\$/.test(value)) kind = 'variable';
+      else if (/^\d/.test(value)) kind = 'number';
+      else if ((lang === 'powershell' ? powershellKeywords : csharpKeywords).test(value)) kind = 'keyword';
+      else if (lang === 'powershell' && /^[A-Za-z]+-[A-Za-z]/.test(value)) kind = 'function';
+      else if (/^[A-Z][A-Za-z0-9_]*$/.test(value)) kind = 'type';
+      output += kind ? token(kind, value) : esc(value);
+      last = pattern.lastIndex;
+    }
+    return output + esc(source.slice(last));
+  }
+
   function inline(value) {
     var code = [];
     var text = esc(value).replace(/`([^`]+)`/g, function (_, body) {
@@ -55,7 +91,7 @@
         var language = line.slice(3).trim(), body = [];
         i++;
         while (i < lines.length && !/^```/.test(lines[i])) { body.push(lines[i]); i++; }
-        html.push('<pre data-language="' + esc(language) + '"><code>' + esc(body.join('\n')) + '</code></pre>');
+        html.push('<pre data-language="' + esc(language) + '"><code class="language-' + esc(language) + '">' + highlightCode(body.join('\n'), language) + '</code></pre>');
         i++;
         continue;
       }
@@ -125,9 +161,9 @@
 
   function shell() {
     document.body.innerHTML = '<div class="topbar">' +
-      '<a href="/" class="tb-home" title="KillerPDF home"><img class="tb-icon" src="/kp-icon.png" alt="KillerPDF" width="44" height="44"><img class="wm-logo tb-wm" src="/brand/killerpdf-logo-dark-green.svg" alt="KillerPDF"></a>' +
+      '<a href="../index.html" class="tb-home" title="KillerPDF home"><img class="tb-icon" src="../kp-icon.png" alt="KillerPDF" width="44" height="44"><img class="wm-logo tb-wm" src="../brand/killerpdf-logo-dark-green.svg" alt="KillerPDF"></a>' +
       '<a class="tb-dl" href="https://www.nuget.org/packages/KillerPdf.Engine"><span>NuGet</span></a>' +
-      '<span class="tb-spacer"></span><nav class="tb-nav"><a href="/help.html">Help</a><a href="/technical.html">Technical</a><a href="/engine/" class="on">Engine</a><a href="/about.html">About</a></nav>' +
+      '<span class="tb-spacer"></span><nav class="tb-nav"><a href="../help.html">Help</a><a href="../technical.html">Technical</a><a href="./index.html" class="on">Engine</a><a href="../about.html">About</a></nav>' +
       '<div class="tgrp" role="group" aria-label="Theme">' + themeButtons() + '</div>' +
       '<div class="acc-fly accent-switch" id="accentSwitch"><button class="acc-toggle" id="accentToggle" aria-haspopup="true" aria-expanded="false" title="Accent color"></button><div class="acc-pop" id="accentPop" hidden role="group" aria-label="Accent color"><span class="acc-pop-label">accent:</span>' +
       '<button class="acc" data-accent="red" style="background:#DD504B;color:#DD504B" title="Red"></button><button class="acc" data-accent="orange" style="background:#E8962C;color:#E8962C" title="Orange"></button><button class="acc" data-accent="green" style="background:#1EA54C;color:#1EA54C" title="Green"></button><button class="acc" data-accent="teal" style="background:#1FB8A8;color:#1FB8A8" title="Teal"></button><button class="acc" data-accent="blue" style="background:#50AEE8;color:#50AEE8" title="Blue"></button><button class="acc" data-accent="purple" style="background:#B982E3;color:#B982E3" title="Purple"></button></div></div></div>' +
@@ -138,7 +174,7 @@
 
   function hero() {
     if (docId !== 'overview') return;
-    document.getElementById('engineHero').innerHTML = '<div class="engine-doc-hero"><img class="engine-doc-mark" src="/killerpdf-engine-icon.png" alt=""><h1 class="engine-doc-brand">The KillerPDF<span class="accent">.Engine</span></h1></div>';
+    document.getElementById('engineHero').innerHTML = '<div class="engine-doc-hero"><img class="engine-doc-mark" src="../killerpdf-engine-icon.png" alt=""><h1 class="engine-doc-brand">The KillerPDF<span class="accent">.Engine</span></h1></div>';
   }
 
   function pager() {
@@ -164,22 +200,48 @@
     document.body.appendChild(script);
   }
 
+  function showMarkdown(markdown) {
+    document.getElementById('engineDoc').innerHTML = renderMarkdown(markdown);
+    if (docId === 'overview') {
+      var repeatedTitle = document.querySelector('#engineDoc > h1:first-child');
+      if (repeatedTitle) repeatedTitle.remove();
+    }
+    outline();
+  }
+
+  function loadLocalMarkdown() {
+    var frame = document.createElement('iframe');
+    frame.hidden = true;
+    frame.src = './docs/' + docId + '.md';
+    frame.onload = function () {
+      try {
+        showMarkdown(frame.contentDocument.body.textContent || '');
+      } catch (_) {
+        showLoadError();
+      }
+      frame.remove();
+    };
+    frame.onerror = showLoadError;
+    document.body.appendChild(frame);
+  }
+
+  function showLoadError() {
+    document.getElementById('engineDoc').innerHTML = '<div class="doc-error"><strong>The guide could not be loaded.</strong><p>Open this page through the KillerPDF website or a local web server.</p></div>';
+  }
+
   shell();
   hero();
   pager();
-  fetch('/engine/docs/' + docId + '.md', { credentials: 'same-origin' })
-    .then(function (response) { if (!response.ok) throw new Error('HTTP ' + response.status); return response.text(); })
-    .then(function (markdown) {
-      document.getElementById('engineDoc').innerHTML = renderMarkdown(markdown);
-      if (docId === 'overview') {
-        var repeatedTitle = document.querySelector('#engineDoc > h1:first-child');
-        if (repeatedTitle) repeatedTitle.remove();
-      }
-      outline();
-    })
-    .catch(function () {
-      document.getElementById('engineDoc').innerHTML = '<div class="doc-error"><strong>The guide could not be loaded.</strong><p>Open this page through the KillerPDF website or a local web server.</p></div>';
-    });
-  loadSharedScript('/kp-i18n.js?v=8');
-  loadSharedScript('/kp.js?v=9');
+  if (window.KPDF_ENGINE_DOCS && window.KPDF_ENGINE_DOCS[docId]) {
+    showMarkdown(window.KPDF_ENGINE_DOCS[docId]);
+  } else {
+    fetch('./docs/' + docId + '.md', { credentials: 'same-origin' })
+      .then(function (response) { if (!response.ok) throw new Error('HTTP ' + response.status); return response.text(); })
+      .then(showMarkdown)
+      .catch(function () {
+        if (window.location.protocol === 'file:') loadLocalMarkdown(); else showLoadError();
+      });
+  }
+  loadSharedScript('../kp-i18n.js?v=8');
+  loadSharedScript('../kp.js?v=9');
 })(window);

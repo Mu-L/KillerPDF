@@ -22,9 +22,22 @@
 .engine-doc p{margin:0 0 15px}
 .engine-doc .doc-lede{font-size:17px;line-height:1.65;max-width:830px}
 .engine-doc a{font-weight:600}
+.engine-doc a[href="getting-started.html"]{display:flex;align-items:center;justify-content:center;width:100%;max-width:360px;box-sizing:border-box;margin:8px 0 18px;padding:14px 28px;border-radius:6px;background:var(--btn);color:var(--btn-text);font-size:15px;font-weight:700;box-shadow:0 8px 20px rgba(0,0,0,.35);transition:filter .15s,transform .1s,box-shadow .15s}
+.engine-doc a[href="getting-started.html"]::after{content:'\2192';margin-left:10px}
+.engine-doc a[href="getting-started.html"]:hover{color:var(--btn-text);filter:brightness(1.4);transform:translateY(-1px);box-shadow:0 12px 28px rgba(0,0,0,.5)}
+.engine-doc a[href="getting-started.html"]:active{transform:translateY(1px)}
 .engine-doc code{font-family:"Courier New",monospace;font-size:.9em;background:color-mix(in srgb,var(--modal) 78%,transparent);border:1px solid var(--pane-border);border-radius:4px;padding:1px 5px;color:var(--text)}
 .engine-doc pre{position:relative;margin:14px 0 20px;padding:16px 18px;overflow:auto;background:#171817;border:1px solid var(--pane-border);border-left:3px solid var(--accent);border-radius:8px;color:#d7ded9;font:12.5px/1.65 "Courier New",monospace;white-space:pre}
 .engine-doc pre code{padding:0;border:0;background:none;color:inherit;font-size:inherit}
+.engine-doc .syntax-comment{color:#78877d;font-style:italic}
+.engine-doc .syntax-keyword{color:#e66bc4}
+.engine-doc .syntax-string{color:#e6b86b}
+.engine-doc .syntax-number{color:#8fcf78}
+.engine-doc .syntax-type,.engine-doc .syntax-tag{color:#63c7e6}
+.engine-doc .syntax-function{color:#b99aea}
+.engine-doc .syntax-variable{color:#7fd6ca}
+.engine-doc .syntax-attr{color:#c6a3ef}
+.engine-doc .syntax-punctuation{color:#8ea39a}
 .engine-doc ul,.engine-doc ol{margin:9px 0 18px;padding-left:24px}
 .engine-doc li{margin:6px 0}
 .engine-doc blockquote{margin:18px 0;padding:13px 16px;border:1px solid color-mix(in srgb,var(--accent) 48%,var(--pane-border));border-left:3px solid var(--accent);border-radius:8px;background:color-mix(in srgb,var(--accent) 7%,var(--modal))}
