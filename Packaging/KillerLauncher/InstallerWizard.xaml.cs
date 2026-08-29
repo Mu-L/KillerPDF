@@ -13,6 +13,7 @@ namespace KillerLauncher
     {
         private int _page;
         private bool _installed;
+        private bool _closeAfterNotice;
         private string _installedDirectory = string.Empty;
 
         private InstallerWizard()
@@ -33,6 +34,17 @@ namespace KillerLauncher
             bool? result = wizard.ShowDialog();
             application.Shutdown();
             return result == true ? 0 : 1;
+        }
+
+        internal static int ShowFailure(string message)
+        {
+            var application = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            var wizard = new InstallerWizard { _closeAfterNotice = true };
+            wizard.Loaded += (_, _) => wizard.ShowNotice(
+                "Installation could not continue", message, NoticeKind.Error);
+            wizard.ShowDialog();
+            application.Shutdown();
+            return 1;
         }
 
         private void RenderPage()
@@ -145,8 +157,11 @@ namespace KillerLauncher
             NoticeOk.Focus();
         }
 
-        private void NoticeOk_Click(object sender, RoutedEventArgs e) =>
+        private void NoticeOk_Click(object sender, RoutedEventArgs e)
+        {
+            if (_closeAfterNotice) { DialogResult = false; return; }
             NoticeOverlay.Visibility = Visibility.Collapsed;
+        }
 
         private static int InstallForEveryone(bool desktop, string installDirectory)
         {

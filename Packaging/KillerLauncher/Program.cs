@@ -73,12 +73,23 @@ namespace KillerLauncher
             }
             catch (Exception ex)
             {
+#if INSTALLER_PACKAGE
+                if (args.Any(a => string.Equals(a, "/silent", StringComparison.OrdinalIgnoreCase)))
+                {
+                    Console.Error.WriteLine(ProductName + " setup failed: " + ex.Message);
+                    return 1;
+                }
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                return InstallerWizard.ShowFailure(ex.Message);
+#else
                 MessageBox.Show(
                     ProductName + " could not start.\n\n" + ex.Message,
                     ProductName,
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
                 return 1;
+#endif
             }
         }
 
@@ -139,6 +150,10 @@ namespace KillerLauncher
             string destination = !string.IsNullOrWhiteSpace(testRoot)
                 ? Path.GetFullPath(testRoot)
                 : ValidateInstallDirectory(destinationOverride ?? DefaultInstallDirectory(machine));
+            if (string.IsNullOrWhiteSpace(testRoot))
+                CloseInstalledCopies(machine
+                    ? new[] { destination, UserInstallDirectory }
+                    : new[] { destination });
             string parent = Path.GetDirectoryName(destination) ?? throw new InvalidOperationException("Invalid install directory.");
             Directory.CreateDirectory(parent);
 
@@ -186,6 +201,66 @@ namespace KillerLauncher
 
         internal static string DefaultInstallDirectory(bool machine) =>
             machine ? MachineInstallDirectory : UserInstallDirectory;
+
+        // Older 1.7.x uninstallers could remove their Installed Apps entry while leaving the
+        // application running and its files locked. Setup owns that migration now: ask any copy
+        // running from a folder we are about to replace or remove to close normally, preserving
+        // its unsaved-work prompt, and do not touch the installation until it has exited.
+        private static void CloseInstalledCopies(IEnumerable<string> installDirectories)
+        {
+            string[] roots = installDirectories
+                .Where(directory => !string.IsNullOrWhiteSpace(directory))
+                .Select(directory => Path.GetFullPath(directory)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    + Path.DirectorySeparatorChar)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (roots.Length == 0) return;
+
+            int currentProcessId;
+            using (Process current = Process.GetCurrentProcess()) currentProcessId = current.Id;
+            var running = new List<Process>();
+            try
+            {
+                foreach (Process process in Process.GetProcesses())
+                {
+                    if (process.Id == currentProcessId)
+                    {
+                        process.Dispose();
+                        continue;
+                    }
+                    try
+                    {
+                        string path = Path.GetFullPath(process.MainModule?.FileName ?? string.Empty);
+                        if (!roots.Any(root => path.StartsWith(root, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            process.Dispose();
+                            continue;
+                        }
+                        running.Add(process);
+                    }
+                    catch { process.Dispose(); }
+                }
+
+                foreach (Process process in running)
+                {
+                    if (process.HasExited) continue;
+                    if (!process.CloseMainWindow())
+                        throw new InvalidOperationException(
+                            "KillerPDF is still running. Close it, then choose Install again.");
+                }
+                foreach (Process process in running)
+                {
+                    if (!process.HasExited && !process.WaitForExit(60000))
+                        throw new InvalidOperationException(
+                            "KillerPDF is still open. Finish saving or close its window, then choose Install again.");
+                }
+            }
+            finally
+            {
+                foreach (Process process in running) process.Dispose();
+            }
+        }
 
         internal static string ValidateInstallDirectory(string directory)
         {

@@ -25,7 +25,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - The fillable text field tool is now localizable and supports selecting, moving, resizing, recoloring, and deleting fields (#295).
 - Turning off two-sided printing now explicitly overrides printer-driver duplex defaults (#284).
 - Measurement rulers and readouts now remain legible at fitted and multi-page zoom levels.
-- Duplicate installation repair now uses KillerPDF's themed dialog after theme and locale initialization, clearly identifies both installation scopes, explains why the duplicate may exist, and confirms that settings and PDF files are preserved.
+- Setup now closes legacy installations safely before upgrading, keeps installer failures inside themed notices, and repairs duplicate installation scopes without removing settings or PDF files (#285).
 - The Help and How To page now explains every 1.8 tool and workflow, including PDF comparison, measurement, touch navigation, letter spacing, Transform batches and output controls, form-aware OCR, token signing, page transfer, packaging, all fifteen OCR languages, and The KillerPDF.Engine.
 
 ## [1.8.0] - 2026-08-28
