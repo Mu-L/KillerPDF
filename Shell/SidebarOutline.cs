@@ -36,7 +36,7 @@ namespace KillerPDF
             _sidebarShowingOutlines = false;
             PageList.Visibility = Visibility.Visible;
             OutlineScrollViewer.Visibility = Visibility.Collapsed;
-            OutlineControlsRow.Visibility = Visibility.Collapsed;
+            OutlineExpandCollapseAllButton.Visibility = Visibility.Collapsed;
             PageControlsRow.Visibility = _doc != null ? Visibility.Visible : Visibility.Collapsed;   // no empty box when nothing is open
             SidebarPagesTab.Foreground = (Brush)FindResource("PrimaryBrush");
             SidebarOutlinesTab.Foreground = (Brush)FindResource("MutedTextBrush");
@@ -64,7 +64,7 @@ namespace KillerPDF
             _sidebarShowingOutlines = true;
             PageList.Visibility = Visibility.Collapsed;
             OutlineScrollViewer.Visibility = Visibility.Visible;
-            OutlineControlsRow.Visibility = Visibility.Visible;
+            OutlineExpandCollapseAllButton.Visibility = Visibility.Visible;
             PageControlsRow.Visibility = Visibility.Collapsed;
             SidebarPagesTab.Foreground = (Brush)FindResource("MutedTextBrush");
             SidebarOutlinesTab.Foreground = (Brush)FindResource("PrimaryBrush");
@@ -263,7 +263,7 @@ namespace KillerPDF
             bool collapse = hasBranches && HasExpandedOutline(OutlineTree.Items);
             string key = collapse ? "Str_Outline_CollapseAll" : "Str_Outline_ExpandAll";
             OutlineExpandCollapseAllButton.IsEnabled = hasBranches;
-            OutlineExpandCollapseAllButton.SetResourceReference(ContentControl.ContentProperty, key);
+            OutlineExpandCollapseAllButton.Content = collapse ? "\u2212" : "+";
             OutlineExpandCollapseAllButton.SetResourceReference(FrameworkElement.ToolTipProperty, key);
         }
 

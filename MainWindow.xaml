@@ -1555,6 +1555,15 @@
                                     Style="{StaticResource SidebarTabBtn}"
                                     IsEnabled="False"
                                     Click="SidebarOutlinesTab_Click"/>
+                            <Button x:Name="OutlineExpandCollapseAllButton"
+                                    DockPanel.Dock="Right"
+                                    Content="-"
+                                    ToolTip="{DynamicResource Str_Outline_CollapseAll}"
+                                    Style="{StaticResource SidebarTabBtn}"
+                                    Width="18" Height="18" Padding="0" Margin="0,0,3,0"
+                                    FontFamily="Segoe UI Symbol" FontSize="14"
+                                    Visibility="Collapsed"
+                                    Click="OutlineExpandCollapseAll_Click"/>
                         </DockPanel>
                         <!-- Page controls row (hidden in outlines mode) -->
                         <DockPanel x:Name="PageControlsRow" DockPanel.Dock="Top" LastChildFill="False" Margin="12,2,8,4" Visibility="Collapsed">
@@ -1604,16 +1613,6 @@
                                        Foreground="{DynamicResource MutedTextBrush}"
                                        Margin="2,0,0,0"/>
                         </DockPanel><!-- /PageControlsRow -->
-                        <DockPanel x:Name="OutlineControlsRow" DockPanel.Dock="Top"
-                                   LastChildFill="False" Margin="12,1,8,3" Visibility="Collapsed">
-                            <Button x:Name="OutlineExpandCollapseAllButton"
-                                    DockPanel.Dock="Right"
-                                    Content="{DynamicResource Str_Outline_CollapseAll}"
-                                    ToolTip="{DynamicResource Str_Outline_CollapseAll}"
-                                    Style="{StaticResource SidebarTabBtn}"
-                                    Padding="4,1"
-                                    Click="OutlineExpandCollapseAll_Click"/>
-                        </DockPanel>
                         <!-- Scrollable page list (virtualized). As in KillerShell, the opacity mask
                              fades the list itself so the real themed sidebar and grain remain visible
                              behind it. SyncPageListEdgeFades drives the stops; 98SE makes the mask
