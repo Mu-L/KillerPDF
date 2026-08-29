@@ -60,7 +60,7 @@
 <nav class="tb-nav">
 <a href="help.html" data-i18n="nav_help">Help</a>
 <a href="technical.html" class="on" data-i18n="nav_tech">Technical</a>
-<a href="engine.html">Engine</a>
+<a href="/engine/">Engine</a>
 <a href="about.html" data-i18n="nav_about">About</a>
 </nav>
 <div class="tgrp" role="group" aria-label="Theme">
@@ -170,7 +170,7 @@
 <tr><td>UI</td><td>WPF on .NET 10 for Windows, x64, with custom window chrome</td></tr>
 <tr><td data-i18n="pt_22">Rendering</td><td data-i18n="pt_23">PDFium via Docnet.Core 2.6 - every page bitmap and thumbnail</td></tr>
 <tr><td data-i18n="pt_24">Text</td><td data-i18n="pt_25">PdfPig 0.1.15 - search, selection, font sniffing</td></tr>
-<tr><td>Document engine</td><td><a href="engine.html">The KillerPDF.Engine</a> - parsing, authoring, preservation, page operations, forms, annotations, encryption, signatures, PDF 2.0, PDF/A and PDF/UA</td></tr>
+<tr><td>Document engine</td><td><a href="/engine/">The KillerPDF.Engine</a> - parsing, authoring, preservation, page operations, forms, annotations, encryption, signatures, PDF 2.0, PDF/A and PDF/UA</td></tr>
 <tr><td>Signing</td><td>The KillerPDF.Engine - byte-preserving detached CMS signatures, certification permissions, field locks and verification</td></tr>
 <tr><td data-i18n="pt_30">OCR</td><td data-i18n="pt_31">Tesseract 5.2 - native libs embedded, language packs on demand</td></tr>
 <tr><td data-i18n="pt_32">Packaging</td><td data-i18n="pt_33">A compact framework-dependent installer and a self-contained portable launcher, each carrying a compressed, SHA-256-verified payload</td></tr>
@@ -202,7 +202,7 @@
 
 <div class="tech-sec" id="arch">
 <h2 data-i18n="pt_54">Architecture</h2>
-<p><b>MainWindow</b> is a composed application shell rather than one giant code-behind. Its partials under <code>Shell/</code> own the shared toolbar, sidebar, dialogs and application workflows, while each document pane is a reusable <b>PdfViewer</b> with independent tabs, view state, render surfaces, thumbnails and interaction state. Two viewer instances create split pane without opening a second window. Thin host adapters connect the shell and viewers; reusable application policy lives under <code>Services/</code>; focused controllers live under <code>Features/</code>; and all PDF structure and serialization crosses the independent <a href="engine.html">KillerPDF.Engine boundary</a>.</p>
+<p><b>MainWindow</b> is a composed application shell rather than one giant code-behind. Its partials under <code>Shell/</code> own the shared toolbar, sidebar, dialogs and application workflows, while each document pane is a reusable <b>PdfViewer</b> with independent tabs, view state, render surfaces, thumbnails and interaction state. Two viewer instances create split pane without opening a second window. Thin host adapters connect the shell and viewers; reusable application policy lives under <code>Services/</code>; focused controllers live under <code>Features/</code>; and all PDF structure and serialization crosses the independent <a href="/engine/">KillerPDF.Engine boundary</a>.</p>
 <h3 id="source-size">Source size</h3>
 <p>As measured from tracked <code>.cs</code> files in the 1.8.0 release, KillerPDF contains <b>418 C# files and 138,691 physical source lines</b>. Production code accounts for 314 files and 100,012 lines: 155 application files (49,271 lines), 151 engine-library files (47,725 lines), two corpus-runner files (2,200 lines), and six packaging files (816 lines). The remaining 104 files and 38,679 lines are application and engine tests. Generated build output is excluded.</p>
 <h3 id="two-render-pipelines" data-i18n="pt_56">Two render pipelines</h3>
@@ -415,7 +415,7 @@
 <li>Full rewrites are deterministic; incremental edits preserve the original byte prefix.</li>
 <li>Bounded parsing, graph validation and explicit implementation limits reject ambiguous or unsafe input before writing.</li>
 </ul>
-<p>The complete reusable-library architecture, capability map, validation model and developer quick start are on the <a href="engine.html">KillerPDF.Engine page</a>.</p>
+<p>The complete reusable-library architecture, capability map, validation model and developer quick start are in the <a href="/engine/">KillerPDF.Engine developer guide</a>.</p>
 </div>
 
 <div class="tech-sec" id="i18n">

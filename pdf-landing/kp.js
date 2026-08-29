@@ -58,11 +58,11 @@
     if (THEMED.indexOf(theme) >= 0) {
       // Fixed-color themes carry their own wordmark art, colored with the theme's in-app
       // AccentLogo resource (make-logo-svgs.py --themes).
-      src = 'brand/killerpdf-logo-' + theme + '.svg';
+      src = '/brand/killerpdf-logo-' + theme + '.svg';
     } else {
       var variant = (theme === 'light') ? 'light' : 'dark';
       var color = (NEUTRAL.indexOf(theme) >= 0) ? curAccent : 'green';
-      src = 'brand/killerpdf-logo-' + variant + '-' + color + '.svg';
+      src = '/brand/killerpdf-logo-' + variant + '-' + color + '.svg';
     }
     var imgs = document.querySelectorAll('img.wm-logo');
     for (var i = 0; i < imgs.length; i++) imgs[i].src = src;
