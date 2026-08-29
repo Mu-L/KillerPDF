@@ -22,7 +22,7 @@ KillerPDF 1.8 introduces The KillerPDF.Engine, an independent and reusable .NET 
 - Print with a real in-app preview, paper size and source selection, scale / position / margins / pages-per-sheet options at 300 DPI; Save Flattened rasterizes to a fully uneditable PDF
 - Full-text search with highlighting, and column-aware text selection that copies multi-column pages in reading order
 - Night-mode inversion works independently in each split pane. Thirteen themes, live accent colors, and toolbar styles provide 33 looks, while the resizable sidebar can dock on either side.
-- Localized UI in 14 languages, including Kazakh (contribute via `TRANSLATING.md`); full keyboard shortcut overlay on F1 with list and visual keyboard views
+- Localized UI in 15 languages, including Kazakh and Russian (contribute via `TRANSLATING.md`); full keyboard shortcut overlay on F1 with list and visual keyboard views
 - Opens password-protected PDFs (prompts instead of erroring) and repairs damaged ones
 - Separate standard and portable downloads: the compact installer supports per-user or machine-wide deployment, while the larger portable edition includes its own runtime
 - Standards-safe saves: every release is tested against a 2,900-file veraPDF conformance corpus with a zero-regressions requirement. See [validation/RESULTS.md](validation/RESULTS.md).
@@ -51,8 +51,8 @@ Full reference on the [help page](https://killerpdf.net/help.html).
 
 | | |
 | --- | --- |
-| ![KillerPDF comparing two versions of a PDF side by side with changed regions highlighted](pdf-landing/screenshots/03.png)<br>**PDF comparison.** Compare synchronized pages, inspect highlighted differences, and move through changed page pairs. | ![KillerPDF showing the Transform preview in Kazakh over a split Grid workspace](pdf-landing/screenshots/04.png)<br>**Transform and localization.** Preview rotation, scale, flips, skew, perspective, and output settings in any of fourteen interface languages. |
-| ![KillerPDF showing reusable signatures beside a live fillable PDF form](pdf-landing/screenshots/06.png)<br>**Signatures and forms.** Create reusable signatures, fill live AcroForm fields, and save the completed document. | ![KillerPDF showing a document in Grid view with the language picker listing fourteen languages](pdf-landing/screenshots/02.png)<br>**Grid view and fourteen languages.** Survey a whole document at once and switch the complete interface language while working. |
+| ![KillerPDF comparing two versions of a PDF side by side with changed regions highlighted](pdf-landing/screenshots/03.png)<br>**PDF comparison.** Compare synchronized pages, inspect highlighted differences, and move through changed page pairs. | ![KillerPDF showing the Transform preview in Kazakh over a split Grid workspace](pdf-landing/screenshots/04.png)<br>**Transform and localization.** Preview rotation, scale, flips, skew, perspective, and output settings in any of fifteen interface languages. |
+| ![KillerPDF showing reusable signatures beside a live fillable PDF form](pdf-landing/screenshots/06.png)<br>**Signatures and forms.** Create reusable signatures, fill live AcroForm fields, and save the completed document. | ![KillerPDF showing a document in Grid view with the language picker](pdf-landing/screenshots/02.png)<br>**Grid view and fifteen languages.** Survey a whole document at once and switch the complete interface language while working. |
 
 ## Requirements
 

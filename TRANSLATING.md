@@ -15,6 +15,7 @@ Each language is a single XAML `ResourceDictionary` file in the `Strings/` folde
 - `ja-JP.xaml` - Japanese
 - `kk-KZ.xaml` - Kazakh
 - `pl-PL.xaml` - Polish
+- `ru-RU.xaml` - Russian
 - `tr-TR.xaml` - Turkish
 - `zh-CN.xaml` - Simplified Chinese
 - `zh-TW.xaml` - Traditional Chinese
