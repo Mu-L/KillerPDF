@@ -26,7 +26,7 @@
     <sys:String x:Key="Str_TT_MovePageDown">Przesuń stronę w dół (zmiana kolejności)</sys:String>
     <sys:String x:Key="Str_TT_SelectTool">Wybierz Narzędzie - kliknij adnotacje, przeciągnij, aby zaznaczyć tekst, kliknij dwukrotnie, aby edytować (V)</sys:String>
     <sys:String x:Key="Str_TT_TextTool">Narzędzie Tekstu - kliknij, aby dodać tekst (T)</sys:String>
-    <sys:String x:Key="Str_TT_FormFieldTool">Fillable text field - create, select, move, resize, or delete fields; right-click to change fill color (F)</sys:String>
+    <sys:String x:Key="Str_TT_FormFieldTool">Wypełnialne pole tekstowe - twórz, zaznaczaj, przesuwaj, zmieniaj rozmiar lub usuwaj pola; kliknij prawym przyciskiem, aby zmienić kolor wypełnienia (F)</sys:String>
     <sys:String x:Key="Str_TT_HighlightTool">Narzędzie Podświetl - przeciągnij, aby podświetlić (H)</sys:String>
     <sys:String x:Key="Str_TT_StrikeTool">Przekreślenie - przeciągnij po tekście</sys:String>
     <sys:String x:Key="Str_TT_UnderlineTool">Podkreślenie - przeciągnij po tekście</sys:String>
@@ -271,7 +271,7 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Lbl_MoveUp">Przesuń stronę w górę</sys:String>
     <sys:String x:Key="Str_Lbl_MoveDown">Przesuń stronę w dół</sys:String>
     <sys:String x:Key="Str_Lbl_Text">Tekst</sys:String>
-    <sys:String x:Key="Str_Lbl_FormField">Forms (F)</sys:String>
+    <sys:String x:Key="Str_Lbl_FormField">Formularze (F)</sys:String>
     <sys:String x:Key="Str_Lbl_Highlight">Podświetl</sys:String>
     <sys:String x:Key="Str_Lbl_Strike">Przekreśl</sys:String>
     <sys:String x:Key="Str_Lbl_Underline">Podkreśl</sys:String>
@@ -483,15 +483,15 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Sign_VisibleAppearance">Pokaż widoczny podpis</sys:String>
     <sys:String x:Key="Str_Sign_AppearanceText">Tekst podpisu</sys:String>
     <sys:String x:Key="Str_Sign_AppearanceDefault">Podpisano cyfrowo przez {name}&#10;Data: {date}&#10;Powód: {reason}&#10;Lokalizacja: {location}</sys:String>
-    <sys:String x:Key="Str_Sign_Page">Page</sys:String>
-    <sys:String x:Key="Str_Sign_Position">Position</sys:String>
-    <sys:String x:Key="Str_Sign_BottomLeft">Bottom left</sys:String>
-    <sys:String x:Key="Str_Sign_BottomRight">Bottom right</sys:String>
-    <sys:String x:Key="Str_Sign_TopLeft">Top left</sys:String>
-    <sys:String x:Key="Str_Sign_TopRight">Top right</sys:String>
-    <sys:String x:Key="Str_Sign_Width">Width</sys:String>
-    <sys:String x:Key="Str_Sign_Height">Height</sys:String>
-    <sys:String x:Key="Str_Sign_FontSize">Text size</sys:String>
+    <sys:String x:Key="Str_Sign_Page">Strona</sys:String>
+    <sys:String x:Key="Str_Sign_Position">Pozycja</sys:String>
+    <sys:String x:Key="Str_Sign_BottomLeft">Na dole po lewej</sys:String>
+    <sys:String x:Key="Str_Sign_BottomRight">Na dole po prawej</sys:String>
+    <sys:String x:Key="Str_Sign_TopLeft">Górny lewy</sys:String>
+    <sys:String x:Key="Str_Sign_TopRight">Górny prawy</sys:String>
+    <sys:String x:Key="Str_Sign_Width">Szerokość</sys:String>
+    <sys:String x:Key="Str_Sign_Height">Wysokość</sys:String>
+    <sys:String x:Key="Str_Sign_FontSize">Rozmiar czcionki</sys:String>
     <sys:String x:Key="Str_Sign_PreviewSigner">Właściciel certyfikatu</sys:String>
     <sys:String x:Key="Str_Sign_BadAppearance">Sprawdź stronę podpisu, wymiary i rozmiar tekstu.</sys:String>
     <sys:String x:Key="Str_Sign_SaveAs">Zapisz podpisaną kopię jako</sys:String>
@@ -736,13 +736,13 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Tf_LevelsBlack">Punkt czerni</sys:String>
     <sys:String x:Key="Str_Tf_LevelsWhite">Punkt bieli</sys:String>
     <sys:String x:Key="Str_Tf_LevelsGamma">Półtony</sys:String>
-    <sys:String x:Key="Str_Tf_Quality">PAGE QUALITY</sys:String>
-    <sys:String x:Key="Str_Tf_ColorMode">Color mode</sys:String>
-    <sys:String x:Key="Str_Tf_Grayscale">Grayscale</sys:String>
-    <sys:String x:Key="Str_Tf_BlackWhite">Black and white</sys:String>
-    <sys:String x:Key="Str_Tf_Threshold">Black-and-white threshold</sys:String>
-    <sys:String x:Key="Str_Tf_SetDpi">Set output resolution (DPI)</sys:String>
-    <sys:String x:Key="Str_Tf_UseJpeg">Use JPEG compression</sys:String>
+    <sys:String x:Key="Str_Tf_Quality">JAKOŚĆ STRONY</sys:String>
+    <sys:String x:Key="Str_Tf_ColorMode">Tryb koloru</sys:String>
+    <sys:String x:Key="Str_Tf_Grayscale">Skala szarości</sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Czarno-biały</sys:String>
+    <sys:String x:Key="Str_Tf_Threshold">Próg czarno-biały</sys:String>
+    <sys:String x:Key="Str_Tf_SetDpi">Ustaw rozdzielczość wyjściową (dpi)</sys:String>
+    <sys:String x:Key="Str_Tf_UseJpeg">Kompresja JPEG</sys:String>
     <!-- Theme names missed when pl-PL landed alongside the seven new themes in 1.7.2.
          Proper nouns, untranslated by family convention (matches de-DE et al). -->
     <sys:String x:Key="Str_Theme_98SE">98SE</sys:String>
@@ -967,20 +967,20 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Compare_Comparing">Porównywanie...</sys:String>
     <sys:String x:Key="Str_Compare_ChangedAndDimensions">Strona {0}: wymiary są różne; zmieniono {1}</sys:String>
     <sys:String x:Key="Str_Compare_ViewLocked">Porównanie używa zablokowanego widoku pojedynczej strony</sys:String>
-    <sys:String x:Key="Str_Compare_ViewDetails">View complete comparison report</sys:String>
-    <sys:String x:Key="Str_Compare_BuildingReport">Checking every page...</sys:String>
-    <sys:String x:Key="Str_Compare_DetailsTitle">PDF comparison details</sys:String>
+    <sys:String x:Key="Str_Compare_ViewDetails">Wyświetl pełny raport porównawczy</sys:String>
+    <sys:String x:Key="Str_Compare_BuildingReport">Sprawdzanie każdej strony...</sys:String>
+    <sys:String x:Key="Str_Compare_DetailsTitle">Szczegóły porównania PDF</sys:String>
 
     <!-- ── Browser handoff refusals ────────────────────────────────────── -->
-    <sys:String x:Key="Str_Handoff_Failed">KillerPDF could not open the browser PDF.</sys:String>
-    <sys:String x:Key="Str_Handoff_UnknownCommand">That browser command is not one KillerPDF knows.</sys:String>
-    <sys:String x:Key="Str_Handoff_MissingUrl">The handoff did not include a PDF address.</sys:String>
-    <sys:String x:Key="Str_Handoff_MalformedUrl">The PDF address in the handoff could not be read.</sys:String>
-    <sys:String x:Key="Str_Handoff_SchemeNotAllowed">KillerPDF only opens browser handoffs over https.</sys:String>
-    <sys:String x:Key="Str_Handoff_Unusable">The browser handoff could not be used.</sys:String>
-    <sys:String x:Key="Str_Handoff_TooLarge">The PDF is larger than the 256 MB browser handoff limit.</sys:String>
-    <sys:String x:Key="Str_Handoff_NotPdf">The downloaded file is not a PDF.</sys:String>
-    <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF could not download the PDF.</sys:String>
-    <sys:String x:Key="Str_Handoff_TimedOut">The PDF download timed out.</sys:String>
-    <sys:String x:Key="Str_Handoff_FileError">KillerPDF could not save or read the downloaded PDF.</sys:String>
+    <sys:String x:Key="Str_Handoff_Failed">KillerPDF nie mógł otworzyć pliku PDF przeglądarki.</sys:String>
+    <sys:String x:Key="Str_Handoff_UnknownCommand">To polecenie przeglądarki nie jest znane KillerPDF.</sys:String>
+    <sys:String x:Key="Str_Handoff_MissingUrl">Przekazanie nie zawierało adresu PDF.</sys:String>
+    <sys:String x:Key="Str_Handoff_MalformedUrl">Nie można odczytać adresu PDF w przekazaniu.</sys:String>
+    <sys:String x:Key="Str_Handoff_SchemeNotAllowed">KillerPDF otwiera tylko przejścia przeglądarki na https.</sys:String>
+    <sys:String x:Key="Str_Handoff_Unusable">Nie można użyć przełączenia przeglądarki.</sys:String>
+    <sys:String x:Key="Str_Handoff_TooLarge">Plik PDF jest większy niż limit przekazywania przeglądarki wynoszący 256 MB.</sys:String>
+    <sys:String x:Key="Str_Handoff_NotPdf">Pobrany plik nie jest plikiem PDF.</sys:String>
+    <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF nie mógł pobrać pliku PDF.</sys:String>
+    <sys:String x:Key="Str_Handoff_TimedOut">Upłynął limit czasu pobierania pliku PDF.</sys:String>
+    <sys:String x:Key="Str_Handoff_FileError">KillerPDF nie mógł zapisać ani odczytać pobranego pliku PDF.</sys:String>
 </ResourceDictionary>
