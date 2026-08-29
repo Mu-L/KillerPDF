@@ -325,7 +325,7 @@ namespace KillerPDF
             }
             else if (e.Key == Key.O && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
             {
-                OcrPageToClipboard(PageList.SelectedIndex);
+                OcrSelectedPagesToClipboard();
                 e.Handled = true;
             }
             else if (e.Key == Key.I && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))

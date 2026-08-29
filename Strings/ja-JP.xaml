@@ -853,6 +853,7 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_St_TextEditError">テキスト編集エラー：{0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">OCR：ページ {0} にテキストが見つかりません</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedPage">OCR：ページ {1} から {0} 文字をコピーしました（信頼度 {2}）</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">OCR：{1} ページから {0} 文字をコピーしました（信頼度 {2}）</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR：領域から {0} 文字をコピーしました（信頼度 {1}）</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">検索可能な PDF を保存しました：{0} ページ、{1} 語を認識</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">{0} ページからテキストを抽出 -> {1}</sys:String>

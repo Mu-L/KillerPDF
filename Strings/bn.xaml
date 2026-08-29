@@ -848,6 +848,7 @@ Windows সেটিংস - ডিফল্ট অ্যাপ খুলবে�
     <sys:String x:Key="Str_St_TextEditError">টেক্সট সম্পাদনায় ত্রুটি: {0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">OCR: পাতা {0}-এ কোনো টেক্সট পাওয়া যায়নি</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedPage">OCR: পাতা {1} থেকে {0}টি অক্ষর কপি হয়েছে ({2} আস্থা)</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">OCR: {1}টি পৃষ্ঠা থেকে {0}টি অক্ষর কপি হয়েছে ({2} আস্থা)</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR: অঞ্চল থেকে {0}টি অক্ষর কপি হয়েছে ({1} আস্থা)</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">অনুসন্ধানযোগ্য PDF সংরক্ষিত: {0} পাতা, {1}টি শব্দ শনাক্ত</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">{0} পাতা থেকে টেক্সট বের হয়েছে -> {1}</sys:String>

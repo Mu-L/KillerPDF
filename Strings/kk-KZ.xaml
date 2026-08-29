@@ -839,6 +839,7 @@ Windows параметрлері - Әдепкі қолданбалар ашыл�
     <sys:String x:Key="Str_St_TextEditError">Мәтін өңдеу қатесі: {0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">OCR: {0} бетте мәтін табылмады</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedPage">OCR: {1} беттен {0} таңба көшірілді ({2} сенімділік)</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">OCR: {1} беттен {0} таңба көшірілді ({2} сенімділік)</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR: аймақтан {0} таңба көшірілді ({1} сенімділік)</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">Ізделетін PDF сақталды: {0} бет, {1} сөз танылды</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">{0} беттен мәтін шығарылды -> {1}</sys:String>

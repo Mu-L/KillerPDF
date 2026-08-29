@@ -382,6 +382,11 @@ namespace KillerPDF
             stack.Children.Add(qualityReset);
             WrapSection(stack, qualityStart, S("Str_Tf_Quality"), expanded: false);
 
+            // The classic 98SE scrollbar has a wider visual edge than the modern themes.
+            // Keep the expanded quality controls from touching it without widening the sidebar.
+            if (ThemeManager.Current == Theme.SE98)
+                stack.Margin = new Thickness(0, 0, 6, 0);
+
             side.Children.Add(new ScrollViewer
             {
                 Content = stack,

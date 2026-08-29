@@ -72,7 +72,7 @@ namespace KillerPDF
         }
 
         // Rasterizes every selected page with one transform setup and swaps the batch in as one undo step.
-        private void ApplyPageTransforms(IReadOnlyList<int> pageIndices, double angleDeg,
+        private async void ApplyPageTransforms(IReadOnlyList<int> pageIndices, double angleDeg,
             double scale, bool fixedPage, bool flipH, bool flipV, Point[] perspectiveCorners,
             int levelBlack = 0, int levelWhite = 255, double levelGamma = 1.0,
             PageColorMode colorMode = PageColorMode.Color,
@@ -84,8 +84,14 @@ namespace KillerPDF
             int[] pages = [.. pageIndices.Distinct().OrderBy(index => index)];
             if (pages.Length == 0 || pages.Any(index => index < 0 || index >= engineSession.PageCount)) return;
 
+            Border? busy = null;
             try
             {
+                var ct = BeginCancellableOp(Loc("Str_Tf_Suffix"));
+                busy = ShowBusyOverlay($"{Loc("Str_Tf_Suffix")}: 1/{pages.Length}");
+                await System.Windows.Threading.Dispatcher.Yield(
+                    System.Windows.Threading.DispatcherPriority.Background);
+
                 // This operation adjusts overlay annotations before SaveTempAndReload, so retain
                 // the complete pre-transform state for the central history push.
                 UndoEntry? documentUndo = CaptureDocumentUndo();
@@ -95,8 +101,18 @@ namespace KillerPDF
                 // helper is non-destructive (restores _doc); we then drop the now-baked annotations.
                 var replacements = new Dictionary<int, string>();
                 var bakedAnnotationPages = new List<int>();
-                foreach (int pageIdx in pages)
+                for (int i = 0; i < pages.Length; i++)
                 {
+                    if (ct.IsCancellationRequested)
+                    {
+                        SetStatus(Loc("Str_St_Canceled"));
+                        return;
+                    }
+                    int pageIdx = pages[i];
+                    SetBusyMessage(busy, $"{Loc("Str_Tf_Suffix")}: {i + 1}/{pages.Length}");
+                    await System.Windows.Threading.Dispatcher.Yield(
+                        System.Windows.Threading.DispatcherPriority.Background);
+
                     string? burned = BurnPageAnnotationsToTemp(pageIdx);
                     if (burned != null) bakedAnnotationPages.Add(pageIdx);
                     var (epw, eph) = engineSession.VisualPageSize(pageIdx, _pageRotations);
@@ -125,6 +141,11 @@ namespace KillerPDF
                             composed.PixelHeight, newWpt, newHpt, pixels, jpeg)]));
                     replacements[pageIdx] = tmp;
                 }
+                if (ct.IsCancellationRequested)
+                {
+                    SetStatus(Loc("Str_St_Canceled"));
+                    return;
+                }
                 foreach (int pageIdx in bakedAnnotationPages)
                     if (_annotations.TryGetValue(pageIdx, out var pageAnns)) pageAnns.Clear();
 
@@ -137,7 +158,7 @@ namespace KillerPDF
                             rotations, pages),
                     selectedPageAfterReload: pages[0],
                     documentUndo: documentUndo);
-                Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)(() =>
+                _ = Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, (Action)(() =>
                 {
                     PageList.SelectedItems.Clear();
                     foreach (int pageIdx in pages)
@@ -152,6 +173,11 @@ namespace KillerPDF
             {
                 KillerDialog.Show(this, string.Format(Loc("Str_Tf_Failed"), ex.Message), "KillerPDF",
                     MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                if (busy is not null) HideBusyOverlay(busy);
+                EndCancellableOp();
             }
         }
 

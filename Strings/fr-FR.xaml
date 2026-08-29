@@ -864,6 +864,7 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_St_TextEditError">Erreur de modification du texte : {0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">OCR : aucun texte trouvé sur la page {0}</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedPage">OCR : {0} caractères copiés de la page {1} (confiance {2})</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">OCR : {0} caractères copiés depuis {1} pages (confiance {2})</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR : {0} caractères copiés de la région (confiance {1})</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">PDF interrogeable enregistré : {0} pages, {1} mots reconnus</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">Texte extrait de {0} pages -> {1}</sys:String>

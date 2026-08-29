@@ -865,6 +865,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_St_TextEditError">Errore modifica testo: {0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">OCR: nessun testo trovato nella pagina {0}</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedPage">OCR: copiati {0} caratteri dalla pagina {1} ({2} confidenza)</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">OCR: copiati {0} caratteri da {1} pagine ({2} confidenza)</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR: copiato {0} caratteri dall'area ({1} confidenza)</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">PDF ricercabile salvato: {0} pagine, {1} parole riconosciute</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">Testo estratto da {0} pagine -> {1}</sys:String>

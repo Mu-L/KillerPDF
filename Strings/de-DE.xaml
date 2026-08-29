@@ -854,6 +854,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_St_TextEditError">Fehler bei der Textbearbeitung: {0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">OCR: kein Text auf Seite {0} gefunden</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedPage">OCR: {0} Zeichen von Seite {1} kopiert ({2} Konfidenz)</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">OCR: {0} Zeichen aus {1} Seiten kopiert ({2} Konfidenz)</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR: {0} Zeichen aus dem Bereich kopiert ({1} Konfidenz)</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">Durchsuchbare PDF gespeichert: {0} Seiten, {1} Wörter erkannt</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">Text aus {0} Seiten extrahiert -> {1}</sys:String>

@@ -852,6 +852,7 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_St_TextEditError">文本编辑错误：{0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">OCR：第 {0} 页未找到文本</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedPage">OCR：已从第 {1} 页复制 {0} 个字符（置信度 {2}）</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">OCR：已从 {1} 页复制 {0} 个字符（置信度 {2}）</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR：已从区域复制 {0} 个字符（置信度 {1}）</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">可搜索 PDF 已保存：{0} 页，识别 {1} 个单词</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">已从 {0} 页提取文本 -> {1}</sys:String>

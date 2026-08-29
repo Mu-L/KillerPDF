@@ -347,6 +347,13 @@ namespace KillerPDF
         private OcrController Ocr => _ocrController ??= new OcrController(this);
 
         private void OcrPageToClipboard(int pageIdx) => Ocr.OcrPageToClipboard(pageIdx);
+        private void OcrSelectedPagesToClipboard()
+        {
+            int[] pages = [.. PageList.SelectedItems.Cast<PageThumbnailVm>()
+                .Select(page => page.PageIndex).Distinct().OrderBy(page => page)];
+            if (pages.Length == 0) pages = [PageList.SelectedIndex];
+            Ocr.OcrPagesToClipboard(pages);
+        }
         private void OcrRegion(int pageIdx, Rect canvasBounds) => Ocr.OcrRegion(pageIdx, canvasBounds);
         private void MakeSearchablePdf() => Ocr.MakeSearchablePdf();
         private void ExtractAllText() => Ocr.ExtractAllText();
@@ -411,8 +418,8 @@ namespace KillerPDF
             SetStatus(Loc("Str_St_OcrDragBox"));
         }
 
-        // Primary OCR toolbar button: the common quick action, OCR the current page to the clipboard.
-        private void Ocr_Click(object sender, RoutedEventArgs e) => OcrPageToClipboard(PageList.SelectedIndex);
+        // Primary OCR toolbar button: OCR every selected page and combine the text on the clipboard.
+        private void Ocr_Click(object sender, RoutedEventArgs e) => OcrSelectedPagesToClipboard();
 
         // Caret dropdown next to the OCR button - same split-button pattern as Save/Open. Page OCR is live;
         // the remaining entries are stubs until their commands land (Region, Searchable PDF, Extract Text).

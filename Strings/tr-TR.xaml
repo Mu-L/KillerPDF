@@ -848,6 +848,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_St_TextEditError">Metin düzenleme hatası: {0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">OCR: {0}. sayfada metin bulunamadı</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedPage">OCR: {1}. sayfadan {0} karakter kopyalandı ({2} güven)</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">OCR: {1} sayfadan {0} karakter kopyalandı ({2} güven)</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR: bölgeden {0} karakter kopyalandı ({1} güven)</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">Aranabilir PDF kaydedildi: {0} sayfa, {1} tanınan sözcük</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">{0} sayfadan metin çıkarıldı -> {1}</sys:String>

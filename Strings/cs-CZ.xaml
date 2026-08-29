@@ -853,6 +853,7 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_St_TextEditError">Chyba úpravy textu: {0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">OCR: na stránce {0} nebyl nalezen žádný text</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedPage">OCR: zkopírováno {0} znaků ze stránky {1} (spolehlivost {2})</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">OCR: zkopírováno {0} znaků z {1} stránek (spolehlivost {2})</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR: zkopírováno {0} znaků z oblasti (spolehlivost {1})</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">Prohledávatelné PDF uloženo: {0} stránek, {1} rozpoznaných slov</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">Text extrahován z {0} stránek -> {1}</sys:String>

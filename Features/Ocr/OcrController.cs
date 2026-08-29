@@ -30,40 +30,49 @@ namespace KillerPDF.Features
 
         internal OcrController(IOcrHost host) => _host = host;
 
-        // Right-click "OCR Page" action: rasterize the page, recognize text off the UI thread, and drop
-        // the result on the clipboard. Render + OCR are both slow, so they run inside Task.Run behind the
-        // busy overlay; everything touching the clipboard/UI happens back on the UI thread.
-        internal async void OcrPageToClipboard(int pageIdx)
+        internal void OcrPageToClipboard(int pageIdx) => OcrPagesToClipboard([pageIdx]);
+
+        // Rasterize the selected pages, recognize them in document order off the UI thread, and copy
+        // their combined text. The same OCR engine and document reader are reused for the whole batch.
+        internal async void OcrPagesToClipboard(IReadOnlyList<int> pageIndices)
         {
             if (!_host.HasDocument) { KillerDialog.Show(_host.Window, _host.Loc("Str_Msg_OpenFirst")); return; }
-            if (pageIdx < 0 || pageIdx >= _host.PageCount) return;
+            int[] pages = [.. pageIndices.Distinct().Where(page => page >= 0 && page < _host.PageCount).OrderBy(page => page)];
+            if (pages.Length == 0) return;
             if (!await _host.EnsureOcrModelsReadyAsync()) return;
 
             // Capture everything off the live UI state before going async.
             string file = _host.CurrentFile!;
-            int rot = _host.RotationFor(pageIdx);
+            int[] rotations = [.. pages.Select(_host.RotationFor)];
             string lang = _host.OcrLanguageString;
             bool formAware = _host.FormAwareOcr;
 
             var ct = _host.BeginOp(_host.Loc("Str_Op_Ocr"), _host.Loc("Str_Busy_Ocr"));
             try
             {
-                OcrResult result = await Task.Run(() =>
+                List<OcrResult> results = await Task.Run(() =>
                 {
                     using var docReader = DocLib.Instance.GetDocReader(file, new PageDimensions(OcrRenderMax, OcrRenderMax));
-                    using var pageReader = docReader.GetPageReader(pageIdx);
-
-                    int w = pageReader.GetPageWidth();
-                    int h = pageReader.GetPageHeight();
-                    byte[] bgra = pageReader.GetImage();
-
-                    // Temp file has /Rotate stripped, so rotate the pixel buffer to the page's visual orientation.
-                    if (rot != 0) (bgra, w, h) = BitmapHelpers.RotateBitmap(bgra, w, h, rot);
-
                     using var ocr = new OcrService(language: lang);   // engine is not thread-safe: one per operation
-                    if (!formAware) return ocr.RecognizeBgra(bgra, w, h);
-                    return FormAwareOcr.Recognize(ocr, bgra, w, h,
-                        ReadFormHints(file, pageIdx), rot);
+                    var recognized = new List<OcrResult>(pages.Length);
+                    for (int i = 0; i < pages.Length; i++)
+                    {
+                        if (ct.IsCancellationRequested) break;
+                        int progress = i;
+                        _host.Window.Dispatcher.Invoke(() => _host.SetBusyMessage(
+                            $"{_host.Loc("Str_Busy_Ocr")} {progress + 1}/{pages.Length}"));
+                        using var pageReader = docReader.GetPageReader(pages[i]);
+                        int w = pageReader.GetPageWidth();
+                        int h = pageReader.GetPageHeight();
+                        byte[] bgra = pageReader.GetImage();
+                        int rot = rotations[i];
+                        if (rot != 0) (bgra, w, h) = BitmapHelpers.RotateBitmap(bgra, w, h, rot);
+                        recognized.Add(!formAware
+                            ? ocr.RecognizeBgra(bgra, w, h)
+                            : FormAwareOcr.Recognize(ocr, bgra, w, h,
+                                ReadFormHints(file, pages[i]), rot));
+                    }
+                    return recognized;
                 });
 
                 _host.HideBusy();
@@ -71,15 +80,21 @@ namespace KillerPDF.Features
                 // the result if the user canceled. No exceptions are thrown for cancellation anywhere.
                 if (ct.IsCancellationRequested) { _host.SetStatus(_host.Loc("Str_St_OcrCanceled")); return; }
 
-                string text = result.Text.Trim();
+                string text = string.Join(Environment.NewLine + Environment.NewLine,
+                    results.Select(result => result.Text.Trim()).Where(pageText => pageText.Length > 0));
                 if (text.Length == 0)
                 {
-                    _host.SetStatus(string.Format(_host.Loc("Str_St_OcrNoTextPage"), pageIdx + 1));
+                    _host.SetStatus(pages.Length == 1
+                        ? string.Format(_host.Loc("Str_St_OcrNoTextPage"), pages[0] + 1)
+                        : _host.Loc("Str_St_OcrNoText"));
                     return;
                 }
 
                 Clipboard.SetText(text);
-                _host.SetStatus(string.Format(_host.Loc("Str_St_OcrCopiedPage"), text.Length, pageIdx + 1, result.MeanConfidence.ToString("P0")));
+                double confidence = results.Count == 0 ? 0 : results.Average(result => result.MeanConfidence);
+                _host.SetStatus(pages.Length == 1
+                    ? string.Format(_host.Loc("Str_St_OcrCopiedPage"), text.Length, pages[0] + 1, confidence.ToString("P0"))
+                    : string.Format(_host.Loc("Str_St_OcrCopiedPages"), text.Length, pages.Length, confidence.ToString("P0")));
             }
             catch (Exception ex)
             {

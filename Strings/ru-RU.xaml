@@ -864,7 +864,8 @@ KillerPDF не будет создавать две установленные �
     <sys:String x:Key="Str_St_AlreadyOpen">Уже открыто: {0}</sys:String>
     <sys:String x:Key="Str_St_TextEditError">Ошибка редактирования текста: {0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">Распознавание: текст на странице не найден {0}</sys:String>
-    <sys:String x:Key="Str_St_OcrCopiedPage">Распознавание: скопировано {0} символов со страницы {1} ({2} confidence)</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPage">Распознавание: скопировано {0} символов со страницы {1} (уверенность {2})</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">Распознавание: скопировано {0} символов с {1} страниц (уверенность {2})</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR: copied {0} chars from the region ({1} уверенность)</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">Сохранен PDF-файл с возможностью поиска: {0} страниц, {1} слов распознано</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">Текст, извлечен из {0} страниц -> {1}</sys:String>

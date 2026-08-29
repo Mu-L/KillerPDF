@@ -855,6 +855,7 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_St_TextEditError">Szövegszerkesztési hiba: {0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">OCR: nem található szöveg a(z) {0}. oldalon</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedPage">OCR: {0} karakter másolva a(z) {1}. oldalról ({2} megbízhatóság)</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">OCR: {0} karakter másolva {1} oldalról ({2} megbízhatóság)</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR: {0} karakter másolva a területről ({1} megbízhatóság)</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">Kereshető PDF mentve: {0} oldal, {1} felismert szó</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">Szöveg kinyerve {0} oldalról -> {1}</sys:String>

@@ -865,6 +865,7 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_St_TextEditError">Text edit error: {0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">OCR: no text found on page {0}</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedPage">OCR: copied {0} chars from page {1} ({2} confidence)</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">OCR: copied {0} chars from {1} pages ({2} confidence)</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR: copied {0} chars from the region ({1} confidence)</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">Searchable PDF saved: {0} pages, {1} words recognized</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">Text extracted from {0} pages -> {1}</sys:String>

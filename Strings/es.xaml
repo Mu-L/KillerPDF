@@ -848,6 +848,7 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_St_TextEditError">Error de edición de texto: {0}</sys:String>
     <sys:String x:Key="Str_St_OcrNoTextPage">OCR: no se encontró texto en la página {0}</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedPage">OCR: {0} caracteres copiados de la página {1} (confianza {2})</sys:String>
+    <sys:String x:Key="Str_St_OcrCopiedPages">OCR: {0} caracteres copiados de {1} páginas (confianza {2})</sys:String>
     <sys:String x:Key="Str_St_OcrCopiedRegion">OCR: {0} caracteres copiados de la región (confianza {1})</sys:String>
     <sys:String x:Key="Str_St_SearchableSaved">PDF con texto buscable guardado: {0} páginas, {1} palabras reconocidas</sys:String>
     <sys:String x:Key="Str_St_TextExtracted">Texto extraído de {0} páginas -> {1}</sys:String>

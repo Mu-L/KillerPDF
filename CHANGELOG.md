@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 ### Added
 
 - The Pages panel now supports Ctrl+A to select every page and Delete to remove the selected pages (#289, #296).
+- OCR now recognizes every selected page and copies the combined text (#297).
 - Russian is now available for the complete interface and downloadable OCR support (#293, thanks 1mk3r).
 
 ### Fixed
@@ -20,6 +21,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 - Damaged-file repair prompts now use the active interface language (#299).
 - Tagged PDFs can now be added after untagged pages or other imported documents (#300).
 - Transform now removes superseded page-image data so grayscale, black-and-white, DPI, and JPEG settings reduce the saved file size (#287).
+- Transform now shows page-by-page progress during batch processing, and its 98SE quality controls no longer touch the scrollbar (#290, #291).
 - The fillable text field tool is now localizable and supports selecting, moving, resizing, recoloring, and deleting fields (#295).
 - Turning off two-sided printing now explicitly overrides printer-driver duplex defaults (#284).
 - Measurement rulers and readouts now remain legible at fitted and multi-page zoom levels.
