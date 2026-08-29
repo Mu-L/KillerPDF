@@ -1,0 +1,103 @@
+# Performance validation results: KillerPDF 1.8.0
+
+Benchmark date: 2026-08-28
+
+KillerPDF 1.8.0 completed the shared 2,236-file batch-resave workload in a median
+10.013 seconds, compared with 16.167 seconds for KillerPDF 1.7.5. That is a 38.1%
+reduction in elapsed time. Median throughput increased from 138.31 to 223.32 files
+per second.
+
+This is a regression benchmark for KillerPDF's real batch-resave path. It is not a
+claim that one PDF engine will be faster for every document or workload.
+
+## Builds under test
+
+| Version | Build | SHA-256 |
+|---|---|---|
+| KillerPDF 1.7.5 | Official GitHub release executable | `C53B34C5847ABE24228226656C00EFF5F76396D2BD8AD1BE8FDBAC56B153B136` |
+| KillerPDF 1.8.0 | Installed final release | `3D3C53B66A165C9BD26F1DCC1679AF131E69FB0305FF84BB52F53412EA657FCF` |
+
+The downloaded 1.7.5 executable matched the digest published for the v1.7.5 GitHub
+release asset. Both executables reported their expected final product versions.
+
+## Test system
+
+| Component | Value |
+|---|---|
+| Operating system | Windows 11 Pro 10.0.26200 |
+| CPU | AMD Ryzen 5 3600 6-Core Processor |
+| Memory | 32 GB DDR4-3200 |
+| Storage | 2 TB SPCC M.2 PCIe NVMe SSD |
+
+## Corpus
+
+The input was the 2,236-file subset of the public conformance corpus supported by
+both versions. KillerPDF 1.7.5 could not process the PDF 2.0 files in the full
+2,907-file corpus, so those files were excluded to keep the comparison equivalent.
+
+The shared input contains public veraPDF, Isartor, and TWG conformance files. The
+same input directory was supplied to both versions for every run.
+
+## Method
+
+1. Verify that both executables report the intended final product versions.
+2. Verify the release asset hashes and count the input PDFs recursively.
+3. Give each version one unmeasured warmup run.
+4. Run each version five measured times.
+5. Alternate which version runs first to reduce ordering bias from caching, machine
+   temperature, and background activity.
+6. Use a fresh output directory for every run.
+7. Record elapsed wall-clock time, successful output count, process exit code, and
+   files processed per second.
+8. Compare the median of the five measured runs instead of selecting the best run.
+
+Every measured run processed all 2,236 files and returned exit code 0.
+
+## Results
+
+| Version | Runs | Median time | Minimum | Maximum | Median files per second |
+|---|---:|---:|---:|---:|---:|
+| KillerPDF 1.7.5 | 5 | 16.167 seconds | 15.675 seconds | 16.687 seconds | 138.31 |
+| KillerPDF 1.8.0 | 5 | 10.013 seconds | 9.451 seconds | 11.518 seconds | 223.32 |
+
+The raw measurements are preserved in
+[`benchmarks/1.8.0/benchmark-results.csv`](benchmarks/1.8.0/benchmark-results.csv),
+with the calculated medians in
+[`benchmarks/1.8.0/benchmark-summary.csv`](benchmarks/1.8.0/benchmark-summary.csv).
+
+## Reproducing the benchmark
+
+[`Benchmark-Versions.ps1`](Benchmark-Versions.ps1) runs the complete warmup,
+alternating measurement, logging, cleanup, and summary process. Run it from
+PowerShell with two KillerPDF executables and one shared input tree:
+
+```powershell
+.\Benchmark-Versions.ps1 `
+    -BaselineExe 'C:\path\to\KillerPDF-previous.exe' `
+    -CandidateExe 'C:\path\to\KillerPDF-current.exe' `
+    -InputDirectory 'C:\path\to\shared-corpus' `
+    -OutputDirectory "$env:USERPROFILE\killerpdf-benchmark\measured" `
+    -Runs 5 `
+    -BaselineLabel 'KillerPDF previous' `
+    -CandidateLabel 'KillerPDF current'
+```
+
+The output directory must be inside the current user's profile. The script creates
+and removes only its own `output-*` run directories. It keeps the per-run logs,
+`benchmark-results.csv`, and `benchmark-summary.csv`.
+
+For a useful comparison, close other demanding applications, keep the machine on
+the same power plan, use the same corpus and storage device, and do not compare
+absolute numbers from different computers. The relative change between two builds
+measured in the same session is the result that matters.
+
+## Release baseline
+
+For each final release:
+
+1. Compare the previous official release with the proposed final build.
+2. Use the same machine, corpus, run count, and method.
+3. Save the raw CSV files under `validation/benchmarks/<version>/`.
+4. Add the new release result to this report.
+5. Investigate a median slowdown of 10% or more before release. A slowdown is not
+   automatically a failure, but it must be understood and documented.
