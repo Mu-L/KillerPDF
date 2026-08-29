@@ -41,6 +41,9 @@
 - GPLv3, local-only, no account, no telemetry
     </description>
     <releaseNotes>https://github.com/SteveTheKiller/KillerPDF/releases/tag/vREPLACE_VERSION</releaseNotes>
+    <dependencies>
+      <dependency id="dotnet-10.0-desktopruntime" version="[10.0.0,11.0.0)" />
+    </dependencies>
   </metadata>
   <files>
     <file src="tools\**" target="tools" />
