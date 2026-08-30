@@ -156,16 +156,16 @@ Beim Speichern wird die Datei überschrieben und diese Änderungen gehen verlore
     <sys:String x:Key="Str_Dlg_InstallTitle">KillerPDF installieren</sys:String>
     <sys:String x:Key="Str_Dlg_InstallMsg" xml:space="preserve">KillerPDF auf diesem Computer installieren?
 
-KillerPDF wird in Ihren Programmordner kopiert und eine Verknüpfung im Startmenü erstellt. Diese Kopie der EXE bleibt, wo sie ist, und Sie können das Programm jederzeit über „Programme hinzufügen oder entfernen“ deinstallieren.</sys:String>
+KillerPDF wird in Ihren Programmordner kopiert und eine Verknüpfung im Startmenü erstellt. Diese Kopie der EXE bleibt, wo sie ist, und Sie können das Programm jederzeit über „Programme und Features“ deinstallieren.</sys:String>
     <sys:String x:Key="Str_Btn_DoInstall">Installieren</sys:String>
     <sys:String x:Key="Str_Btn_DoUpdate">Aktualisieren</sys:String>
     <sys:String x:Key="Str_Dlg_UpdateUserMsg" xml:space="preserve">Die bestehende KillerPDF-Installation aktualisieren?
 
-Dies ersetzt die installierte Kopie durch die schnellere Mehrdatei-Version. Diese portable Datei können Sie danach behalten oder löschen.</sys:String>
+Dies ersetzt die installierte Kopie durch die schnellere Version mit mehreren Dateien. Diese portable Datei können Sie danach behalten oder löschen.</sys:String>
     <sys:String x:Key="Str_Dlg_UpdateMachineMsg" xml:space="preserve">Die bestehende Installation von KillerPDF für alle Benutzer aktualisieren?
 
-Dies ersetzt die Kopie in Program Files durch die schnellere Mehrdatei-Version. Eine ältere Kopie für den aktuellen Benutzer wird entfernt, sodass KillerPDF nur einmal erscheint. Diese portable Datei können Sie danach behalten oder löschen.</sys:String>
-    <sys:String x:Key="Str_Dlg_OneInstallOnly" xml:space="preserve">KillerPDF ist auf diesem Computer bereits für alle Benutzer installiert. Aktualisieren Sie diese Installation, oder deinstallieren Sie sie, bevor Sie eine Installation nur für Ihr Konto wählen.
+Dies ersetzt die Kopie in „Program Files“ durch die schnellere Version mit mehreren Dateien. Eine ältere Kopie für den aktuellen Benutzer wird entfernt, sodass KillerPDF nur einmal erscheint. Diese portable Datei können Sie danach behalten oder löschen.</sys:String>
+    <sys:String x:Key="Str_Dlg_OneInstallOnly" xml:space="preserve">KillerPDF ist auf diesem Computer bereits für alle Benutzer installiert. Aktualisieren Sie diese Installation oder deinstallieren Sie sie, bevor Sie eine Installation nur für Ihr Konto wählen.
 
 KillerPDF legt keine zwei installierten Kopien an.</sys:String>
     <sys:String x:Key="Str_Chk_Desktop">Desktopverknüpfung hinzufügen</sys:String>
@@ -195,12 +195,12 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Theme_Greed">Gier</sys:String>
     <sys:String x:Key="Str_Theme_Cyanotic">Zyanotisch</sys:String>
     <sys:String x:Key="Str_Theme_98SE">98SE</sys:String>
-    <sys:String x:Key="Str_Theme_Ectoplasm">Ectoplasm</sys:String>
-    <sys:String x:Key="Str_Theme_Decay">Decay</sys:String>
-    <sys:String x:Key="Str_Theme_Mourning">Mourning</sys:String>
-    <sys:String x:Key="Str_Theme_Sepulchre">Sepulchre</sys:String>
+    <sys:String x:Key="Str_Theme_Ectoplasm">Ektoplasma</sys:String>
+    <sys:String x:Key="Str_Theme_Decay">Verfall</sys:String>
+    <sys:String x:Key="Str_Theme_Mourning">Trauer</sys:String>
+    <sys:String x:Key="Str_Theme_Sepulchre">Grab</sys:String>
     <sys:String x:Key="Str_Theme_Delirium">Delirium</sys:String>
-    <sys:String x:Key="Str_Theme_Malaise">Malaise</sys:String>
+    <sys:String x:Key="Str_Theme_Malaise">Unwohlsein</sys:String>
 
     <!-- ── Zoom dropdown ──────────────────────────────────────────────── -->
     <sys:String x:Key="Str_Zoom_FitWidth">An Seitenbreite anpassen</sys:String>
@@ -267,7 +267,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Ctx_ClearPage">Anmerkungen der Seite löschen</sys:String>
     <sys:String x:Key="Str_Ctx_InsertBlank">Leere Seite danach einfügen</sys:String>
     <sys:String x:Key="Str_Ctx_RotateCWShort">Im Uhrzeigersinn drehen</sys:String>
-    <sys:String x:Key="Str_Ctx_RotateCCWShort">Gegen Uhrzeigersinn drehen</sys:String>
+    <sys:String x:Key="Str_Ctx_RotateCCWShort">Gegen den Uhrzeigersinn drehen</sys:String>
     <sys:String x:Key="Str_Ctx_ExtractPages">Seite(n) extrahieren</sys:String>
     <sys:String x:Key="Str_Ctx_ExportPageImage">Seite als Bild exportieren</sys:String>
     <sys:String x:Key="Str_Ctx_DeletePages">Seite(n) löschen</sys:String>
@@ -417,7 +417,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Sign_Desc">Versiegelt {0} mit einem Zertifikat und speichert eine signierte Kopie.</sys:String>
     <sys:String x:Key="Str_Sign_Certificate">Zertifikat</sys:String>
     <sys:String x:Key="Str_Sign_FromFile">Aus einer Datei (.pfx / .p12)</sys:String>
-    <sys:String x:Key="Str_Sign_FromStore">Aus dem Windows-Zertifikatspeicher / USB token</sys:String>
+    <sys:String x:Key="Str_Sign_FromStore">Aus dem Windows-Zertifikatspeicher / USB-Token</sys:String>
     <sys:String x:Key="Str_Sign_Browse">Durchsuchen...</sys:String>
     <sys:String x:Key="Str_Sign_Password">Passwort</sys:String>
     <sys:String x:Key="Str_Sign_Reason">Grund (optional)</sys:String>
@@ -426,7 +426,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Sign_VisibleAppearance">Sichtbare Signatur anzeigen</sys:String>
     <sys:String x:Key="Str_Sign_AppearanceText">Signaturtext</sys:String>
     <sys:String x:Key="Str_Sign_AppearanceDefault">Digital signiert von {name}&#10;Datum: {date}&#10;Grund: {reason}&#10;Ort: {location}</sys:String>
-    <sys:String x:Key="Str_Sign_Page">Seit</sys:String>
+    <sys:String x:Key="Str_Sign_Page">Seite</sys:String>
     <sys:String x:Key="Str_Sign_Position">Position</sys:String>
     <sys:String x:Key="Str_Sign_BottomLeft">Unten links</sys:String>
     <sys:String x:Key="Str_Sign_BottomRight">Unten rechts</sys:String>
@@ -685,7 +685,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Key_Alt">Alt</sys:String>
     <sys:String x:Key="Str_Key_Shift">Umschalt</sys:String>
     <sys:String x:Key="Str_Key_Delete">Entf</sys:String>
-    <sys:String x:Key="Str_Key_Enter">Eingabe</sys:String>
+    <sys:String x:Key="Str_Key_Enter">Enter</sys:String>
     <sys:String x:Key="Str_Key_Esc">Esc</sys:String>
     <sys:String x:Key="Str_Key_Menu">Menü</sys:String>
     <sys:String x:Key="Str_Key_Home">Pos1</sys:String>
@@ -749,7 +749,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Tf_Quality">SEITENQUALITÄT</sys:String>
     <sys:String x:Key="Str_Tf_ColorMode">Farbmodus</sys:String>
     <sys:String x:Key="Str_Tf_Grayscale">Graustufen</sys:String>
-    <sys:String x:Key="Str_Tf_BlackWhite">Schwarz und Weiß </sys:String>
+    <sys:String x:Key="Str_Tf_BlackWhite">Schwarz und Weiß</sys:String>
     <sys:String x:Key="Str_Tf_Threshold">Schwarz-Weiß-Schwelle</sys:String>
     <sys:String x:Key="Str_Tf_SetDpi">Ausgangsauflösung (dpi) einstellen</sys:String>
     <sys:String x:Key="Str_Tf_UseJpeg">JPEG-Komprimierung verwenden</sys:String>
@@ -787,10 +787,10 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Sign_NeedCertFile">Wählen Sie zuerst eine Zertifikatdatei (.pfx / .p12).</sys:String>
     <sys:String x:Key="Str_Sign_NoStoreCert">Im Windows-Zertifikatspeicher ist kein Signaturzertifikat verfügbar.</sys:String>
     <sys:String x:Key="Str_Sign_NeedOutput">Wählen Sie, wo die signierte Kopie gespeichert werden soll.</sys:String>
-    <sys:String x:Key="Str_Sign_BadCert" xml:space="preserve">Das Zertifikat konnte nicht geöffnet werden.&#10;&#10;Das Passwort ist möglicherweise falsch, oder die Datei ist kein gültiges .pfx / .p12 Zertifikat.</sys:String>
+    <sys:String x:Key="Str_Sign_BadCert" xml:space="preserve">Das Zertifikat konnte nicht geöffnet werden.&#10;&#10;Das Passwort ist möglicherweise falsch oder die Datei ist kein gültiges .pfx- bzw. .p12-Zertifikat.</sys:String>
     <sys:String x:Key="Str_Sign_CertLoadFailed">Das Zertifikat konnte nicht geladen werden:</sys:String>
     <sys:String x:Key="Str_Sign_Failed">Signieren fehlgeschlagen:</sys:String>
-    <sys:String x:Key="Str_St_ShapeHint">Klicken fügt Punkte hinzu - Klick auf den ersten Punkt oder Doppelklick schließt, Esc bricht ab, Rücktaste entfernt den letzten Punkt</sys:String>
+    <sys:String x:Key="Str_St_ShapeHint">Klicken fügt Punkte hinzu - Klick auf den ersten Punkt oder Doppelklick schließt, Esc zum Abbrechen, Rücktaste entfernt den letzten Punkt</sys:String>
     <sys:String x:Key="Str_St_ShapeCanceled">Form abgebrochen</sys:String>
     <sys:String x:Key="Str_Err_PrintFailed">Drucken fehlgeschlagen:</sys:String>
     <sys:String x:Key="Str_Err_OcrFailed">OCR fehlgeschlagen:</sys:String>
@@ -883,8 +883,8 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Annot_Highlight">Hervorhebung</sys:String>
     <sys:String x:Key="Str_Annot_Drawing">Zeichnung</sys:String>
     <sys:String x:Key="Str_Annot_Item">Element</sys:String>
-    <sys:String x:Key="Str_Busy_SearchablePage">Durchsuchbare PDF wird erstellt... Seite {0} von {1}  (Esc bricht ab)</sys:String>
-    <sys:String x:Key="Str_Busy_ExtractingPage">Text wird extrahiert... Seite {0} von {1}  (Esc bricht ab)</sys:String>
+    <sys:String x:Key="Str_Busy_SearchablePage">Durchsuchbare PDF wird erstellt... Seite {0} von {1}  (Esc zum Abbrechen)</sys:String>
+    <sys:String x:Key="Str_Busy_ExtractingPage">Text wird extrahiert... Seite {0} von {1}  (Esc zum Abbrechen)</sys:String>
     <sys:String x:Key="Str_Busy_LangData">Sprachdaten für {0} werden heruntergeladen...</sys:String>
     <sys:String x:Key="Str_Busy_Downloading">{0} wird heruntergeladen...</sys:String>
     <sys:String x:Key="Str_Busy_DownloadingHq">{0} (HQ) wird heruntergeladen - {1} von {2} -</sys:String>
@@ -895,9 +895,9 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Ocr_SuffixDownload">(herunterladen)</sys:String>
     <sys:String x:Key="Str_Ocr_SuffixDownloadHq">(HQ herunterladen)</sys:String>
     <sys:String x:Key="Str_Dlg_SearchableSaved" xml:space="preserve">Durchsuchbare PDF gespeichert:&#10;{0}&#10;&#10;{1} Seiten verarbeitet, {2} Wörter erkannt.</sys:String>
-    <sys:String x:Key="Str_Dlg_Repaired" xml:space="preserve">"{0}" wurde erfolgreich repariert.&#10;&#10;Lesezeichen, Formulare und andere interaktive Funktionen können verloren gegangen sein. Verwenden Sie Speichern unter, um die reparierte Datei an einem neuen Ort zu speichern.</sys:String>
-    <sys:String x:Key="Str_Dlg_RepairedRaster" xml:space="preserve">"{0}" wurde durch Rastern über PDFium repariert.&#10;&#10;Text ist in der reparierten Kopie nicht auswählbar. Verwenden Sie Speichern unter, um sie an einem neuen Ort zu speichern.</sys:String>
-    <sys:String x:Key="Str_Dlg_RepairAsk" xml:space="preserve">"{0}" hat eine beschädigte Struktur und konnte nicht hinzugefügt werden.&#10;&#10;Soll KillerPDF eine Reparatur versuchen? Es wird eine reparierte Kopie erstellt - die Originaldatei wird nicht verändert.&#10;&#10;Hinweis: Reparierten Dateien können Lesezeichen, Formulare und andere interaktive Funktionen fehlen.</sys:String>
+    <sys:String x:Key="Str_Dlg_Repaired" xml:space="preserve">„{0}“ wurde erfolgreich repariert.&#10;&#10;Lesezeichen, Formulare und andere interaktive Funktionen können verloren gegangen sein. Verwenden Sie „Speichern unter“, um die reparierte Datei an einem neuen Ort zu speichern.</sys:String>
+    <sys:String x:Key="Str_Dlg_RepairedRaster" xml:space="preserve">„{0}“ wurde durch Rastern über PDFium repariert.&#10;&#10;Text ist in der reparierten Kopie nicht auswählbar. Verwenden Sie „Speichern unter“, um sie an einem neuen Ort zu speichern.</sys:String>
+    <sys:String x:Key="Str_Dlg_RepairAsk" xml:space="preserve">„{0}“ hat eine beschädigte Struktur und konnte nicht hinzugefügt werden.&#10;&#10;Soll KillerPDF eine Reparatur versuchen? Es wird eine reparierte Kopie erstellt - die Originaldatei wird nicht verändert.&#10;&#10;Hinweis: Reparierten Dateien können Lesezeichen, Formulare und andere interaktive Funktionen fehlen.</sys:String>
     <sys:String x:Key="Str_Dlg_LangDownloadAsk" xml:space="preserve">Ein Sprachmodell ({0}) wird jetzt heruntergeladen, damit OCR laufen kann.&#10;&#10;Sie können jederzeit über das OCR-Menü weitere Sprachen hinzufügen oder zu Modellen höherer Qualität wechseln.</sys:String>
     <sys:String x:Key="Str_Bar_More">Weitere Einstellungen</sys:String>
     <sys:String x:Key="Str_Bar_TT_Level">Hält die Linie auf der nächstgelegenen Achse (horizontal oder vertikal)</sys:String>
@@ -905,7 +905,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Bar_TT_EraserBrush">Über Anmerkungen streichen, um sie zu löschen</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeBox">Rechteck - ziehen Sie ein Rechteck auf</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeEllipse">Ellipse - ziehen Sie ein Oval auf</sys:String>
-    <sys:String x:Key="Str_Bar_TT_ShapeFreeform">Freiform - Punkte anklicken; Klick auf den ersten Punkt oder Doppelklick schließt, Esc bricht ab, Rücktaste entfernt den letzten Punkt</sys:String>
+    <sys:String x:Key="Str_Bar_TT_ShapeFreeform">Freiform - Punkte anklicken; Klick auf den ersten Punkt oder Doppelklick schließt, Esc zum Abbrechen, Rücktaste entfernt den letzten Punkt</sys:String>
     <sys:String x:Key="Str_Bar_TT_ShapeFill">Füllt das Innere der Form</sys:String>
     <sys:String x:Key="Str_TT_RecentFiles">Zuletzt verwendete Dateien</sys:String>
     <sys:String x:Key="Str_TT_SaveOptions">Speicheroptionen</sys:String>
@@ -938,8 +938,8 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Search_NoMatches">Keine Treffer</sys:String>
     <sys:String x:Key="Str_Search_Error">Suchfehler</sys:String>
     <sys:String x:Key="Str_Search_Summary">{0} Treffer auf {1} Seiten</sys:String>
-    <sys:String x:Key="Str_Search_PreviousTT">Vorheriger Treffer (Umschalt+Eingabe)</sys:String>
-    <sys:String x:Key="Str_Search_NextTT">Nächster Treffer (Eingabe)</sys:String>
+    <sys:String x:Key="Str_Search_PreviousTT">Vorheriger Treffer (Umschalt+Enter)</sys:String>
+    <sys:String x:Key="Str_Search_NextTT">Nächster Treffer (Enter)</sys:String>
     <sys:String x:Key="Str_Search_CloseTT">Schließen (Esc)</sys:String>
     <sys:String x:Key="Str_Busy_FlattenPage">Seite {0} von {1} wird reduziert...</sys:String>
     <sys:String x:Key="Str_Busy_ExportPage">Seite {0} von {1} wird exportiert...</sys:String>
@@ -974,10 +974,10 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
 
     <!-- ── Browser handoff refusals ────────────────────────────────────── -->
     <sys:String x:Key="Str_Handoff_Failed">KillerPDF konnte die Browser-PDF nicht öffnen.</sys:String>
-    <sys:String x:Key="Str_Handoff_UnknownCommand">Dieser Browserbefehl ist nicht einer, den KillerPDF kennt.</sys:String>
+    <sys:String x:Key="Str_Handoff_UnknownCommand">Dieser Browserbefehl ist KillerPDF nicht bekannt.</sys:String>
     <sys:String x:Key="Str_Handoff_MissingUrl">Die Übergabe enthielt keine PDF-Adresse.</sys:String>
     <sys:String x:Key="Str_Handoff_MalformedUrl">Die PDF-Adresse in der Übergabe konnte nicht gelesen werden.</sys:String>
-    <sys:String x:Key="Str_Handoff_SchemeNotAllowed">KillerPDF öffnet nur Browser-Übergaben über https.</sys:String>
+    <sys:String x:Key="Str_Handoff_SchemeNotAllowed">KillerPDF öffnet nur Browser-Übergaben über HTTPS.</sys:String>
     <sys:String x:Key="Str_Handoff_Unusable">Die Browser-Übergabe konnte nicht verwendet werden.</sys:String>
     <sys:String x:Key="Str_Handoff_TooLarge">Die PDF-Datei ist größer als das Limit für die Browser-Übergabe von 256 MB.</sys:String>
     <sys:String x:Key="Str_Handoff_NotPdf">Die heruntergeladene Datei ist kein PDF.</sys:String>
