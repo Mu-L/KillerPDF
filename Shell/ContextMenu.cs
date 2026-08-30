@@ -671,7 +671,7 @@ namespace KillerPDF
             menu.Items.Add(new Separator());
             menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_Print"), (s, e) => Print_Click(s!, e), "Ctrl+P", ""));
             menu.Items.Add(BuildComparisonContextItem());
-            menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_ZoomIn"), (s, e) => ZoomIn_Click(s!, e), "Ctrl+=", ""));
+            menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_ZoomIn"), (s, e) => ZoomIn_Click(s!, e), "Ctrl++", ""));
             menu.Items.Add(MakeMenuItem(Loc("Str_Lbl_ZoomOut"), (s, e) => ZoomOut_Click(s!, e), "Ctrl+-", ""));
             menu.Items.Add(new Separator());
             menu.Items.Add(MakeMenuItem(Loc("Str_Ctx_UndoLast"), (s, e) => Undo_Click(s!, e), "Ctrl+Z", ""));
