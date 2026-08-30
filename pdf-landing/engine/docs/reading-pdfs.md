@@ -72,6 +72,26 @@ The effective geometry accounts for inherited page boxes and rotation.
 
 These readers return stable, high-level records with decoded text and normalized geometry. Your application does not need to traverse raw dictionaries for common tasks.
 
+## Read form fields
+
+Form widgets are read one page at a time. Each result includes the fully qualified field name, field type, current value, flags, options, and normalized page coordinates.
+
+```csharp
+IReadOnlyList<PdfPageInformation> pages = PdfPageInformation.Read(document);
+
+for (int pageIndex = 0; pageIndex < pages.Count; pageIndex++)
+{
+    foreach (PdfFormWidgetInfo widget in PdfFormWidgetReader.ReadPage(document, pageIndex))
+    {
+        Console.WriteLine($"{widget.FieldName}: {widget.Value}");
+        Console.WriteLine($"  Type: {widget.FieldKind}");
+        Console.WriteLine($"  Rectangle: {widget.Left}, {widget.Bottom}, {widget.Right}, {widget.Top}");
+    }
+}
+```
+
+An empty page returns an empty list. Page indexes are zero-based.
+
 ## Know the boundary
 
-The engine reads document structure. It does not render pages, extract page text, or run OCR. Pair it with the renderer and text tools appropriate for your application.
+The engine reads document structure. It does not render pages, extract page text, extract embedded images, or run OCR. Pair it with the renderer and extraction tools appropriate for your application.
