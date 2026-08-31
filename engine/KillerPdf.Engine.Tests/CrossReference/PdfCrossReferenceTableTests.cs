@@ -777,18 +777,85 @@ public sealed class PdfCrossReferenceTableTests
     }
 
     [Fact]
-    public void Read_RejectsMismatchedHybridRevisionSizes()
+    public void Read_RejectsHybridRevisionSizeAboveItsTrailer()
     {
         PdfSyntaxException error = Assert.Throws<PdfSyntaxException>(() =>
             PdfCrossReferenceTable.Read(
                 HybridReferencePdf(hybridHasPreviousOffset: false, hybridSize: 4)));
 
-        Assert.Contains("stream /Size must match", error.Message,
+        Assert.Contains("stream /Size cannot exceed", error.Message,
             StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Read_AllowsHybridRevisionSizeBelowItsTrailer()
+    {
+        // Microsoft Excel writes the hybrid stream as the file's last object and
+        // indexes only the objects before it, so the stream's /Size is one less
+        // than the classic trailer's. Both are correct under ISO 32000-1 Table 17,
+        // and the classic table still registers the stream object itself.
+        PdfCrossReferenceTable table = PdfCrossReferenceTable.Read(
+            HybridReferencePdf(
+                hybridHasPreviousOffset: false, hybridSize: 2, hybridIndexCount: 2));
+
+        Assert.Equal(PdfCrossReferenceEntryType.InUse, table[2].Type);
+    }
+
+    [Fact]
+    public void Read_AllowsHybridStreamToReviveObjectsRetiredByItsClassicTable()
+    {
+        // Microsoft Office retires object-stream-resident objects at generation
+        // 65535 in the classic tables so legacy readers skip them, and lists the
+        // same objects as live in the companion stream (ISO 32000-1 7.5.8.4).
+        // That is a compatibility convention, not a generation regression.
+        PdfCrossReferenceTable table =
+            PdfCrossReferenceTable.Read(OfficeStyleHybridPdf());
+
+        Assert.Equal(PdfCrossReferenceEntryType.InUse, table[2].Type);
+    }
+
+    private static byte[] OfficeStyleHybridPdf()
+    {
+        using var source = new MemoryStream();
+        Write("%PDF-1.7\n");
+        int catalogOffset = checked((int)source.Position);
+        Write("1 0 obj\n<< /Type /Catalog >>\nendobj\n");
+        int streamOffset = checked((int)source.Position);
+        byte[] rows =
+        [
+            1, (byte)(catalogOffset >> 24), (byte)(catalogOffset >> 16),
+                (byte)(catalogOffset >> 8), (byte)catalogOffset, 0, 0,
+            1, (byte)(streamOffset >> 24), (byte)(streamOffset >> 16),
+                (byte)(streamOffset >> 8), (byte)streamOffset, 0, 0
+        ];
+        Write("2 0 obj\n<< /Type /XRef /Size 3 /W [1 4 2] /Index [1 2] " +
+            $"/Length {rows.Length} /Root 1 0 R >>\nstream\n");
+        source.Write(rows);
+        Write("\nendstream\nendobj\n");
+
+        // Revision A: the legacy-visible table, which retires object 2.
+        int firstTableOffset = checked((int)source.Position);
+        Write("xref\n0 3\n");
+        Write("0000000002 65535 f\n");
+        Write($"{catalogOffset:0000000000} 00000 n\n");
+        Write("0000000000 65535 f\n");
+        Write("trailer\n<< /Size 3 /Root 1 0 R >>\n");
+        Write($"startxref\n{firstTableOffset}\n%%EOF\n");
+
+        // Revision B: an empty table whose trailer points at both companions.
+        int secondTableOffset = checked((int)source.Position);
+        Write("xref\n0 0\n");
+        Write($"trailer\n<< /Size 3 /Root 1 0 R /Prev {firstTableOffset} " +
+            $"/XRefStm {streamOffset} >>\n");
+        Write($"startxref\n{secondTableOffset}\n%%EOF\n");
+        return source.ToArray();
+
+        void Write(string value) => source.Write(Encoding.ASCII.GetBytes(value));
+    }
+
     private static byte[] HybridReferencePdf(
-        bool hybridHasPreviousOffset, int hybridSize = 3)
+        bool hybridHasPreviousOffset, int hybridSize = 3,
+        int hybridIndexCount = 3)
     {
         using var source = new MemoryStream();
         Write("%PDF-2.0\n");
@@ -803,8 +870,9 @@ public sealed class PdfCrossReferenceTableTests
             1, (byte)(streamOffset >> 24), (byte)(streamOffset >> 16),
                 (byte)(streamOffset >> 8), (byte)streamOffset, 0, 0
         ];
+        rows = rows[..(hybridIndexCount * 7)];
         Write($"2 0 obj\n<< /Type /XRef /Size {hybridSize} /W [1 4 2] " +
-            "/Index [0 3] /Length 21 " +
+            $"/Index [0 {hybridIndexCount}] /Length {rows.Length} " +
             (hybridHasPreviousOffset ? "/Prev 0 " : string.Empty) +
             "/PrivateState << /Enabled false >> >>\nstream\n");
         source.Write(rows);
