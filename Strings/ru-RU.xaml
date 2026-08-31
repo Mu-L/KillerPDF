@@ -216,20 +216,20 @@
     <sys:String x:Key="Str_Dlg_UpdateUserMsg" xml:space="preserve">Обновите существующую установку KillerPDF?
 
 Это заменит установленную копию на более быструю версию с несколькими файлами. Впоследствии вы можете сохранить или удалить этот переносимый файл.</sys:String>
-    <sys:String x:Key="Str_Dlg_OneInstallOnly" xml:space="preserve">KillerPDF is already installed for everyone on this computer. Update that installation, or uninstall it before choosing a per-user install.
+    <sys:String x:Key="Str_Dlg_OneInstallOnly" xml:space="preserve">KillerPDF уже установлен для всех пользователей на этом компьютере. Обновите эту программу или удалите ее, прежде чем выбирать установку для каждого пользователя.
 
 KillerPDF не будет создавать две установленные копии.</sys:String>
-    <sys:String x:Key="Str_Btn_DoInstall">Install</sys:String>
-    <sys:String x:Key="Str_Btn_DoUpdate">Update</sys:String>
-    <sys:String x:Key="Str_Chk_Desktop">Add a desktop shortcut</sys:String>
-    <sys:String x:Key="Str_Chk_AllUsers">Install for everyone on this computer (needs admin)</sys:String>
-    <sys:String x:Key="Str_Status_InstallFailed">Install did not complete - KillerPDF is still running portable.</sys:String>
-    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg" xml:space="preserve">Would you like to set KillerPDF as your default PDF viewer?
+    <sys:String x:Key="Str_Btn_DoInstall">Установить</sys:String>
+    <sys:String x:Key="Str_Btn_DoUpdate">Обновить</sys:String>
+    <sys:String x:Key="Str_Chk_Desktop">Добавить ярлык на рабочий стол</sys:String>
+    <sys:String x:Key="Str_Chk_AllUsers">Установка для всех пользователей этого компьютера (требуется администратор)</sys:String>
+    <sys:String x:Key="Str_Status_InstallFailed">Установка не завершена - KillerPDF все еще работает в режиме portable.</sys:String>
+    <sys:String x:Key="Str_Dlg_SetDefaultPdfMsg" xml:space="preserve">Хотите ли вы установить KillerPDF в качестве средства просмотра PDF-файлов по умолчанию?
 
 Открывает настройки Windows - Приложения по умолчанию.</sys:String>
-    <sys:String x:Key="Str_Dlg_UnsavedClose">You have unsaved changes. Close this file without saving?</sys:String>
-    <sys:String x:Key="Str_Dlg_UnsavedExit">You have unsaved changes. Close KillerPDF without saving?</sys:String>
-    <sys:String x:Key="Str_Dlg_PageOutOfRange" xml:space="preserve">This document has {0} page(s) sized outside what Adobe Reader supports (3 to 14,400 points per side) - Adobe shows these as blank pages.
+    <sys:String x:Key="Str_Dlg_UnsavedClose">У вас есть несохраненные изменения. Закрыть этот файл без сохранения?</sys:String>
+    <sys:String x:Key="Str_Dlg_UnsavedExit">У вас есть несохраненные изменения. Закрыть KillerPDF без сохранения?</sys:String>
+    <sys:String x:Key="Str_Dlg_PageOutOfRange" xml:space="preserve">Этот документ имеет {0} страниц(ы) с размером, отличным от того, который поддерживает Adobe Reader (от 3 до 14,400 точек на сторону) - Adobe отображает их как пустые.
 
 Масштабируйте их до поддерживаемого размера? Страницы сохраняют свой внешний вид и пропорции.</sys:String>
     <sys:String x:Key="Str_Dlg_FailedOpen" xml:space="preserve">Не удалось открыть PDF-файл:
@@ -611,7 +611,7 @@ KillerPDF не будет создавать две установленные �
     <sys:String x:Key="Str_St_RepairCanceled">Ремонт отменен</sys:String>
     <sys:String x:Key="Str_St_Canceled">Отменено</sys:String>
     <sys:String x:Key="Str_St_DocInfoUpdated">Обновлена информация о документе - сохраните файл, чтобы сохранить изменения</sys:String>
-    <sys:String x:Key="Str_St_FlattenCanceled">Сглаживание отменено (файл не записан)</sys:String>
+    <sys:String x:Key="Str_St_FlattenCanceled">Сведение отменено (файл не записан)</sys:String>
     <sys:String x:Key="Str_St_FlattenPrintFailed">Не удалось выровнять аннотации для печати; печать без них.</sys:String>
     <sys:String x:Key="Str_St_HqDownloadCanceled">Отменена загрузка в высоком качестве</sys:String>
     <sys:String x:Key="Str_St_LangDownloadCanceled">Загрузка языка отменена</sys:String>
@@ -955,7 +955,7 @@ KillerPDF не будет создавать две установленные �
     <sys:String x:Key="Str_Search_PreviousTT">Предыдущее совпадение (Shift+Enter)</sys:String>
     <sys:String x:Key="Str_Search_NextTT">Следующее совпадение (Enter)</sys:String>
     <sys:String x:Key="Str_Search_CloseTT">Закрыть (Esc)</sys:String>
-    <sys:String x:Key="Str_Busy_FlattenPage">Сглаживание страницы {0} из {1}...</sys:String>
+    <sys:String x:Key="Str_Busy_FlattenPage">Сведение страницы {0} из {1}...</sys:String>
     <sys:String x:Key="Str_Busy_ExportPage">Экспорт страницы {0} из {1}...</sys:String>
     <sys:String x:Key="Str_Busy_CancelHint">(Esc для отмены)</sys:String>
     <sys:String x:Key="Str_Busy_DownloadingMany">Загрузка {0} - {1} из {2} -</sys:String>
