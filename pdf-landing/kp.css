@@ -285,6 +285,27 @@ html[data-theme="light"] .tb-nav a { text-shadow: none; }
 .tech-sec a { color: var(--accent); font-weight: 600; }
 .codeblock { background: var(--panel); border: 1px solid var(--pane-border); border-left: 2px solid var(--accent); border-radius: 7px; padding: 13px 16px; margin: 10px 0 14px; font-family: Consolas, monospace; font-size: 12.5px; line-height: 1.7; color: var(--text); white-space: pre-wrap; overflow-x: auto; }
 .codeblock .cm { color: var(--muted); }
+.codeblock .syn-command,.code-block .syn-command{color:#63c7e6}
+.codeblock .syn-option,.code-block .syn-option{color:#e66bc4}
+.codeblock .syn-string,.code-block .syn-string{color:#e6b86b}
+.codeblock .syn-number,.code-block .syn-number{color:#8fcf78}
+.codeblock .syn-variable,.code-block .syn-variable{color:#7fd6ca}
+.codeblock .syn-operator,.code-block .syn-operator{color:#b99aea}
+.codeblock .syn-comment,.code-block .syn-comment{color:#78877d;font-style:italic}
+[data-theme="light"] .codeblock .syn-command,[data-theme="light"] .code-block .syn-command{color:#006b8f}
+[data-theme="light"] .codeblock .syn-option,[data-theme="light"] .code-block .syn-option{color:#9b1874}
+[data-theme="light"] .codeblock .syn-string,[data-theme="light"] .code-block .syn-string{color:#8a5100}
+[data-theme="light"] .codeblock .syn-number,[data-theme="light"] .code-block .syn-number{color:#26702d}
+[data-theme="light"] .codeblock .syn-variable,[data-theme="light"] .code-block .syn-variable{color:#00766c}
+[data-theme="light"] .codeblock .syn-operator,[data-theme="light"] .code-block .syn-operator{color:#6842a0}
+[data-theme="light"] .codeblock .syn-comment,[data-theme="light"] .code-block .syn-comment{color:#647069}
+[data-theme="hc"] .codeblock .syn-command,[data-theme="hc"] .code-block .syn-command{color:#38d7ff}
+[data-theme="hc"] .codeblock .syn-option,[data-theme="hc"] .code-block .syn-option{color:#ff72d8}
+[data-theme="hc"] .codeblock .syn-string,[data-theme="hc"] .code-block .syn-string{color:#ffd15c}
+[data-theme="hc"] .codeblock .syn-number,[data-theme="hc"] .code-block .syn-number{color:#80ff80}
+[data-theme="hc"] .codeblock .syn-variable,[data-theme="hc"] .code-block .syn-variable{color:#62fff0}
+[data-theme="hc"] .codeblock .syn-operator,[data-theme="hc"] .code-block .syn-operator{color:#d39cff}
+[data-theme="hc"] .codeblock .syn-comment,[data-theme="hc"] .code-block .syn-comment{color:#b4c2b9}
 .spec-table { width: 100%; border-collapse: collapse; margin: 6px 0 14px; font-size: 13px; background: var(--bg); }
 .spec-table th { text-align: left; background: var(--accent); color: var(--accent-text); padding: 7px 12px; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.45); }
 .spec-table td { padding: 7px 12px; border-bottom: 1px solid var(--pane-border); color: var(--muted); overflow-wrap: anywhere; }

@@ -27,6 +27,26 @@
   var accPop = document.getElementById('accentPop');
   var curAccent = 'green';
 
+  function localPreviewSetting(name) {
+    if (window.location.protocol !== 'file:') return null;
+    try { return new URLSearchParams(window.location.search).get(name); } catch (e) { return null; }
+  }
+
+  function syncLocalPreviewLinks() {
+    if (window.location.protocol !== 'file:') return;
+    document.querySelectorAll('a[href]').forEach(function (link) {
+      var href = link.getAttribute('href');
+      if (!href || href.charAt(0) === '#' || /^(?:https?:|mailto:|javascript:)/i.test(href)) return;
+      try {
+        var target = new URL(href, window.location.href);
+        if (target.protocol !== 'file:' || !/\.html$/i.test(target.pathname)) return;
+        target.searchParams.set('theme', root.getAttribute('data-theme'));
+        target.searchParams.set('accent', curAccent);
+        link.href = target.href;
+      } catch (e) {}
+    });
+  }
+
   function applyAccent(name) {
     var theme = root.getAttribute('data-theme');
     var fam = famFor(theme);
@@ -52,6 +72,7 @@
     if (accToggle) { accToggle.style.background = pair[0]; accToggle.title = 'Accent color'; }
     try { localStorage.setItem('kpdf-accent', name); } catch (e) {}
     updateLogos();
+    syncLocalPreviewLinks();
   }
   function updateLogos() {
     var theme = root.getAttribute('data-theme');
@@ -208,12 +229,76 @@
     }
   });
 
+  function escapeCode(value) {
+    return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function codeToken(kind, value) {
+    return '<span class="syn-' + kind + '">' + escapeCode(value) + '</span>';
+  }
+
+  function codeBlockText(block) {
+    var copy = block.cloneNode(true);
+    [].forEach.call(copy.querySelectorAll('br'), function (br) {
+      br.parentNode.replaceChild(document.createTextNode('\n'), br);
+    });
+    return copy.textContent.replace(/^\s*\n|\n\s*$/g, '');
+  }
+
+  function highlightCommand(source) {
+    var pattern = /#[^\n]*|\/\/[^\n]*|'(?:''|[^'])*'|"(?:`.|[^"`])*"|\{(?:input|output)\}|\$[A-Za-z_][\w:]*(?:\.[A-Za-z_]\w*)?|--?[A-Za-z][\w-]*|(?:[A-Za-z]:\\|\.\\|\\\\)[^\s"']+|\b\d+(?:\.\d+)?\b|\b(?:powershell|pwsh|dotnet|winget|irm|Invoke-RestMethod|Set-ExecutionPolicy|PdfTool\.exe|benchmark_corpus\.ps1)\b|[=+*/<>]+/gi;
+    var output = '', last = 0, match;
+    while ((match = pattern.exec(source))) {
+      output += escapeCode(source.slice(last, match.index));
+      var value = match[0], kind = 'command';
+      if (/^(?:#|\/\/)/.test(value)) kind = 'comment';
+      else if (/^(?:'|")/.test(value)) kind = 'string';
+      else if (/^(?:\{|\$)/.test(value)) kind = 'variable';
+      else if (/^--?[A-Za-z]/.test(value)) kind = 'option';
+      else if (/^\d/.test(value)) kind = 'number';
+      else if (/^[=+*/<>]+$/.test(value)) kind = 'operator';
+      else if (/^(?:[A-Za-z]:\\|\.\\|\\\\)/.test(value)) kind = 'string';
+      output += codeToken(kind, value);
+      last = pattern.lastIndex;
+    }
+    return output + escapeCode(source.slice(last));
+  }
+
+  function highlightFormula(source) {
+    var pattern = /\/\/[^\n]*|\b\d+(?:\.\d+)?\b|\b(?:max|min|round|int|newZoom|oldZoom|oldHOff|oldVOff|cursorX|cursorY|viewportW|pageWidthPt|pageHeightPt|renderW|renderH|pdfW|pdfH|canvasX|canvasY|dpiScaleX|dpiScaleY|zoom|ratio|scaledMax|GridZoomForN|rdW|rdH|sx|sy|newHOff|newVOff)\b|[=+*/<>-]+/g;
+    var output = '', last = 0, match;
+    while ((match = pattern.exec(source))) {
+      output += escapeCode(source.slice(last, match.index));
+      var value = match[0], kind;
+      if (/^\/\//.test(value)) kind = 'comment';
+      else if (/^\d/.test(value)) kind = 'number';
+      else if (/^[=+*/<>-]+$/.test(value)) kind = 'operator';
+      else if (/^(?:max|min|round|int|GridZoomForN)$/.test(value)) kind = 'command';
+      else kind = 'variable';
+      output += codeToken(kind, value);
+      last = pattern.lastIndex;
+    }
+    return output + escapeCode(source.slice(last));
+  }
+
+  function highlightStaticCodeBlocks() {
+    [].forEach.call(document.querySelectorAll('.codeblock, .code-block'), function (block) {
+      if (block.querySelector('[class^="tok-"],[class*=" tok-"],[class^="syntax-"],[class*=" syntax-"]')) return;
+      var source = codeBlockText(block);
+      var formula = /\b(?:maxDim|scaledMax|newHOff|GridZoomForN|canvasX)\b/.test(source);
+      block.innerHTML = formula ? highlightFormula(source) : highlightCommand(source);
+    });
+  }
+
   // ---- Init ----
-  var savedTheme = 'dark', savedAccent = 'green', savedLang = 'en';
-  try { savedTheme = localStorage.getItem('kpdf-theme') || 'dark'; } catch (e) {}
-  try { savedAccent = localStorage.getItem('kpdf-accent') || 'green'; } catch (e) {}
+  var savedTheme = localPreviewSetting('theme') || 'dark', savedAccent = localPreviewSetting('accent') || 'green', savedLang = 'en';
+  if (window.location.protocol !== 'file:') {
+    try { savedTheme = localStorage.getItem('kpdf-theme') || 'dark'; } catch (e) {}
+    try { savedAccent = localStorage.getItem('kpdf-accent') || 'green'; } catch (e) {}
+  }
   try { savedLang = localStorage.getItem('kpdf-lang') || 'en'; } catch (e) {}
   curAccent = savedAccent;
   setTheme(savedTheme);
   applyLang(savedLang);
+  highlightStaticCodeBlocks();
 })();
