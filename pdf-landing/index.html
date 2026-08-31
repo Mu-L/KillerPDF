@@ -134,8 +134,9 @@ html[data-theme="light"] .engine-lockup { text-shadow: none; }
   .hero-blurbs { grid-template-columns: 1fr; gap: 22px; }
   .engine-intro { padding: 22px 20px; }
   .engine-intro-grid { grid-template-columns: 1fr; gap: 20px; }
+  .hero-cta, .hero-info { width: min(100%, 360px); align-self: center; }
   .hero-cta { flex: 0 0 auto; order: 1; align-items: center; text-align: center; }
-  .hero-info { order: 0; }
+  .hero-info { flex: 0 0 auto; order: 0; }
   .sb-thumbs { flex-direction: row; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; -webkit-mask-image: none; mask-image: none; }
   .sb-thumb { flex: 0 0 auto; width: 240px; min-width: 240px; }
 }
@@ -276,23 +277,6 @@ html[data-theme="light"] .engine-lockup { text-shadow: none; }
 </div>
 </section>
 
-<section class="engine-intro" aria-labelledby="engine-intro-title">
-<div class="engine-intro-grid">
-<div class="engine-copy">
-<div class="engine-kicker" data-i18n="engine_kicker">Now powered by</div>
-<h2 class="engine-lockup" id="engine-intro-title"><img class="engine-icon" src="killerpdf-engine-icon.png" alt=""><span>The</span><img class="wm-logo" src="brand/killerpdf-logo-dark-green.svg" alt="KillerPDF"><span>.Engine</span></h2>
-<p data-i18n="engine_intro">KillerPDF 1.8 replaces its legacy document pipeline with The KillerPDF.Engine: an independent .NET library built from scratch for PDF 2.0 and modern PDF/A. It reads, validates, creates, edits, signs, encrypts and writes PDFs through the same public API available to other applications.</p>
-<a class="engine-link" href="./engine/index.html"><span data-i18n="engine_link">Explore the engine and developer guide</span> <span aria-hidden="true">&#8594;</span></a>
-</div>
-<div class="engine-stats" aria-label="Engine development figures">
-<div class="engine-stat"><b>151</b><span data-i18n="engine_stat_files">engine source files</span></div>
-<div class="engine-stat"><b>45,352</b><span data-i18n="engine_stat_lines">physical C# lines</span></div>
-<div class="engine-stat"><b>1,436</b><span data-i18n="engine_stat_tests">engine tests</span></div>
-<div class="engine-stat"><b>2,907</b><span data-i18n="engine_stat_pdfs">hostile corpus PDFs</span></div>
-</div>
-</div>
-</section>
-
 <section class="features">
 <div class="features-heading">
 <h2 data-i18n="features_h">What it does</h2>
@@ -321,6 +305,40 @@ html[data-theme="light"] .engine-lockup { text-shadow: none; }
 <div class="feature-card"><h3 data-i18n="f_install_t">Install or run portable</h3><p data-i18n="f_install_d">Drop the exe anywhere and run it, or use the built-in installer - per-user with no admin rights, or for everyone on the computer (needs an administrator). You can also grab it from the command line:<br><code>winget install killerpdf</code></p></div>
 </div>
 <div class="feature-rail" role="tablist" aria-label="Choose a feature"></div>
+</div>
+</section>
+
+<section class="engine-intro" aria-labelledby="engine-intro-title">
+<div class="engine-intro-grid">
+<div class="engine-copy">
+<div class="engine-kicker" data-i18n="engine_kicker">Now powered by</div>
+<h2 class="engine-lockup" id="engine-intro-title"><img class="engine-icon" src="killerpdf-engine-icon.png" alt=""><span>The</span><img class="wm-logo" src="brand/killerpdf-logo-dark-green.svg" alt="KillerPDF"><span>.Engine</span></h2>
+<p data-i18n="engine_intro">KillerPDF 1.8 replaces its legacy document pipeline with The KillerPDF.Engine: an independent .NET library built from scratch for PDF 2.0 and modern PDF/A. It reads, validates, creates, edits, signs, encrypts and writes PDFs through the same public API available to other applications.</p>
+<a class="engine-link" href="./engine/index.html"><span data-i18n="engine_link">Explore the engine and developer guide</span> <span aria-hidden="true">&#8594;</span></a>
+</div>
+<div class="engine-stats" aria-label="Engine development figures">
+<div class="engine-stat"><b>151</b><span data-i18n="engine_stat_files">engine source files</span></div>
+<div class="engine-stat"><b>45,352</b><span data-i18n="engine_stat_lines">physical C# lines</span></div>
+<div class="engine-stat"><b>1,436</b><span data-i18n="engine_stat_tests">engine tests</span></div>
+<div class="engine-stat"><b>2,907</b><span data-i18n="engine_stat_pdfs">hostile corpus PDFs</span></div>
+</div>
+</div>
+</section>
+
+<section class="engine-intro" aria-labelledby="corpus-intro-title">
+<div class="engine-intro-grid">
+<div class="engine-copy">
+<div class="engine-kicker">Tested against</div>
+<h2 class="engine-lockup" id="corpus-intro-title"><img class="engine-icon" src="brand/corpus_icon.png" alt=""><span>The</span><img class="wm-logo" src="brand/killerpdf-logo-dark-green.svg" alt="KillerPDF"><span>Corpus</span></h2>
+<p>The KillerPDF Corpus is an open, versioned collection of real-world, standards, malformed, and deliberately stressful PDFs. It makes reliability measurable and gives KillerPDF, qpdf, and other PDF tools the same repeatable test inputs.</p>
+<a class="engine-link" href="corpus.html"><span>Explore the corpus and benchmark guide</span> <span aria-hidden="true">&#8594;</span></a>
+</div>
+<div class="engine-stats" aria-label="Corpus figures">
+<div class="engine-stat"><b>17,328</b><span>public PDFs in v1.8.1</span></div>
+<div class="engine-stat"><b>47,024</b><span>PDFs in the full local gate</span></div>
+<div class="engine-stat"><b>5</b><span>measured runs per collection</span></div>
+<div class="engine-stat"><b>0</b><span>application crashes or timeouts</span></div>
+</div>
 </div>
 </section>
 
