@@ -249,7 +249,12 @@ html[data-theme="light"] .tb-nav a { text-shadow: none; }
 .acc-pop .acc-pop-label { font-size: 11px; font-family: Consolas, monospace; color: var(--muted); margin-right: 1px; }
 
 /* ============ Landing hero info block (replaces the terminal) ============ */
-.hero-info { background: color-mix(in srgb, var(--modal) 80%, transparent) url('grain.png?v=2') repeat; background-size: 256px 256px; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); border: 1px solid var(--pane-border); border-left: 2px solid var(--tab-edge); border-right: 2px solid var(--tab-edge); border-radius: 8px; box-shadow: 0 14px 32px rgba(0,0,0,0.4); padding: 15px 14px; font-family: Consolas, monospace; font-size: 13px; line-height: 1.9; flex: 0 0 auto; width: 336px; transition: transform 0.12s, box-shadow 0.15s, border-color 0.12s; }
+.hero-info,
+.codeblock,
+.code-block,
+.engine-doc pre,
+.doc-pager a { background: color-mix(in srgb, var(--modal) 80%, transparent) url('grain.png?v=2') repeat; background-size: 256px 256px; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); border: 1px solid var(--pane-border); border-left: 2px solid var(--tab-edge); border-right: 2px solid var(--tab-edge); border-radius: 8px; box-shadow: 0 14px 32px rgba(0,0,0,0.4); }
+.hero-info { padding: 15px 14px; font-family: Consolas, monospace; font-size: 13px; line-height: 1.9; flex: 0 0 auto; width: 336px; transition: transform 0.12s, box-shadow 0.15s, border-color 0.12s; }
 .hero-info:hover { border-left-color: var(--accent); border-right-color: var(--accent); }
 .hero-info:hover { transform: translateY(-3px); box-shadow: 0 20px 40px rgba(0,0,0,0.5); border-top-color: var(--dragline); border-bottom-color: var(--dragline); }
 .hero-info .row { display: flex; gap: 8px; }
@@ -283,8 +288,10 @@ html[data-theme="light"] .tb-nav a { text-shadow: none; }
 .tech-sec li::marker { color: var(--accent); }
 .tech-sec b { color: var(--text); }
 .tech-sec a { color: var(--accent); font-weight: 600; }
-.codeblock { background: var(--panel); border: 1px solid var(--pane-border); border-left: 2px solid var(--accent); border-radius: 7px; padding: 13px 16px; margin: 10px 0 14px; font-family: Consolas, monospace; font-size: 12.5px; line-height: 1.7; color: var(--text); white-space: pre-wrap; overflow-x: auto; }
+.codeblock,
+.code-block { padding: 13px 16px; margin: 10px 0 14px; font-family: Consolas, monospace; font-size: 12.5px; line-height: 1.7; color: var(--text); white-space: pre-wrap; overflow-x: auto; }
 .codeblock .cm { color: var(--muted); }
+.tok-keyword{color:#d98bd8}.tok-type{color:#55c6d9}.tok-method{color:#e5cf78}.tok-string{color:#b8d98b}.tok-comment{color:#7d9884;font-style:italic}.tok-number{color:#dfad72}.tok-xml{color:#69b7e8}.tok-attr{color:#d8bd75}.tok-punct{color:#aab4ad}
 .codeblock .syn-command,.code-block .syn-command{color:#63c7e6}
 .codeblock .syn-option,.code-block .syn-option{color:#e66bc4}
 .codeblock .syn-string,.code-block .syn-string{color:#e6b86b}
@@ -306,18 +313,23 @@ html[data-theme="light"] .tb-nav a { text-shadow: none; }
 [data-theme="hc"] .codeblock .syn-variable,[data-theme="hc"] .code-block .syn-variable{color:#62fff0}
 [data-theme="hc"] .codeblock .syn-operator,[data-theme="hc"] .code-block .syn-operator{color:#d39cff}
 [data-theme="hc"] .codeblock .syn-comment,[data-theme="hc"] .code-block .syn-comment{color:#b4c2b9}
-.spec-table { width: 100%; border-collapse: collapse; margin: 6px 0 14px; font-size: 13px; background: var(--bg); }
-.spec-table th { text-align: left; background: var(--accent); color: var(--accent-text); padding: 7px 12px; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.45); }
-.spec-table td { padding: 7px 12px; border-bottom: 1px solid var(--pane-border); color: var(--muted); overflow-wrap: anywhere; }
-.spec-table td:first-child { color: var(--text); font-weight: 600; width: 42%; }
-.spec-table tr:nth-child(even) td { background: color-mix(in srgb, var(--panel) 50%, transparent); }
-/* Dark themes: the panel tint merges into the page, so use a distinctly darker stripe (like the app's bars) */
-html[data-theme="dark"] .spec-table tr:nth-child(even) td { background: #262626; }
-html[data-theme="hc"]   .spec-table tr:nth-child(even) td { background: #050505; }
+.spec-table,
+.engine-doc table { width: 100%; border-collapse: collapse; margin: 6px 0 14px; font-size: 13px; background: var(--bg); }
+.spec-table th,
+.engine-doc th { text-align: left; background: var(--accent); color: var(--accent-text); padding: 7px 12px; font-family: inherit; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.45); }
+.spec-table td,
+.engine-doc td { padding: 7px 12px; border-bottom: 1px solid var(--pane-border); color: var(--muted); overflow-wrap: anywhere; }
+.spec-table td:first-child,
+.engine-doc td:first-child { color: var(--text); font-weight: 600; width: 42%; }
+.spec-table tr:nth-child(even) td,
+.engine-doc tr:nth-child(even) td { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
 /* RGB themes (accent is white): a full-white header bar is too much, so invert to a dark chrome fill with light text. */
 html[data-theme="blood"] .spec-table th,
 html[data-theme="greed"] .spec-table th,
-html[data-theme="cyanotic"] .spec-table th { background: var(--chrome); color: var(--text); }
+html[data-theme="cyanotic"] .spec-table th,
+html[data-theme="blood"] .engine-doc th,
+html[data-theme="greed"] .engine-doc th,
+html[data-theme="cyanotic"] .engine-doc th { background: var(--chrome); color: var(--text); }
 
 @media (max-width: 900px) {
   .tb-nav a { padding: 6px 8px; font-size: 13px; }
