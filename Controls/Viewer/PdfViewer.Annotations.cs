@@ -335,6 +335,7 @@ namespace KillerPDF.Controls
             _dragAnnot = null;
             _dragGroupOrig.Clear();
             _selectedAnnotation = null;
+            _selectedFormFieldName = null;
             // If the text bar was opened for a now-cleared text-box selection (not because the Text tool
             // is active), close it again.
             if (_currentTool != EditTool.Text && _annotBarTool == EditTool.Text)
@@ -444,8 +445,8 @@ namespace KillerPDF.Controls
             }
 
             int n = SelectionCount();
-            SetStatus(n == 0 ? "Selection cleared"
-                             : $"{n} annotations selected - press Delete to remove");
+            SetStatus(n == 0 ? Loc("Str_St_SelectionCleared")
+                             : string.Format(Loc("Str_St_AnnotationsSelected"), n));
         }
 
         private void DeleteSelected()

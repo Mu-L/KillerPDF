@@ -943,6 +943,10 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Btn_Yes">Yes</sys:String>
     <sys:String x:Key="Str_Btn_No">No</sys:String>
     <sys:String x:Key="Str_RecentMissing">missing</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">Click on the page to place your signature</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">Click on the page to place your initials</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">Selection cleared</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">{0} annotations selected - press Delete to remove</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">Copied 1 annotation</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">Copied {0} annotations</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">Pasted 1 annotation</sys:String>

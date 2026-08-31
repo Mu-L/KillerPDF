@@ -4,13 +4,31 @@ All notable changes to KillerPDF are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.8.2] - Unreleased
+## [1.8.2] - 2026-08-31
 
 1.8.2 continues the reliability work with a published, reproducible corpus baseline.
 
 ### Added
 
-- Added a corpus page with public and private-suite coverage, benchmark methodology, and KillerPDF 1.8.1 baseline results.
+- Added a corpus page with public and private-suite coverage, benchmark methodology, and baseline results.
+
+### Fixed
+
+- Microsoft Office hybrid-reference PDFs now open correctly (#314, thanks Ryokoxx).
+- Updated the German interface translation (#313, thanks Mr-Update).
+- Corrected the context-menu zoom shortcut display from Ctrl+= to Ctrl++ (#312, thanks Mr-Update).
+- Updated the Russian interface translation (#308, thanks 1mk3r).
+- Text edits now save as opaque covers, so changed text still hides the original after reopening the PDF.
+- Images no longer flip vertically when annotations are burned into the saved PDF (#311).
+- Fillable text fields can now be selected and moved with the Select tool while remaining editable with a double-click (#307).
+- Black-and-white Transform output now uses compact 1-bit image data during a normal save (#305).
+- Transforming every page now rebuilds from the rasterized pages instead of retaining the superseded color image resources.
+- Transform now finishes when a source PDF contains a malformed bookmark tree, dropping only the broken outline during recovery.
+- Transform's color-mode list now follows the active theme, and its black-and-white threshold shows the selected value.
+- PDF comparison opens in continuous view and keeps both panes at the same visible zoom (#301).
+- Multi-column text highlighting now resolves the caret within the correct column.
+- Nested dialogs now retain the active theme's grain texture.
+- The remaining signature placement and annotation-selection status messages now use all 15 language resources (#227).
 
 ## [1.8.1] - 2026-08-29
 

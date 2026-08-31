@@ -165,11 +165,10 @@ namespace KillerPDF
                 box.Select(box.Text.Length, 0);
         }
 
-        // SyncZoomBox reads the current zoom itself rather than taking one, so the parameter is
-        // unused today. It stays in the signature because with two panes the window has to know
-        // WHICH viewer's zoom changed before deciding whether the toolbar box should follow.
-        void IViewerHost.ViewerZoomChanged(PdfViewer viewer, double zoomLevel)
-            => ComparisonZoomChanged(viewer, zoomLevel);
+        // The host contract reports the new value, while comparison reads the true visible zoom
+        // from the viewer so fitted modes remain synchronized correctly.
+        void IViewerHost.ViewerZoomChanged(PdfViewer viewer, double _)
+            => ComparisonZoomChanged(viewer);
 
         void IViewerHost.ViewerScrolled(PdfViewer viewer, double horizontalRatio, double verticalRatio)
             => ComparisonScrolled(viewer, horizontalRatio, verticalRatio);

@@ -542,10 +542,15 @@ try {
     Write-Host "    Release date: $releaseDate"
 
     # A red test cannot ship. Same gate as the date checks above - fail the release, not a reminder.
-    Write-Host "    Running unit tests..."
+    Write-Host "    Running desktop unit tests..."
     dotnet test (Join-Path $PSScriptRoot 'KillerPDF.Tests\KillerPDF.Tests.csproj') -c Release --nologo -v quiet
-    if ($LASTEXITCODE -ne 0) { throw "Unit tests failed - fix them before releasing" }
-    Write-Host "    Unit tests passed" -ForegroundColor Green
+    if ($LASTEXITCODE -ne 0) { throw "Desktop unit tests failed - fix them before releasing" }
+    Write-Host "    Desktop unit tests passed" -ForegroundColor Green
+
+    Write-Host "    Running engine unit tests..."
+    dotnet test (Join-Path $PSScriptRoot 'engine\KillerPdf.Engine.Tests\KillerPdf.Engine.Tests.csproj') -c Release --nologo -v quiet
+    if ($LASTEXITCODE -ne 0) { throw "Engine unit tests failed - fix them before releasing" }
+    Write-Host "    Engine unit tests passed" -ForegroundColor Green
 
     Write-Host "    Preflight OK" -ForegroundColor Green
 

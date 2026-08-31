@@ -47,7 +47,7 @@ The round-trip validator inspects the source, rewrites it, reopens the result, w
 
 The engine release process combines:
 
-- 1,436 unit and regression tests
+- 1,437 unit and regression tests
 - Strict Release builds with zero warnings
 - A 2,907-file incremental structural corpus gate
 - A 2,907-file selected-page import corpus gate

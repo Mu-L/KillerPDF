@@ -203,6 +203,7 @@ public sealed class PdfBurnRotationTests
             string streams = AllDecodedStreams(path);
             Assert.Contains(" gs", streams);
             Assert.Contains("1 J", streams);
+            Assert.Contains("10 0 0 -10 50 70 cm", streams);
             Assert.Contains(" Do", streams);
         }
         finally { if (File.Exists(path)) File.Delete(path); }
@@ -231,6 +232,31 @@ public sealed class PdfBurnRotationTests
                 new Dictionary<int, (int w, int h)> { [0] = (612, 792) });
 
             Assert.Contains("3 Tc", AllDecodedStreams(path));
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
+    public void CoverBurn_UsesNormalBlendSoItHidesOriginalText()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-cover-burn-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            File.WriteAllBytes(path, new PdfDocumentBuilder().AddBlankPage(612, 792).Build());
+            var cover = new CoverAnnotation
+            {
+                PageIndex = 0,
+                Bounds = new Rect(20, 30, 80, 14)
+            };
+            cover.SetColor(System.Windows.Media.Colors.White);
+
+            PdfEngineBurn.Burn(path,
+                new Dictionary<int, List<PageAnnotation>> { [0] = [cover] },
+                new Dictionary<int, (int w, int h)> { [0] = (612, 792) });
+
+            string saved = Encoding.GetEncoding("ISO-8859-1").GetString(File.ReadAllBytes(path));
+            Assert.DoesNotContain("/BM /Multiply", saved);
+            Assert.Contains("20 30 80 14 re", AllDecodedStreams(path));
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }

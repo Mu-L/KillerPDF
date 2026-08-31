@@ -282,13 +282,16 @@ internal static class PdfEngineIntegration
 
     /// <summary>Rebuilds a complete document graph into a clean engine-authored page tree.</summary>
     internal static void RebuildDocument(
-        string sourcePath, string destinationPath, bool stripRotations = false)
+        string sourcePath, string destinationPath, bool stripRotations = false,
+        bool preserveBookmarks = true)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sourcePath);
         ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
         PdfDocument source = PdfDocument.Open(File.ReadAllBytes(sourcePath));
         PdfDocument empty = PdfDocument.Open(new PdfDocumentBuilder().Build());
         var editor = new PdfIncrementalPageEditor(empty).AddImportedDocument(source);
+        if (!preserveBookmarks)
+            editor.ClearBookmarks();
         if (stripRotations)
             for (int pageIndex = 0; pageIndex < editor.PageCount; pageIndex++)
                 editor.SetRotation(pageIndex, 0);
@@ -491,7 +494,8 @@ internal static class PdfEngineIntegration
     internal sealed record RasterPage(
         int PixelWidth, int PixelHeight, double PageWidth, double PageHeight,
         ReadOnlyMemory<byte> BgraPixels,
-        ReadOnlyMemory<byte> JpegData = default);
+        ReadOnlyMemory<byte> JpegData = default,
+        bool Bitonal = false);
 
     internal sealed record SearchableWord(
         string Text, int Left, int Top, int Right, int Bottom);
@@ -603,7 +607,19 @@ internal static class PdfEngineIntegration
                 throw new ArgumentOutOfRangeException(nameof(pages),
                     "Raster page dimensions must be positive.");
             PdfImage image;
-            if (!page.JpegData.IsEmpty)
+            if (page.Bitonal)
+            {
+                int required = checked(page.PixelWidth * page.PixelHeight * 4);
+                if (page.BgraPixels.Length != required)
+                    throw new ArgumentException(
+                        "A raster page does not contain the required BGRA pixel count.", nameof(pages));
+                byte[] gray = new byte[checked(page.PixelWidth * page.PixelHeight)];
+                ReadOnlySpan<byte> bgra = page.BgraPixels.Span;
+                for (int pixel = 0; pixel < gray.Length; pixel++)
+                    gray[pixel] = bgra[pixel * 4];
+                image = PdfImage.FromBitonal(page.PixelWidth, page.PixelHeight, gray);
+            }
+            else if (!page.JpegData.IsEmpty)
             {
                 image = PdfImage.FromJpeg(page.JpegData);
                 if (image.Width != page.PixelWidth || image.Height != page.PixelHeight)
@@ -943,21 +959,35 @@ internal static class PdfEngineIntegration
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         ArgumentNullException.ThrowIfNull(replacements);
         if (replacements.Count == 0) return;
-        PdfDocument target = PdfDocument.Open(File.ReadAllBytes(path));
-        var editor = new PdfIncrementalPageEditor(target);
-        foreach (var pair in replacements.OrderBy(pair => pair.Key))
+        try
         {
-            ArgumentException.ThrowIfNullOrWhiteSpace(pair.Value);
-            if (pair.Key < 0 || pair.Key >= editor.PageCount)
-                throw new ArgumentOutOfRangeException(nameof(replacements));
-            PdfDocument replacement = PdfDocument.Open(File.ReadAllBytes(pair.Value));
-            if (new PdfIncrementalPageEditor(replacement).PageCount < 1)
-                throw new ArgumentException("A replacement document must contain a page.",
-                    nameof(replacements));
-            editor.RemovePage(pair.Key).InsertImportedPage(pair.Key, replacement, 0)
-                .SetRotation(pair.Key, 0);
+            ReplaceWithBuiltResult(path, Build(clearBookmarks: false));
         }
-        ReplaceWithBuiltResult(path, editor.Build());
+        catch (Exception ex) when (IsBookmarkGraphFailure(ex))
+        {
+            ReplaceWithBuiltResult(path, Build(clearBookmarks: true));
+        }
+
+        byte[] Build(bool clearBookmarks)
+        {
+            PdfDocument target = PdfDocument.Open(File.ReadAllBytes(path));
+            var editor = new PdfIncrementalPageEditor(target);
+            if (clearBookmarks)
+                editor.ClearBookmarks();
+            foreach (var pair in replacements.OrderBy(pair => pair.Key))
+            {
+                ArgumentException.ThrowIfNullOrWhiteSpace(pair.Value);
+                if (pair.Key < 0 || pair.Key >= editor.PageCount)
+                    throw new ArgumentOutOfRangeException(nameof(replacements));
+                PdfDocument replacement = PdfDocument.Open(File.ReadAllBytes(pair.Value));
+                if (new PdfIncrementalPageEditor(replacement).PageCount < 1)
+                    throw new ArgumentException("A replacement document must contain a page.",
+                        nameof(replacements));
+                editor.RemovePage(pair.Key).InsertImportedPage(pair.Key, replacement, 0)
+                    .SetRotation(pair.Key, 0);
+            }
+            return editor.Build();
+        }
     }
 
     /// <summary>Replaces pages and removes the superseded page data from the saved file.</summary>
@@ -965,7 +995,96 @@ internal static class PdfEngineIntegration
         string path, IReadOnlyDictionary<int, string> replacements)
     {
         ReplacePages(path, replacements);
-        RebuildDocument(path, path);
+        try
+        {
+            RebuildDocument(path, path);
+        }
+        catch (Exception ex) when (IsBookmarkGraphFailure(ex))
+        {
+            RebuildDocument(path, path, preserveBookmarks: false);
+        }
+    }
+
+    /// <summary>Replaces every page from raster-only documents without retaining superseded resources.</summary>
+    internal static void ReplaceAllPagesAndCompact(
+        string path, IReadOnlyList<string> replacementPaths)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(replacementPaths);
+        if (replacementPaths.Count == 0) return;
+
+        PdfDocument source = PdfDocument.Open(File.ReadAllBytes(path));
+        PdfDocumentInformation information = PdfDocumentInformation.Read(source);
+        IReadOnlyList<PdfBookmarkInfo> bookmarks;
+        try
+        {
+            bookmarks = PdfBookmarkReader.Read(source);
+        }
+        catch (Exception ex) when (IsBookmarkGraphFailure(ex))
+        {
+            bookmarks = [];
+        }
+        bookmarks = SanitizeRasterizedBookmarks(bookmarks, replacementPaths.Count);
+
+        byte[] result = MergeDocuments([.. replacementPaths.Select(File.ReadAllBytes)]);
+        ReplaceWithBuiltResult(path, result);
+        ApplyDocumentMetadata(path, new PdfDocumentMetadata
+        {
+            Title = information.Title,
+            Author = information.Author,
+            Subject = information.Subject,
+            Keywords = information.Keywords,
+            Creator = information.Creator,
+            Producer = information.Producer,
+            Language = information.Language,
+            CreationDate = information.CreationDate,
+            ModificationDate = information.ModificationDate,
+            Trapped = information.Trapped
+        });
+        if (bookmarks.Count > 0)
+        {
+            try
+            {
+                ReplaceBookmarks(path, bookmarks);
+            }
+            catch (Exception ex) when (IsBookmarkGraphFailure(ex))
+            {
+                // The rasterized pages are complete. A broken source outline must not discard them.
+            }
+        }
+    }
+
+    internal static List<PdfBookmarkInfo> SanitizeRasterizedBookmarks(
+        IReadOnlyList<PdfBookmarkInfo> bookmarks, int pageCount)
+    {
+        var result = new List<PdfBookmarkInfo>();
+        foreach (PdfBookmarkInfo bookmark in bookmarks)
+        {
+            List<PdfBookmarkInfo> children =
+                SanitizeRasterizedBookmarks(bookmark.Children, pageCount);
+            if (bookmark.DestinationPageIndex is int pageIndex
+                && pageIndex >= 0 && pageIndex < pageCount)
+            {
+                result.Add(bookmark with
+                {
+                    NamedDestination = null,
+                    Children = children
+                });
+            }
+            else
+            {
+                result.AddRange(children);
+            }
+        }
+        return result;
+    }
+
+    private static bool IsBookmarkGraphFailure(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+            if (current.Message.Contains("bookmark", StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
     }
 
     /// <summary>Resets the replaced page's application rotation.</summary>

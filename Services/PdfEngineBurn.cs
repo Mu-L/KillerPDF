@@ -140,7 +140,8 @@ internal static class PdfEngineBurn
         Rect rect = highlight.DrawRect();
         content.SaveState().SetFillRgb(color.R / 255d, color.G / 255d, color.B / 255d)
             .SetOpacity(color.A / 255d);
-        if (highlight.Style == HighlightStyle.Fill) content.SetBlendMode(PdfBlendMode.Multiply);
+        if (highlight is not CoverAnnotation && highlight.Style == HighlightStyle.Fill)
+            content.SetBlendMode(PdfBlendMode.Multiply);
         if (PdfBurn.HighlightEraseGeometry(highlight) is { } geometry)
         {
             foreach (var figure in geometry.GetFlattenedPathGeometry().Figures)
@@ -209,8 +210,9 @@ internal static class PdfEngineBurn
         try
         {
             EngineImage? image = LoadImage(Convert.FromBase64String(data));
-            if (image is not null) content.DrawImage(image, position.X * sx, position.Y * sy,
-                width * sx, height * sy);
+            double scaledHeight = height * sy;
+            if (image is not null) content.DrawImage(image, position.X * sx,
+                position.Y * sy + scaledHeight, width * sx, -scaledHeight);
         }
         catch { }
     }

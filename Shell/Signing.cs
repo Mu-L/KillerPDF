@@ -439,8 +439,8 @@ namespace KillerPDF
                     _pendingSignature = sigCopy;
                     _annotationCanvas.Cursor = Cursors.Cross;
                     SetStatus(sigCopy.Kind == SignatureKind.Initials
-                        ? "Click on the page to place your initials"
-                        : "Click on the page to place your signature");
+                        ? Loc("Str_St_PlaceInitials")
+                        : Loc("Str_St_PlaceSignature"));
                 };
                 item.MouseEnter += (s, e) =>
                     ((Border)s!).BorderBrush = (SolidColorBrush)FindResource("PrimaryBrush");

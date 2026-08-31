@@ -172,7 +172,7 @@
       '<button class="acc" data-accent="red" style="background:#DD504B;color:#DD504B" title="Red"></button><button class="acc" data-accent="orange" style="background:#E8962C;color:#E8962C" title="Orange"></button><button class="acc" data-accent="green" style="background:#1EA54C;color:#1EA54C" title="Green"></button><button class="acc" data-accent="teal" style="background:#1FB8A8;color:#1FB8A8" title="Teal"></button><button class="acc" data-accent="blue" style="background:#50AEE8;color:#50AEE8" title="Blue"></button><button class="acc" data-accent="purple" style="background:#B982E3;color:#B982E3" title="Purple"></button></div></div></div>' +
       '<div class="shell engine-shell"><aside class="sidebar engine-sidebar"><div class="sb-tabs"><span class="on">Developer guide</span></div><nav class="docs-nav" aria-label="Engine documentation">' + navigation() + '</nav></aside>' +
       '<main class="content"><div class="content-scroll"><div class="engine-doc-wrap"><div id="engineHero"></div><article class="engine-doc" id="engineDoc"><p>Loading documentation...</p></article><nav class="doc-pager" id="docPager" aria-label="Documentation pages"></nav></div></div></main></div>' +
-      '<footer class="statusbar"><span class="left"><a href="https://github.com/SteveTheKiller/KillerPDF/tree/main/engine">Engine source</a> &middot; <a href="https://www.nuget.org/packages/KillerPdf.Engine">NuGet</a> &middot; GPLv3</span><span class="right"><span id="verEgg">v1.8.0</span> &middot; &copy; 2026 <b><a href="https://thekiller.net">Steve the Killer</a></b></span></footer>';
+      '<footer class="statusbar"><span class="left"><a href="https://github.com/SteveTheKiller/KillerPDF/tree/main/engine">Engine source</a> &middot; <a href="https://www.nuget.org/packages/KillerPdf.Engine">NuGet</a> &middot; GPLv3</span><span class="right"><span id="verEgg">v1.8.2</span> &middot; &copy; 2026 <b><a href="https://thekiller.net">Steve the Killer</a></b></span></footer>';
   }
 
   function hero() {
@@ -204,7 +204,22 @@
     document.body.appendChild(script);
   }
 
+  function normalizeCurrentFacts(markdown) {
+    if (docId === 'overview') {
+      return markdown
+        .replace(/1\.8\.0/g, '1.8.2')
+        .replace(/47([\s.,\u00A0]?)725/g, function (_, sep) { return '47' + sep + '792'; })
+        .replace(/\b1([\s.,\u00A0]?)436\b/g, function (_, sep) { return '1' + sep + '437'; })
+        .replace(/\b2([\s.,\u00A0]?)907\b/g, function (_, sep) { return '47' + sep + '024'; });
+    }
+    if (docId === 'getting-started') return markdown.replace(/1\.8\.0/g, '1.8.2');
+    if (docId === 'validation') return markdown.replace(/\b1([\s.,\u00A0]?)436\b/g,
+      function (_, sep) { return '1' + sep + '437'; });
+    return markdown;
+  }
+
   function showMarkdown(markdown) {
+    markdown = normalizeCurrentFacts(markdown);
     document.getElementById('engineDoc').innerHTML = renderMarkdown(markdown);
     if (docId === 'overview') {
       var repeatedTitle = document.querySelector('#engineDoc > h1:first-child');
@@ -284,5 +299,5 @@
   }
   loadDocsL10n();
   loadSharedScript('../kp-i18n.js?v=9');
-  loadSharedScript('../kp.js?v=11');
+  loadSharedScript('../kp.js?v=12');
 })(window);

@@ -319,11 +319,11 @@ public partial class MainWindow
         }
     }
 
-    private void ComparisonZoomChanged(PdfViewer source, double zoomLevel)
+    private void ComparisonZoomChanged(PdfViewer source)
     {
         if (!_comparisonActive || _comparisonSyncing) return;
         PdfViewer other = ReferenceEquals(source, Viewer) ? ViewerB : Viewer;
-        if (Math.Abs(other.ZoomLevelExt - zoomLevel) < 0.0001) return;
+        if (Math.Abs(other.TrueZoomLevelExt - source.TrueZoomLevelExt) < 0.0001) return;
         _comparisonSyncing = true;
         try { other.SetTrueZoomExt(source.TrueZoomLevelExt); }
         finally { _comparisonSyncing = false; }

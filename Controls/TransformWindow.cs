@@ -111,8 +111,12 @@ namespace KillerPDF
             MinHeight = 460;
             DialogChrome.Configure(this, owner, resizable: true);
 
-            var darkSlider = owner?.TryFindResource("DarkSlider") as Style;
-            var themeRadio = owner?.TryFindResource("ThemeRadio") as Style;
+            Style? darkSlider = owner?.TryFindResource("DarkSlider") is Style sliderStyle
+                ? sliderStyle : null;
+            Style? darkCombo = owner?.TryFindResource("DarkComboBox") is Style comboStyle
+                ? comboStyle : null;
+            Style? themeRadio = owner?.TryFindResource("ThemeRadio") is Style radioStyle
+                ? radioStyle : null;
 
             // Coalesce rapid slider changes: the heavy compose (especially scaling a page up, which makes a
             // big bitmap) only runs ~25x/sec on the latest value, so dragging stays smooth instead of queuing
@@ -317,6 +321,7 @@ namespace KillerPDF
                 SelectedIndex = 0,
                 Margin = new Thickness(0, 3, 0, 3)
             };
+            if (darkCombo != null) _colorMode.Style = darkCombo;
             _colorMode.SelectionChanged += (_, _) =>
             {
                 ColorMode = (PageColorMode)Math.Max(0, _colorMode.SelectedIndex);
@@ -332,12 +337,16 @@ namespace KillerPDF
                 Margin = new Thickness(0, 2, 0, 2)
             };
             if (darkSlider != null) _bwThreshold.Style = darkSlider;
+            var thresholdValue = SliderLabel("160");
+            thresholdValue.HorizontalAlignment = HorizontalAlignment.Right;
             _bwThreshold.ValueChanged += (_, ev) =>
             {
                 BlackWhiteThreshold = (int)Math.Round(ev.NewValue);
+                thresholdValue.Text = BlackWhiteThreshold.ToString();
                 SchedulePreview();
             };
             stack.Children.Add(_bwThreshold);
+            stack.Children.Add(thresholdValue);
 
             _setDpi = MakeCheck(S("Str_Tf_SetDpi"));
             _setDpi.Checked += (_, _) => { OutputDpi = (int)Math.Round(_dpiSlider.Value); _dpiSlider.IsEnabled = true; };

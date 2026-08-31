@@ -925,6 +925,10 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Btn_Yes">是</sys:String>
     <sys:String x:Key="Str_Btn_No">否</sys:String>
     <sys:String x:Key="Str_RecentMissing">檔案不存在</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">按一下頁面以放置您的簽名</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">按一下頁面以放置您的姓名縮寫</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">已清除選取</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">已選取 {0} 個註解 - 按 Delete 鍵刪除</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">已複製 1 個註解</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">已複製 {0} 個註解</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">已貼上 1 個註解</sys:String>

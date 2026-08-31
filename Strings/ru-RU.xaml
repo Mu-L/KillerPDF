@@ -943,6 +943,10 @@ KillerPDF не будет создавать две установленные �
     <sys:String x:Key="Str_Btn_Yes">Да</sys:String>
     <sys:String x:Key="Str_Btn_No">Нет</sys:String>
     <sys:String x:Key="Str_RecentMissing">отсутствует</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">Щелкните на странице, чтобы разместить подпись</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">Щелкните на странице, чтобы разместить инициалы</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">Выделение снято</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">Выбрано аннотаций: {0} - нажмите Delete, чтобы удалить их</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">Скопирована 1 аннотация</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">Скопировано {0} аннотаций</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">Вставлена 1 аннотация</sys:String>

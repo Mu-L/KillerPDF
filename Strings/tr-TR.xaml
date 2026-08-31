@@ -923,6 +923,10 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Btn_Yes">Evet</sys:String>
     <sys:String x:Key="Str_Btn_No">Hayır</sys:String>
     <sys:String x:Key="Str_RecentMissing">eksik</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">İmzanızı yerleştirmek için sayfaya tıklayın</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">Baş harflerinizi yerleştirmek için sayfaya tıklayın</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">Seçim temizlendi</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">{0} ek açıklama seçildi - kaldırmak için Delete tuşuna basın</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">1 ek açıklama kopyalandı</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">{0} ek açıklama kopyalandı</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">1 ek açıklama yapıştırıldı</sys:String>

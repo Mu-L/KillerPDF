@@ -22,6 +22,14 @@ namespace KillerPDF
         private static T Value<T>(Window? owner, string key, T fallback)
             => (owner?.TryFindResource(key) ?? Application.Current?.TryFindResource(key)) is T value ? value : fallback;
 
+        internal static ImageSource? GrainTexture(Window? owner)
+        {
+            for (Window? window = owner; window is not null; window = window.Owner)
+                if (window is MainWindow main && main.GrainTexture is not null)
+                    return main.GrainTexture;
+            return null;
+        }
+
         // Builds the title bar.
         //   win       - the window being chromed (used for DragMove on the whole bar)
         //   owner      - supplies the themed brushes + the ChromeCloseButton style (pass the window's owner)
@@ -243,7 +251,7 @@ namespace KillerPDF
             root.Children.Add(titleBar);
             root.Children.Add(body);
 
-            var grain = (owner as MainWindow)?.GrainTexture;
+            var grain = GrainTexture(owner);
             if (grain != null)
             {
                 var grid = new Grid();

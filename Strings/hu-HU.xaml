@@ -930,6 +930,10 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Btn_Yes">Igen</sys:String>
     <sys:String x:Key="Str_Btn_No">Nem</sys:String>
     <sys:String x:Key="Str_RecentMissing">hiányzik</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">Kattintson az oldalra az aláírás elhelyezéséhez</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">Kattintson az oldalra a monogram elhelyezéséhez</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">Kijelölés törölve</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">{0} jegyzet kijelölve - eltávolításhoz nyomja meg a Delete billentyűt</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">1 jegyzet másolva</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">{0} jegyzet másolva</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">1 jegyzet beillesztve</sys:String>

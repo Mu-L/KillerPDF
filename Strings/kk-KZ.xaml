@@ -917,6 +917,10 @@ Windows параметрлері - Әдепкі қолданбалар ашыл�
     <sys:String x:Key="Str_Btn_Yes">Иә</sys:String>
     <sys:String x:Key="Str_Btn_No">Жоқ</sys:String>
     <sys:String x:Key="Str_RecentMissing">жоқ</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">Қолтаңбаңызды орналастыру үшін бетті басыңыз</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">Инициалдарыңызды орналастыру үшін бетті басыңыз</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">Таңдау тазартылды</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">{0} ескертпе таңдалды - жою үшін Delete пернесін басыңыз</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">1 ескертпе көшірілді</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">{0} ескертпе көшірілді</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">1 ескертпе қойылды</sys:String>

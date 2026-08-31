@@ -690,6 +690,20 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void CreateRasterDocument_StoresBitonalPagesAsOneBitWithoutAlphaMask()
+    {
+        byte[] result = PdfEngineIntegration.CreateRasterDocument([
+            new PdfEngineIntegration.RasterPage(2, 1, 144, 72,
+                new byte[] { 0, 0, 0, 255, 255, 255, 255, 255 },
+                Bitonal: true)]);
+
+        string syntax = System.Text.Encoding.Latin1.GetString(result);
+        Assert.Contains("/BitsPerComponent 1", syntax);
+        Assert.Contains("/ColorSpace /DeviceGray", syntax);
+        Assert.DoesNotContain("/SMask", syntax);
+    }
+
+    [Fact]
     public void MergeReadableFiles_SkipsInvalidFolderImportEntries()
     {
         string validPath = Path.Combine(Path.GetTempPath(), $"killerpdf-readable-{Guid.NewGuid():N}.pdf");
@@ -927,6 +941,92 @@ public sealed class PdfEngineIntegrationTests
             if (File.Exists(path)) File.Delete(path);
             if (File.Exists(replacement)) File.Delete(replacement);
         }
+    }
+
+    [Fact]
+    public void ReplaceAllPagesAndCompact_DoesNotRetainAnyOriginalPageImages()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"killerpdf-all-pages-{Guid.NewGuid():N}.pdf");
+        string first = Path.Combine(Path.GetTempPath(), $"killerpdf-all-first-{Guid.NewGuid():N}.pdf");
+        string second = Path.Combine(Path.GetTempPath(), $"killerpdf-all-second-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            var bitmap = BitmapSource.Create(2, 1, 96, 96, PixelFormats.Rgb24,
+                null, new byte[] { 255, 0, 0, 0, 0, 255 }, 6);
+            var encoder = new JpegBitmapEncoder { QualityLevel = 80 };
+            encoder.Frames.Add(BitmapFrame.Create(bitmap));
+            using var jpegStream = new MemoryStream();
+            encoder.Save(jpegStream);
+            byte[] jpeg = jpegStream.ToArray();
+            byte[] source = new PdfDocumentBuilder()
+                .SetMetadata(new PdfDocumentMetadata { Title = "Keep me" })
+                .AddPage(612, 792, new PdfContentStreamBuilder().DrawImage(
+                    PdfImage.FromJpeg(jpeg), 0, 0, 612, 792))
+                .AddPage(612, 792, new PdfContentStreamBuilder().DrawImage(
+                    PdfImage.FromJpeg(jpeg), 0, 0, 612, 792))
+                .Build();
+            File.WriteAllBytes(path, source);
+            byte[] bitonal = PdfEngineIntegration.CreateRasterDocument([
+                new PdfEngineIntegration.RasterPage(2, 1, 612, 792,
+                    new byte[] { 0, 0, 0, 255, 255, 255, 255, 255 }, Bitonal: true)]);
+            File.WriteAllBytes(first, bitonal);
+            File.WriteAllBytes(second, bitonal);
+
+            PdfEngineIntegration.ReplaceAllPagesAndCompact(path, [first, second]);
+
+            byte[] result = File.ReadAllBytes(path);
+            PdfDocumentInformation information = PdfDocumentInformation.Read(PdfDocument.Open(result));
+            Assert.Equal(2, information.PageCount);
+            Assert.Equal("Keep me", information.Title);
+            string syntax = System.Text.Encoding.Latin1.GetString(result);
+            Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(
+                syntax, @"/Subtype\s*/Image").Count);
+            Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(
+                syntax, @"/BitsPerComponent\s+1\b").Count);
+            Assert.DoesNotContain("/DCTDecode", syntax);
+            Assert.Equal([0d, 0d, 612d, 792d], PageMediaBox(PdfDocument.Open(result), 0));
+            Assert.Equal([0d, 0d, 612d, 792d], PageMediaBox(PdfDocument.Open(result), 1));
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+            if (File.Exists(first)) File.Delete(first);
+            if (File.Exists(second)) File.Delete(second);
+        }
+    }
+
+    [Fact]
+    public void SanitizeRasterizedBookmarks_DropsInvalidParentsAndPromotesValidChildren()
+    {
+        var validChild = new PdfBookmarkInfo
+        {
+            ObjectNumber = 2,
+            Generation = 0,
+            Title = "Valid child",
+            IsOpen = false,
+            Style = PdfBookmarkStyle.Regular,
+            DestinationPageIndex = 1,
+            NamedDestination = "old-name",
+            Destination = PdfDestination.FitPage(),
+            Children = []
+        };
+        var invalidParent = new PdfBookmarkInfo
+        {
+            ObjectNumber = 1,
+            Generation = 0,
+            Title = "01.jpg",
+            IsOpen = true,
+            Style = PdfBookmarkStyle.Regular,
+            Children = [validChild]
+        };
+
+        PdfBookmarkInfo result = Assert.Single(
+            PdfEngineIntegration.SanitizeRasterizedBookmarks([invalidParent], 2));
+
+        Assert.Equal("Valid child", result.Title);
+        Assert.Equal(1, result.DestinationPageIndex);
+        Assert.Null(result.NamedDestination);
+        Assert.Empty(result.Children);
     }
 
     [Fact]

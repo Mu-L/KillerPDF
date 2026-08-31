@@ -190,7 +190,7 @@ namespace KillerPDF
             // Paint the same film-grain texture the app's panels use, behind the content, so the
             // dialog reads as part of the same surface family instead of a flat box.
             var contentGrid = new Grid();
-            var grain = (owner as MainWindow)?.GrainTexture;
+            var grain = DialogChrome.GrainTexture(owner);
             if (grain is not null)
             {
                 double grainOpacity = Application.Current.Resources["GrainOpacity"] is double go ? go : 0.05;
@@ -283,7 +283,7 @@ namespace KillerPDF
             root.Children.Add(new Border { Padding = new Thickness(16, 8, 16, 16), Child = btnPanel });
 
             var contentGrid = new Grid();
-            var grain = (owner as MainWindow)?.GrainTexture;
+            var grain = DialogChrome.GrainTexture(owner);
             if (grain is not null)
             {
                 double grainOpacity = Application.Current.Resources["GrainOpacity"] is double go ? go : 0.05;
@@ -453,7 +453,7 @@ namespace KillerPDF
 
             // Film grain across the whole card, same as Show().
             var contentGrid = new Grid();
-            var grain = (owner as MainWindow)?.GrainTexture;
+            var grain = DialogChrome.GrainTexture(owner);
             if (grain is not null)
             {
                 double grainOpacity = Application.Current.Resources["GrainOpacity"] is double go ? go : 0.05;

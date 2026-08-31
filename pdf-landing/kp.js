@@ -34,6 +34,12 @@
 
   function syncLocalPreviewLinks() {
     if (window.location.protocol !== 'file:') return;
+    try {
+      var current = new URL(window.location.href);
+      current.searchParams.set('theme', root.getAttribute('data-theme'));
+      current.searchParams.set('accent', curAccent);
+      window.history.replaceState(null, '', current.href);
+    } catch (e) {}
     document.querySelectorAll('a[href]').forEach(function (link) {
       var href = link.getAttribute('href');
       if (!href || href.charAt(0) === '#' || /^(?:https?:|mailto:|javascript:)/i.test(href)) return;
@@ -158,6 +164,19 @@
   var I18N = (typeof window !== 'undefined' && window.I18N) ? window.I18N : {};
   var EN = {};
   document.querySelectorAll('[data-i18n]').forEach(function (n) { EN[n.getAttribute('data-i18n')] = n.innerHTML; });
+
+  function normalizeCurrentFacts(key, value) {
+    if (key === 'pa_31') return value.replace(/v1\.8\.1/g, 'v1.8.2');
+    if (key !== 'pt_220') return value;
+    return value
+      .replace(/1\.8\.0/g, '1.8.2')
+      .replace(/138([\s.,\u00A0]?)691/g, function (_, sep) { return '139' + sep + '519'; })
+      .replace(/100([\s.,\u00A0]?)012/g, function (_, sep) { return '100' + sep + '609'; })
+      .replace(/49([\s.,\u00A0]?)271/g, function (_, sep) { return '49' + sep + '711'; })
+      .replace(/47([\s.,\u00A0]?)725/g, function (_, sep) { return '47' + sep + '792'; })
+      .replace(/\b816\b/g, '906')
+      .replace(/38([\s.,\u00A0]?)679/g, function (_, sep) { return '38' + sep + '910'; });
+  }
   var LANGS = ['en','es','de','fr','ja','kk','ru','tr','zh','zh-cn','bn','cs','pl','hu','it'];
   var FLAGS = {
     en: '<svg viewBox="0 0 24 24"><rect width="24" height="24" fill="#fff"/><g fill="#b22234"><rect width="24" height="1.85"/><rect y="3.7" width="24" height="1.85"/><rect y="7.4" width="24" height="1.85"/><rect y="11.1" width="24" height="1.85"/><rect y="14.8" width="24" height="1.85"/><rect y="18.5" width="24" height="1.85"/><rect y="22.2" width="24" height="1.8"/></g><rect width="11" height="12.95" fill="#3c3b6e"/></svg>',
@@ -186,7 +205,7 @@
     var dict = (lang === 'en') ? EN : (I18N[lang] || {});
     document.querySelectorAll('[data-i18n]').forEach(function (n) {
       var k = n.getAttribute('data-i18n');
-      n.innerHTML = (dict && dict[k] != null) ? dict[k] : EN[k];
+      n.innerHTML = normalizeCurrentFacts(k, (dict && dict[k] != null) ? dict[k] : EN[k]);
     });
     langItems.forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.lang === lang ? 'true' : 'false'); });
     if (langToggle) langToggle.innerHTML = FLAGS[lang] || FLAGS.en;
@@ -291,11 +310,11 @@
   }
 
   // ---- Init ----
-  var savedTheme = localPreviewSetting('theme') || 'dark', savedAccent = localPreviewSetting('accent') || 'green', savedLang = 'en';
-  if (window.location.protocol !== 'file:') {
-    try { savedTheme = localStorage.getItem('kpdf-theme') || 'dark'; } catch (e) {}
-    try { savedAccent = localStorage.getItem('kpdf-accent') || 'green'; } catch (e) {}
-  }
+  var savedTheme = localPreviewSetting('theme'), savedAccent = localPreviewSetting('accent'), savedLang = 'en';
+  try { savedTheme = savedTheme || localStorage.getItem('kpdf-theme'); } catch (e) {}
+  try { savedAccent = savedAccent || localStorage.getItem('kpdf-accent'); } catch (e) {}
+  savedTheme = savedTheme || 'dark';
+  savedAccent = savedAccent || 'green';
   try { savedLang = localStorage.getItem('kpdf-lang') || 'en'; } catch (e) {}
   curAccent = savedAccent;
   setTheme(savedTheme);

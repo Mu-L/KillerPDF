@@ -923,6 +923,10 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Btn_Yes">Sí</sys:String>
     <sys:String x:Key="Str_Btn_No">No</sys:String>
     <sys:String x:Key="Str_RecentMissing">falta</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">Haga clic en la página para colocar su firma</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">Haga clic en la página para colocar sus iniciales</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">Selección borrada</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">{0} anotaciones seleccionadas - pulse Supr para eliminarlas</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">Se copió 1 anotación</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">Se copiaron {0} anotaciones</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">Se pegó 1 anotación</sys:String>

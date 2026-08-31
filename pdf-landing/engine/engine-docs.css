@@ -38,6 +38,15 @@
 .engine-doc .syntax-variable{color:#7fd6ca}
 .engine-doc .syntax-attr{color:#c6a3ef}
 .engine-doc .syntax-punctuation{color:#8ea39a}
+html[data-theme="light"] .engine-doc .syntax-comment{color:#59665f}
+html[data-theme="light"] .engine-doc .syntax-keyword{color:#a31572}
+html[data-theme="light"] .engine-doc .syntax-string{color:#9a5100}
+html[data-theme="light"] .engine-doc .syntax-number{color:#26702d}
+html[data-theme="light"] .engine-doc .syntax-type,html[data-theme="light"] .engine-doc .syntax-tag{color:#006b8f}
+html[data-theme="light"] .engine-doc .syntax-function{color:#6842a0}
+html[data-theme="light"] .engine-doc .syntax-variable{color:#00766c}
+html[data-theme="light"] .engine-doc .syntax-attr{color:#7040a0}
+html[data-theme="light"] .engine-doc .syntax-punctuation{color:#53615a}
 .engine-doc ul,.engine-doc ol{margin:9px 0 18px;padding-left:24px}
 .engine-doc li{margin:6px 0}
 .engine-doc blockquote{margin:18px 0;padding:13px 16px;border:1px solid color-mix(in srgb,var(--accent) 48%,var(--pane-border));border-left:3px solid var(--accent);border-radius:8px;background:color-mix(in srgb,var(--accent) 7%,var(--modal))}

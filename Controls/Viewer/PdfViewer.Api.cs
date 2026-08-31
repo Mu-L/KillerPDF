@@ -75,7 +75,7 @@ namespace KillerPDF.Controls
                 PagePreviewPanel.HorizontalOffset, PagePreviewPanel.VerticalOffset);
         internal void EnterComparisonViewExt(int pageIndex)
         {
-            ApplyViewMode(ViewMode.Single, force: true);
+            ApplyViewMode(ViewMode.Continuous, force: true);
             NavigateToPageExt(Math.Clamp(pageIndex, 0, Math.Max(0, PageCountExt - 1)));
             FitToPage();
         }

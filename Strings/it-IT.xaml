@@ -943,6 +943,10 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Btn_Yes">Sì</sys:String>
     <sys:String x:Key="Str_Btn_No">No</sys:String>
     <sys:String x:Key="Str_RecentMissing">mancante</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">Fare clic sulla pagina per inserire la firma</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">Fare clic sulla pagina per inserire le iniziali</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">Selezione cancellata</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">{0} annotazioni selezionate - premere Canc per rimuoverle</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">Copiato 1 annotazione</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">Copiate {0} annotazioni</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">Incollata 1 annotazione</sys:String>

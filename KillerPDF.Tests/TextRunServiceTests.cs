@@ -36,4 +36,26 @@ public sealed class TextRunServiceTests
         Assert.Equal(1, TextRunService.CaretFromPoint(runs, 89, 15));
         Assert.Equal(3, TextRunService.CaretFromPoint(runs, 69, 15));
     }
+
+    [Fact]
+    public void CaretUsesHorizontalPositionWhenColumnsShareTheSameLineHeight()
+    {
+        var runs = new PageTextRuns();
+        runs.Chars.Add(new RunChar("L", 10, 20, 0, 0));
+        runs.Chars.Add(new RunChar("R", 110, 120, 1, 1));
+        runs.Lines.Add(new RunLine
+        {
+            Start = 0, Count = 1, Top = 20, Bottom = 10,
+            Left = 10, Right = 20,
+        });
+        runs.Lines.Add(new RunLine
+        {
+            Start = 1, Count = 1, Top = 20, Bottom = 10,
+            Left = 110, Right = 120,
+        });
+
+        Assert.Equal(0, TextRunService.CaretFromPoint(runs, 11, 15));
+        Assert.Equal(1, TextRunService.CaretFromPoint(runs, 111, 15));
+        Assert.Equal(2, TextRunService.CaretFromPoint(runs, 121, 15));
+    }
 }

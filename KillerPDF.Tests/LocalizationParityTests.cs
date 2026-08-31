@@ -41,6 +41,8 @@ public sealed class LocalizationParityTests
             "Str_St_CopiedAnnotationOne", "Str_St_CopiedAnnotationMany",
             "Str_St_PastedAnnotationOne", "Str_St_PastedAnnotationMany",
             "Str_St_DeletedAnnotationOne", "Str_St_DeletedAnnotationMany",
+            "Str_St_PlaceSignature", "Str_St_PlaceInitials",
+            "Str_St_SelectionCleared", "Str_St_AnnotationsSelected",
             "Str_Search_NoMatches", "Str_Search_Error", "Str_Search_Summary",
             "Str_Search_PreviousTT", "Str_Search_NextTT", "Str_Search_CloseTT",
             "Str_Busy_FlattenPage", "Str_Busy_ExportPage", "Str_Busy_CancelHint",
@@ -60,7 +62,8 @@ public sealed class LocalizationParityTests
             ["Controls/KillerDialog.cs"] = ["MakeBtn(\"Yes\"", "MakeBtn(\"No\"", "MakeBtn(\"Cancel\""],
             ["Shell/FileOperations.cs"] = [": \"missing\"", "\"Exporting\"", "\"Flattening\""],
             ["Shell/ContextMenu.cs"] = ["Copied 1 annotation", "Pasted 1 annotation"],
-            ["Controls/Viewer/PdfViewer.Annotations.cs"] = ["Deleted selected annotation"],
+            ["Controls/Viewer/PdfViewer.Annotations.cs"] = ["Deleted selected annotation", "Selection cleared", "annotations selected - press Delete to remove"],
+            ["Shell/Signing.cs"] = ["Click on the page to place your signature", "Click on the page to place your initials"],
             ["Shell/Search.cs"] = ["Previous Match (Shift+Enter)", "Next Match (Enter)", "Close (Esc)"],
             ["Features/Search/SearchController.cs"] = ["SetResultText(\"No matches\")", "SetResultText(\"Search error\")"],
             ["Services/OcrLanguages.cs"] = ["(Esc to cancel)"]

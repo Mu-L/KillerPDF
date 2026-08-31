@@ -1954,6 +1954,9 @@
   window.I18N = window.I18N || {};
   Object.keys(translated).forEach(function (locale) {
     window.I18N[locale] = window.I18N[locale] || {};
-    translated[locale].forEach(function (value, index) { window.I18N[locale]['engine_' + index] = value; });
+    translated[locale].forEach(function (value, index) {
+      window.I18N[locale]['engine_' + index] = value.replace(/\b1([,. \u00A0]?)436\b/g,
+        function (_, sep) { return '1' + sep + '437'; });
+    });
   });
 })();

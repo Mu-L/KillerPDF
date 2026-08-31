@@ -11,7 +11,7 @@
 <meta name="description" content="The KillerPDF.Engine is an independent .NET library for reading, authoring, editing, validating, signing, encrypting and writing PDF 2.0 files.">
 <link rel="icon" type="image/x-icon" href="kp-icon.ico">
 <script defer src="https://koya.thekiller.net/script.js" data-website-id="4036b11d-f6c0-4254-b448-933d3e38b0cb"></script>
-<link rel="stylesheet" href="kp.css?v=20">
+<link rel="stylesheet" href="kp.css?v=21">
 <style>
 .page-hero{padding:42px 26px 20px}.engine-brand{display:flex;align-items:center;gap:clamp(14px,2.2vw,24px)}.engine-mark{display:block;width:clamp(82px,11vw,116px);height:auto;flex:0 0 auto;filter:drop-shadow(0 4px 7px rgba(0,0,0,.45))}.engine-title{display:flex;align-items:center;flex-wrap:wrap;gap:clamp(7px,1.3vw,15px);font-family:'TypewriterHead','Courier New',monospace;font-size:clamp(34px,5.3vw,58px);line-height:1;color:var(--text);text-shadow:0 2px 2px rgba(0,0,0,.4),0 5px 12px rgba(0,0,0,.3)}.engine-title img{display:block;width:clamp(220px,34vw,395px);height:auto;filter:drop-shadow(0 3px 5px rgba(0,0,0,.45))}.engine-title .suffix{margin-left:clamp(-8px,-.5vw,-3px)}.nuget-install{display:flex;align-items:center;gap:10px;margin:12px 0 8px}.nuget-install a{font-weight:700}
 .page-hero .eyebrow{font-family:'TypewriterHead','Courier New',monospace;font-size:13px;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent);margin-bottom:12px}.page-hero p{max-width:760px;color:var(--text2);font-size:16px;line-height:1.65}.content-inner{max-width:980px;margin:0 auto;padding:0 30px 22px}.engine-sec{scroll-margin-top:82px;margin:0 0 34px}.engine-sec:last-child{margin-bottom:0}.engine-sec h2{font-family:'TypewriterHead','Courier New',monospace;font-size:27px;font-weight:normal;letter-spacing:.4px;margin:6px 0 10px;text-shadow:0 2px 6px rgba(0,0,0,.38)}.engine-sec h3,.cap h3,.boundary strong{font-family:'TypewriterHead','Courier New',monospace;font-weight:normal;letter-spacing:.35px}.engine-sec h3{font-size:17px;color:var(--accent);margin-top:22px}.lede{font-size:17px;color:var(--text2)}
@@ -102,9 +102,9 @@
 
 <div class="metric-grid" id="project-scale">
 <div class="metric"><b>151</b><span>engine source files</span></div>
-<div class="metric"><b>47,725</b><span>physical C# lines</span></div>
-<div class="metric"><b>1,436</b><span>engine tests</span></div>
-<div class="metric"><b>2,907</b><span>hostile corpus PDFs</span></div>
+<div class="metric"><b>47,792</b><span>physical C# lines</span></div>
+<div class="metric"><b>1,437</b><span>engine tests</span></div>
+<div class="metric"><b>47,024</b><span>corpus PDFs</span></div>
 </div>
 
 <section class="engine-sec" id="boundary">
@@ -200,7 +200,7 @@
 
 <section class="engine-sec" id="validation">
 <h2>Validation is part of the design</h2>
-<p>Format support is not inferred from a header or from whether one generated file opens in one viewer. The release gate combines 1,436 engine tests, strict zero-warning Release builds, two 2,907-file corpus gates, qpdf structural checks, veraPDF PDF/A-4 and PDF/UA-2 validation, and OpenSSL verification of detached CMS signatures.</p>
+<p>Format support is not inferred from a header or from whether one generated file opens in one viewer. The release gate combines 1,437 engine tests, strict zero-warning Release builds, two 2,907-file public corpus gates, the reproducible 47,024-file full corpus baseline, qpdf structural checks, veraPDF PDF/A-4 and PDF/UA-2 validation, and OpenSSL verification of detached CMS signatures.</p>
 <table class="spec-table"><tr><th>Gate</th><th>What it catches</th></tr>
 <tr id="gate-tests"><td>Unit and regression tests</td><td>Syntax, graph, writer, editor and public API behavior.</td></tr>
 <tr id="gate-incremental"><td>Incremental corpus</td><td>Unexpected failures or structural damage across deliberately hostile inputs.</td></tr>
@@ -243,10 +243,10 @@
 </div></div></main>
 </div>
 
-<footer class="statusbar"><span class="left"><a href="https://github.com/SteveTheKiller/KillerPDF" target="_blank" rel="noopener">Source on GitHub</a> &middot; GPLv3 &middot; Part of <a href="https://killertools.net" target="_blank" rel="noopener">killertools.net</a></span><span class="right"><span id="verEgg">v1.8.1</span> &middot; &copy; 2026 <b><a href="https://thekiller.net" target="_blank" rel="noopener">Steve the Killer</a></b></span></footer>
+<footer class="statusbar"><span class="left"><a href="https://github.com/SteveTheKiller/KillerPDF" target="_blank" rel="noopener">Source on GitHub</a> &middot; GPLv3 &middot; Part of <a href="https://killertools.net" target="_blank" rel="noopener">killertools.net</a></span><span class="right"><span id="verEgg">v1.8.2</span> &middot; &copy; 2026 <b><a href="https://thekiller.net" target="_blank" rel="noopener">Steve the Killer</a></b></span></footer>
 <script src="kp-i18n.js?v=9"></script>
 <script src="engine-i18n.js?v=2"></script>
-<script src="kp.js?v=11"></script>
+<script src="kp.js?v=12"></script>
 <script>
 (function(){
 var links=[].slice.call(document.querySelectorAll('.outline a')),scroller=document.querySelector('.content-scroll'),groups=[].slice.call(document.querySelectorAll('.ol-group'));

@@ -34,6 +34,7 @@ namespace KillerPDF.Controls
         private Point _formDragOrigin;
         private Size _formDragSize;
         private bool _formDragIsResize;
+        private bool _formDragMoved;
         private string? _selectedFormFieldName;
 
         private const double FormResizeGripSize = 14;
@@ -120,25 +121,25 @@ namespace KillerPDF.Controls
 
             element.PreviewMouseLeftButtonDown += (_, e) =>
             {
-                if (_currentTool != EditTool.FormField || field.ObjNum <= 0) return;
+                bool selectTextField = _currentTool == EditTool.Select && field.FieldType == "/Tx";
+                if ((_currentTool != EditTool.FormField && !selectTextField) || field.ObjNum <= 0) return;
+                _selectedFormFieldName = field.FieldName;
+                if (selectTextField && e.ClickCount > 1) return;
                 Point local = e.GetPosition(element);
                 bool resize = local.X >= element.ActualWidth - FormResizeGripSize
                     && local.Y >= element.ActualHeight - FormResizeGripSize;
-                _selectedFormFieldName = field.FieldName;
                 _formDragControl = element;
                 _formDragCanvas = canvas;
                 _formDragField = field;
                 _formDragStart = e.GetPosition(canvas);
                 _formDragOrigin = new Point(Canvas.GetLeft(element), Canvas.GetTop(element));
                 _formDragSize = new Size(element.ActualWidth, element.ActualHeight);
-                _formDragIsResize = resize;
+                _formDragIsResize = _currentTool == EditTool.FormField && resize;
+                _formDragMoved = false;
                 HideFormSizeBar();
                 Keyboard.ClearFocus();
                 element.CaptureMouse();
                 Panel.SetZIndex(element, 30);
-                SetStatus(_formDragIsResize
-                    ? $"Resizing fillable field {field.FieldName}"
-                    : $"Moving fillable field {field.FieldName}");
                 e.Handled = true;
             };
             element.PreviewMouseRightButtonDown += (_, e) =>
@@ -162,6 +163,16 @@ namespace KillerPDF.Controls
                 }
                 if (e.LeftButton != MouseButtonState.Pressed) return;
                 Point position = e.GetPosition(canvas);
+                if (!_formDragMoved
+                    && Math.Abs(position.X - _formDragStart.X) < 0.5
+                    && Math.Abs(position.Y - _formDragStart.Y) < 0.5) return;
+                if (!_formDragMoved)
+                {
+                    _formDragMoved = true;
+                    SetStatus(_formDragIsResize
+                        ? $"Resizing fillable field {field.FieldName}"
+                        : $"Moving fillable field {field.FieldName}");
+                }
                 if (_formDragIsResize)
                 {
                     element.Width = Math.Max(12, Math.Min(
@@ -192,13 +203,15 @@ namespace KillerPDF.Controls
                 _formDragCanvas = null;
                 Panel.SetZIndex(element, -1);
                 bool resized = _formDragIsResize;
+                bool moved = _formDragMoved;
                 _formDragIsResize = false;
-                CommitFormFieldRectangle(pageIndex, field, element, canvas, resized);
+                _formDragMoved = false;
+                if (moved) CommitFormFieldRectangle(pageIndex, field, element, canvas, resized);
                 e.Handled = true;
             };
         }
 
-        internal bool HasSelectedFormField => _currentTool == EditTool.FormField
+        internal bool HasSelectedFormField => _currentTool is EditTool.Select or EditTool.FormField
             && !string.IsNullOrEmpty(_selectedFormFieldName);
 
         internal void DeleteSelectedFormField()

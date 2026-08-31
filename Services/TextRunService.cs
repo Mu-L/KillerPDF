@@ -281,12 +281,21 @@ namespace KillerPDF.Services
             if (runs.Lines.Count == 0) return 0;
 
             RunLine? target = null;
-            double best = double.MaxValue;
+            double bestVertical = double.MaxValue;
+            double bestHorizontal = double.MaxValue;
             foreach (var line in runs.Lines)
             {
-                if (y <= line.Top && y >= line.Bottom) { target = line; best = 0; break; }
-                double d = y > line.Top ? y - line.Top : line.Bottom - y;
-                if (d < best) { best = d; target = line; }
+                double vertical = y > line.Top ? y - line.Top
+                    : y < line.Bottom ? line.Bottom - y : 0;
+                double horizontal = x < line.Left ? line.Left - x
+                    : x > line.Right ? x - line.Right : 0;
+                if (vertical < bestVertical
+                    || (vertical == bestVertical && horizontal < bestHorizontal))
+                {
+                    bestVertical = vertical;
+                    bestHorizontal = horizontal;
+                    target = line;
+                }
             }
             // Above the first line entirely -> caret 0; below the last -> caret N.
             var first = runs.Lines[0];

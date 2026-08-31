@@ -928,6 +928,10 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Btn_Yes">Ano</sys:String>
     <sys:String x:Key="Str_Btn_No">Ne</sys:String>
     <sys:String x:Key="Str_RecentMissing">chybí</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">Kliknutím na stránku umístěte podpis</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">Kliknutím na stránku umístěte iniciály</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">Výběr zrušen</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">Vybráno {0} anotací - odstraníte je klávesou Delete</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">Zkopírována 1 anotace</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">Zkopírováno {0} anotací</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">Vložena 1 anotace</sys:String>

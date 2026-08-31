@@ -931,6 +931,10 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Btn_Yes">Tak</sys:String>
     <sys:String x:Key="Str_Btn_No">Nie</sys:String>
     <sys:String x:Key="Str_RecentMissing">brak</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">Kliknij stronę, aby umieścić podpis</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">Kliknij stronę, aby umieścić inicjały</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">Wybór wyczyszczony</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">Wybrano {0} adnotacji - naciśnij Delete, aby je usunąć</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">Skopiowano 1 adnotację</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">Skopiowano {0} adnotacji</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">Wklejono 1 adnotację</sys:String>

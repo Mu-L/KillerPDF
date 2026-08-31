@@ -11,7 +11,7 @@
 <meta name="description" content="A deep technical explanation of how KillerPDF renders, zooms, and stays robust.">
 <link rel="icon" type="image/x-icon" href="kp-icon.ico">
 <script defer src="https://koya.thekiller.net/script.js" data-website-id="4036b11d-f6c0-4254-b448-933d3e38b0cb"></script>
-<link rel="stylesheet" href="kp.css?v=20">
+<link rel="stylesheet" href="kp.css?v=21">
 <style>
 .page-hero { text-align: center; padding: 44px 16px 8px; }
 .page-hero .wm-logo { height: clamp(46px, 8vw, 76px); width: auto; margin: 0 auto 8px; display: block; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.55)); }
@@ -207,7 +207,7 @@
 <h2 data-i18n="pt_54">Architecture</h2>
 <p data-i18n="pt_218"><b>MainWindow</b> is a composed application shell rather than one giant code-behind. Its partials under <code>Shell/</code> own the shared toolbar, sidebar, dialogs and application workflows, while each document pane is a reusable <b>PdfViewer</b> with independent tabs, view state, render surfaces, thumbnails and interaction state. Two viewer instances create split pane without opening a second window. Thin host adapters connect the shell and viewers; reusable application policy lives under <code>Services/</code>; focused controllers live under <code>Features/</code>; and all PDF structure and serialization crosses the independent <a href="./engine/index.html">KillerPDF.Engine boundary</a>.</p>
 <h3 id="source-size" data-i18n="pt_219">Source size</h3>
-<p data-i18n="pt_220">As measured from tracked <code>.cs</code> files in the 1.8.0 release, KillerPDF contains <b>418 C# files and 138,691 physical source lines</b>. Production code accounts for 314 files and 100,012 lines: 155 application files (49,271 lines), 151 engine-library files (47,725 lines), two corpus-runner files (2,200 lines), and six packaging files (816 lines). The remaining 104 files and 38,679 lines are application and engine tests. Generated build output is excluded.</p>
+<p data-i18n="pt_220">As measured from the current 1.8.2 development tree, KillerPDF contains <b>418 C# files and 139,519 physical source lines</b>. Production code accounts for 314 files and 100,609 lines: 155 application files (49,711 lines), 151 engine-library files (47,792 lines), two corpus-runner files (2,200 lines), and six packaging files (906 lines). The remaining 104 files and 38,910 lines are application and engine tests. Generated build output is excluded.</p>
 <h3 id="two-render-pipelines" data-i18n="pt_56">Two render pipelines</h3>
 <p data-i18n="pt_57">KillerPDF has a primary-page renderer (<b>RenderPage</b>) and a multi-page streaming renderer used by Continuous, Grid and Two-Page layouts. Single view uses the primary tile; multi-page layouts create per-page tiles and replace their bitmaps progressively as work completes. RenderPage is deliberately switched off during Continuous so a primary-page repaint cannot clear the live multi-page overlay map.</p>
 <h3 id="per-tab-sessions-an-lru-cache" data-i18n="pt_58">Per-tab sessions &amp; an LRU cache</h3>
@@ -401,12 +401,12 @@
 <p data-i18n="pt_conf_8">Every corpus file is validated pristine, resaved through KillerPDF's normal open/save pipeline (headlessly, via <code>--batch-resave</code>), and validated again. A comparison script then flags any file that fails a rule after the resave that it did not fail before. The bar for release is zero regressions. A second pass runs <code>qpdf --check</code> on every original/resave pair and flags any file whose structural health worsened.</p>
 <h3 id="the-numbers" data-i18n="pt_223">The 1.8 validation gates</h3>
 <table class="spec-table"><tr><th data-i18n="pt_conf_9">Outcome</th><th data-i18n="pt_conf_10">Files</th></tr>
-<tr><td data-i18n="pt_conf_11">Corpus total</td><td>2,907</td></tr>
+<tr><td data-i18n="pt_conf_11">Corpus total</td><td>47,024</td></tr>
 <tr><td data-i18n="pt_224">Incremental structural corpus</td><td data-i18n="pt_225">2,907 files</td></tr>
 <tr><td data-i18n="pt_226">Selected-page import corpus</td><td data-i18n="pt_227">2,907 files, zero unexpected failures</td></tr>
 <tr><td data-i18n="pt_228">Full rewrite corpus</td><td data-i18n="pt_229">2,898 saved, 9 safe skips, zero veraPDF regressions</td></tr>
 <tr><td data-i18n="pt_230">qpdf structural comparison</td><td data-i18n="pt_231">2,898 pairs, zero worsened</td></tr>
-<tr><td data-i18n="pt_232">Engine tests</td><td>1,436</td></tr>
+<tr><td data-i18n="pt_232">Engine tests</td><td>1,437</td></tr>
 <tr><td data-i18n="pt_233">Build quality gate</td><td data-i18n="pt_234">Release build, zero warnings</td></tr>
 <tr><td data-i18n="pt_235">Independent validators</td><td>qpdf, veraPDF and OpenSSL</td></tr>
 </table>
@@ -485,11 +485,11 @@
 </div>
 <footer class="statusbar">
 <span class="left"><a href="https://github.com/SteveTheKiller/KillerPDF" target="_blank" rel="noopener" data-i18n="pt_216">Source on GitHub</a> &middot; GPLv3 &middot; Part of <a href="https://killertools.net" target="_blank" rel="noopener">killertools.net</a></span>
-<span class="right"><span id="verEgg" title="click me">v1.8.1</span> &middot; &copy; 2026 <b><a href="https://thekiller.net" target="_blank" rel="noopener">Steve the Killer</a></b></span>
+<span class="right"><span id="verEgg" title="click me">v1.8.2</span> &middot; &copy; 2026 <b><a href="https://thekiller.net" target="_blank" rel="noopener">Steve the Killer</a></b></span>
 </footer>
 <div class="egg-toast" id="eggToast"></div>
 <script src="kp-i18n.js?v=9"></script>
-<script src="kp.js?v=11"></script>
+<script src="kp.js?v=12"></script>
 <script>
 // COLLAPSIBLE OUTLINE. The page has thirteen sections and twenty-four subsections, and listing
 // all thirty-seven flat made the sidebar a wall you had to read to navigate.

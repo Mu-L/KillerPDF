@@ -138,7 +138,8 @@ namespace KillerPDF
                         ? EncodeJpeg(composed, jpegQuality) : default;
                     File.WriteAllBytes(tmp, PdfEngineIntegration.CreateRasterDocument([
                         new PdfEngineIntegration.RasterPage(composed.PixelWidth,
-                            composed.PixelHeight, newWpt, newHpt, pixels, jpeg)]));
+                            composed.PixelHeight, newWpt, newHpt, pixels, jpeg,
+                            colorMode == PageColorMode.BlackAndWhite)]));
                     replacements[pageIdx] = tmp;
                 }
                 if (ct.IsCancellationRequested)
@@ -152,7 +153,13 @@ namespace KillerPDF
                 SaveTempAndReload(
                     keepAnnotations: true,
                     finalizeSavedFile: path =>
-                        PdfEngineIntegration.ReplacePagesAndCompact(path, replacements),
+                    {
+                        if (pages.Length == engineSession.PageCount)
+                            PdfEngineIntegration.ReplaceAllPagesAndCompact(path,
+                                [.. pages.Select(page => replacements[page])]);
+                        else
+                            PdfEngineIntegration.ReplacePagesAndCompact(path, replacements);
+                    },
                     remapRotations: rotations =>
                         PdfEngineIntegration.RemapRotationsAfterPageReplacements(
                             rotations, pages),

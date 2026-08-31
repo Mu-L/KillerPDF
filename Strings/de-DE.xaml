@@ -929,6 +929,10 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Btn_Yes">Ja</sys:String>
     <sys:String x:Key="Str_Btn_No">Nein</sys:String>
     <sys:String x:Key="Str_RecentMissing">fehlt</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">Klicken Sie auf die Seite, um Ihre Unterschrift zu platzieren</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">Klicken Sie auf die Seite, um Ihre Initialen zu platzieren</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">Auswahl aufgehoben</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">{0} Anmerkungen ausgewählt - zum Entfernen Entf drücken</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">1 Anmerkung kopiert</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">{0} Anmerkungen kopiert</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">1 Anmerkung eingefügt</sys:String>

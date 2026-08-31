@@ -190,6 +190,35 @@ public sealed class PdfImage
             compressionLevel);
     }
 
+    /// <summary>Packs black-and-white samples into a one-bit grayscale image.</summary>
+    public static PdfImage FromBitonal(
+        int width, int height, ReadOnlyMemory<byte> pixels,
+        CompressionLevel compressionLevel = CompressionLevel.Optimal)
+    {
+        ValidateDimensions(width, height);
+        int required = RequiredBytes(width, height, 1);
+        if (pixels.Length != required)
+            throw new ArgumentException(
+                $"A {width} by {height} bitonal image requires {required} samples.",
+                nameof(pixels));
+        int rowBytes = checked((width + 7) / 8);
+        byte[] packed = new byte[checked(rowBytes * height)];
+        ReadOnlySpan<byte> source = pixels.Span;
+        for (int y = 0; y < height; y++)
+        {
+            int sourceRow = y * width;
+            int targetRow = y * rowBytes;
+            for (int x = 0; x < width; x++)
+                if (source[sourceRow + x] >= 128)
+                    packed[targetRow + x / 8] |= (byte)(0x80 >> (x & 7));
+        }
+        using var output = new MemoryStream();
+        using (var zlib = new ZLibStream(output, compressionLevel, leaveOpen: true))
+            zlib.Write(packed);
+        return new PdfImage(width, height, 1, PdfImageColorSpace.Gray,
+            "FlateDecode", output.ToArray(), invertComponents: false);
+    }
+
     /// <summary>Compresses interleaved 8-bit CMYK pixels with the PDF Flate filter.</summary>
     public static PdfImage FromCmyk(
         int width, int height, ReadOnlyMemory<byte> pixels,

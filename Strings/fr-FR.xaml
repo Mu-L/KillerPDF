@@ -939,6 +939,10 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Btn_Yes">Oui</sys:String>
     <sys:String x:Key="Str_Btn_No">Non</sys:String>
     <sys:String x:Key="Str_RecentMissing">manquant</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">Cliquez sur la page pour placer votre signature</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">Cliquez sur la page pour placer vos initiales</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">Sélection effacée</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">{0} annotations sélectionnées - appuyez sur Suppr pour les supprimer</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">1 annotation copiée</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">{0} annotations copiées</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">1 annotation collée</sys:String>

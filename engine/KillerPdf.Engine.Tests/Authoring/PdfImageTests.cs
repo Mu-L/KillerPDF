@@ -36,6 +36,22 @@ public sealed class PdfImageTests
     }
 
     [Fact]
+    public void FromBitonal_PacksRowsIntoOneBitGrayscaleSamples()
+    {
+        PdfImage image = PdfImage.FromBitonal(10, 2,
+        new byte[]
+        {
+            255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
+            0, 255, 0, 255, 0, 255, 0, 255, 0, 255
+        });
+
+        Assert.Equal([0xAA, 0x80, 0x55, 0x40], Decode(image));
+        Assert.Equal(1, image.BitsPerComponent);
+        Assert.Equal(PdfImageColorSpace.Gray, image.ColorSpace);
+        Assert.Equal("DeviceGray", ImageColorSpace(image));
+    }
+
+    [Fact]
     public void FromCmyk_CompressesExactPixelBytesAndWritesDeviceCmyk()
     {
         byte[] pixels = [0, 64, 128, 255, 255, 128, 64, 0];
@@ -50,6 +66,7 @@ public sealed class PdfImageTests
     public void RawImageFactories_RequireExactPixelLengths()
     {
         Assert.Throws<ArgumentException>(() => PdfImage.FromGray(2, 2, new byte[3]));
+        Assert.Throws<ArgumentException>(() => PdfImage.FromBitonal(2, 2, new byte[3]));
         Assert.Throws<ArgumentException>(() => PdfImage.FromCmyk(2, 2, new byte[15]));
         Assert.Throws<ArgumentException>(() => PdfImage.FromGrayAlpha(2, 2, new byte[7]));
         Assert.Throws<ArgumentException>(() => PdfImage.FromCmyka(2, 2, new byte[19]));

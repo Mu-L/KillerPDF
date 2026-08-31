@@ -943,6 +943,10 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Btn_Yes">はい</sys:String>
     <sys:String x:Key="Str_Btn_No">いいえ</sys:String>
     <sys:String x:Key="Str_RecentMissing">ファイルなし</sys:String>
+    <sys:String x:Key="Str_St_PlaceSignature">署名を配置するページ上の場所をクリックしてください</sys:String>
+    <sys:String x:Key="Str_St_PlaceInitials">イニシャルを配置するページ上の場所をクリックしてください</sys:String>
+    <sys:String x:Key="Str_St_SelectionCleared">選択を解除しました</sys:String>
+    <sys:String x:Key="Str_St_AnnotationsSelected">注釈を {0} 件選択しました - 削除するには Delete キーを押してください</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationOne">注釈を 1 件コピーしました</sys:String>
     <sys:String x:Key="Str_St_CopiedAnnotationMany">注釈を {0} 件コピーしました</sys:String>
     <sys:String x:Key="Str_St_PastedAnnotationOne">注釈を 1 件貼り付けました</sys:String>
