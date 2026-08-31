@@ -167,7 +167,7 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
             currentOffset = primary.PreviousOffset;
         }
 
-        ValidateRevisionSizes(revisions, startXref.Offset, linearization);
+        ValidateRevisionSizes(revisions, startXref.Offset);
         ValidateRevisionGenerations(revisions, startXref.Offset, linearization);
         ValidatePermanentIdentifiers(revisions, startXref.Offset);
         ValidateEncryptionIntroduction(revisions, startXref.Offset);
@@ -299,8 +299,7 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
         || IsLinearizedForwardHybrid(section, linearization);
 
     private static void ValidateRevisionSizes(
-        IReadOnlyList<Revision> revisions, long offset,
-        LinearizationInfo? linearization)
+        IReadOnlyList<Revision> revisions, long offset)
     {
         long previousSize = 0;
         for (int index = revisions.Count - 1; index >= 0; index--)
@@ -315,10 +314,9 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
             {
                 long hybridSize = ((PdfInteger)
                     revision.Hybrid.Trailer[SizeName]).Value;
-                if (hybridSize != size
-                    && !IsLinearizedFirstPageSection(revision.Primary, linearization))
+                if (hybridSize > size)
                     throw new PdfSyntaxException(
-                        "A hybrid cross-reference stream /Size must match its trailer /Size",
+                        "A hybrid cross-reference stream /Size cannot exceed its trailer /Size",
                         ClampOffset(revision.Hybrid.Offset));
             }
             previousSize = size;
@@ -352,7 +350,14 @@ public sealed class PdfCrossReferenceTable : IReadOnlyDictionary<int, PdfCrossRe
                     continue;
                 }
                 bool isFree = entry.Type == PdfCrossReferenceEntryType.Free;
+                // A hybrid companion stream restates the revision's own objects for
+                // readers that understand compressed entries; the classic tables
+                // deliberately retire those same object numbers at generation 65535
+                // so legacy readers skip them (ISO 32000-1 7.5.8.4). That is a
+                // compatibility convention, not an incremental-update generation
+                // sequence, so hybrid entries do not participate in it.
                 if (states.TryGetValue(entry.ObjectNumber, out var previous)
+                    && revision.Hybrid?.ContainsKey(entry.ObjectNumber) != true
                     && !IsLinearizedFirstPageSection(revision.Primary, linearization))
                 {
                     int requiredGeneration = !previous.IsFree && isFree
