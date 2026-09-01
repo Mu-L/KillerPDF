@@ -27,6 +27,8 @@ namespace KillerPDF
             for (Window? window = owner; window is not null; window = window.Owner)
                 if (window is MainWindow main && main.GrainTexture is not null)
                     return main.GrainTexture;
+            if (Application.Current?.TryFindResource("GrainTileBrush") is ImageBrush tile)
+                return tile.ImageSource;
             return null;
         }
 
@@ -197,9 +199,13 @@ namespace KillerPDF
             return frame;
         }
 
-        internal static UIElement WrapContent(Window? owner, UIElement content)
+        internal static UIElement WrapContent(
+            Window? owner, UIElement content, Thickness? haloMargin = null)
         {
-            var host = new Grid { Margin = Value(owner, "DialogHaloMargin", new Thickness(12)) };
+            var host = new Grid
+            {
+                Margin = haloMargin ?? Value(owner, "DialogHaloMargin", new Thickness(12))
+            };
             var radius = Value(owner, "WindowCornerRadius", new CornerRadius(7));
             host.Children.Add(new Border
             {
@@ -231,7 +237,9 @@ namespace KillerPDF
         }
 
         // Standard dialog: content is inset from the same five-layer frame used by KillerNotes.
-        public static UIElement Frame(Window win, Window? owner, string title, Action onClose, UIElement body)
+        public static UIElement Frame(
+            Window win, Window? owner, string title, Action onClose, UIElement body,
+            Thickness? haloMargin = null)
         {
             win.KeyDown += (_, e) => { if (e.Key == Key.Escape) { e.Handled = true; onClose(); } };
 
@@ -272,7 +280,7 @@ namespace KillerPDF
             }
             var framedContent = card.Child!;
             card.Child = null;
-            return WrapContent(owner, framedContent);
+            return WrapContent(owner, framedContent, haloMargin);
         }
 
         internal static void AddBevels(Grid grid, Window? owner)

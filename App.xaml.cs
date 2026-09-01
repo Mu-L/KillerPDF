@@ -148,6 +148,31 @@ namespace KillerPDF
                 return;
             }
 
+            // Developer-only visual check for the crash dialog. It runs before single-instance
+            // forwarding so the preview can open beside a normal KillerPDF session.
+            if (e.Args.Any(a => string.Equals(
+                    a, "--crash-dialog-preview", StringComparison.OrdinalIgnoreCase)))
+            {
+                ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                ThemeManager.Initialize();
+                LocaleManager.Initialize();
+                EnsureCrashPreviewGrain();
+                string previewLog = Path.Combine(Path.GetTempPath(), "KillerPDF-crash-preview.log");
+                var previewException = new NotSupportedException(
+                    "Adding form widgets requires one top-level Document structure element.");
+                try
+                {
+                    File.WriteAllText(previewLog, BuildFullCrashReport(previewException));
+                    ShowCrashDialog(previewException, previewLog, isFatal: false);
+                }
+                finally
+                {
+                    try { File.Delete(previewLog); } catch { }
+                }
+                Shutdown(0);
+                return;
+            }
+
             // Single instance: a second launch (e.g. double-clicking another PDF in Explorer)
             // forwards its file path to the already-running instance, which opens it as a new
             // tab, then this process exits. Without this, every launch spawned its own window.
@@ -422,155 +447,219 @@ namespace KillerPDF
         private static string CrashText(string key, string fallback) =>
             System.Windows.Application.Current?.TryFindResource(key) as string ?? fallback;
 
+        private static void EnsureCrashPreviewGrain()
+        {
+            const int size = 256;
+            var bitmap = new System.Windows.Media.Imaging.WriteableBitmap(
+                size, size, 96, 96, PixelFormats.Bgra32, null);
+            var pixels = new byte[size * size * 4];
+            var random = new Random(1337);
+            for (int i = 0; i < pixels.Length; i += 4)
+            {
+                if (random.Next(3) != 0) continue;
+                byte value = random.Next(2) == 0
+                    ? (byte)random.Next(190, 255)
+                    : (byte)random.Next(0, 50);
+                pixels[i] = value;
+                pixels[i + 1] = value;
+                pixels[i + 2] = value;
+                pixels[i + 3] = (byte)random.Next(35, 95);
+            }
+            bitmap.WritePixels(new Int32Rect(0, 0, size, size), pixels, size * 4, 0);
+            var source = System.Windows.Media.Imaging.BitmapFrame.Create(bitmap);
+            source.Freeze();
+            var tile = new ImageBrush(source)
+            {
+                TileMode = TileMode.Tile,
+                ViewportUnits = BrushMappingMode.Absolute,
+                Viewport = new Rect(0, 0, size, size),
+                Stretch = Stretch.None
+            };
+            tile.Freeze();
+            Current.Resources["GrainTileBrush"] = tile;
+        }
+
         private static bool ShowCrashDialog(Exception ex, string logPath, bool isFatal)
         {
             bool shouldContinue = false;
-
-            // ── Palette ─────────────────────────────────────────────
-            var bg       = new SolidColorBrush(Color.FromRgb(0x1a, 0x1a, 0x1a));
-            var dimBg    = new SolidColorBrush(Color.FromRgb(0x25, 0x25, 0x25));
-            var codeBg   = new SolidColorBrush(Color.FromRgb(0x12, 0x12, 0x12));
-            var red      = new SolidColorBrush(Color.FromRgb(0xef, 0x44, 0x44));
-            var green    = new SolidColorBrush(Color.FromRgb(0x1e, 0xa5, 0x4c));
-            var greenHov = new SolidColorBrush(Color.FromRgb(0x27, 0xc8, 0x60));
-            var dimText  = new SolidColorBrush(Color.FromRgb(0x77, 0x77, 0x77));
-            var midText  = new SolidColorBrush(Color.FromRgb(0xaa, 0xaa, 0xaa));
-            var redHov   = new SolidColorBrush(Color.FromRgb(0xc4, 0x2b, 0x1c));
-            var grayBtn  = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33));
-            var grayHov  = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44));
-            var quitNorm = new SolidColorBrush(Color.FromRgb(0x5a, 0x10, 0x10));
-            var quitHov  = new SolidColorBrush(Color.FromRgb(0xc4, 0x2b, 0x1c));
-
+            Window? owner = Current?.MainWindow is { IsVisible: true } main ? main : null;
+            Brush pane = UiKit.Brush("PaneBrush", new SolidColorBrush(Color.FromRgb(0x2a, 0x2a, 0x2a)));
+            Brush code = UiKit.Brush("MenuBackgroundBrush", new SolidColorBrush(Color.FromRgb(0x12, 0x12, 0x12)));
+            Brush border = UiKit.Brush("CardBorderBrush", new SolidColorBrush(Color.FromRgb(0x3a, 0x3a, 0x3a)));
+            Brush text = UiKit.Brush("TextBrush", Brushes.White);
+            Brush muted = UiKit.Brush("MutedTextBrush", new SolidColorBrush(Color.FromRgb(0xaa, 0xaa, 0xaa)));
+            Brush dim = UiKit.Brush("DimTextBrush", new SolidColorBrush(Color.FromRgb(0x77, 0x77, 0x77)));
+            Brush danger = UiKit.Brush("DangerRed", new SolidColorBrush(Color.FromRgb(0xef, 0x44, 0x44)));
+            Brush primary = UiKit.Brush("PrimaryBrush", new SolidColorBrush(Color.FromRgb(0x1e, 0xa5, 0x4c)));
+            Brush primaryHover = UiKit.Brush("PrimaryHoverBrush", primary);
+            Brush onPrimary = UiKit.Brush("OnPrimaryBrush", new SolidColorBrush(Color.FromRgb(0x0a, 0x0a, 0x0a)));
+            Brush button = UiKit.Brush("SurfaceBrush", new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x33)));
+            Brush buttonHover = UiKit.Brush("SurfaceHoverBrush", new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x44)));
+            Brush grain = UiKit.Brush("GrainTileBrush", Brushes.Transparent);
+            double grainOpacity = Current?.TryFindResource("GrainOpacity") is double opacity
+                ? opacity : 0.05;
+            var paneShadow = Current?.TryFindResource("PaneShadowEffect")
+                as System.Windows.Media.Effects.Effect;
+            var quitNormal = new SolidColorBrush(Color.FromRgb(0x5a, 0x10, 0x10));
+            var quitHover = new SolidColorBrush(Color.FromRgb(0xc4, 0x2b, 0x1c));
+            string title = CrashText("Str_Crash_Title", "KillerPDF - Unexpected Error");
             var win = new Window
             {
-                Title                 = CrashText("Str_Crash_Title", "KillerPDF - Unexpected Error"),
-                Width                 = 680,
-                Height                = 520,
-                MinWidth              = 480,
-                MinHeight             = 360,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                ResizeMode            = ResizeMode.CanResize,
-                WindowStyle           = WindowStyle.None,
-                Background            = bg,
-                ShowInTaskbar         = true
+                Title = title,
+                Width = 760,
+                Height = 540,
+                MinWidth = 620,
+                MinHeight = 430,
+                ShowInTaskbar = owner is null
             };
+            DialogChrome.Configure(win, owner, resizable: true, fade: false);
 
-            // ── Layout ──────────────────────────────────────────────
-            var root = new Grid();
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(36) });
+            var root = new Grid { Background = Brushes.Transparent };
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            // ── Title bar ───────────────────────────────────────────
-            var titleBar = new DockPanel { Background = dimBg };
-            Grid.SetRow(titleBar, 0);
-            titleBar.MouseLeftButtonDown += (_, ea) =>
+            var summary = new Border
             {
-                if (ea.ButtonState == MouseButtonState.Pressed) win.DragMove();
+                Background = pane,
+                BorderBrush = border,
+                BorderThickness = new Thickness(1),
+                CornerRadius = UiKit.RadCard,
+                Padding = new Thickness(18, 16, 18, 15)
             };
-
-            var xBtn = MakeTitleBarCloseButton(dimText, redHov);
-            xBtn.Click += (_, _) => { shouldContinue = false; win.Close(); };
-            DockPanel.SetDock(xBtn, Dock.Right);
-            titleBar.Children.Add(xBtn);
-            titleBar.Children.Add(new TextBlock
+            var summaryGrid = new Grid();
+            summaryGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) });
+            summaryGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            summaryGrid.Children.Add(new Border
             {
-                Text              = CrashText("Str_Crash_Title", "KillerPDF - Unexpected Error"),
-                Foreground        = dimText,
-                FontSize          = 12,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin            = new Thickness(12, 0, 0, 0)
+                Width = 32,
+                Height = 32,
+                CornerRadius = new CornerRadius(16),
+                BorderBrush = danger,
+                BorderThickness = new Thickness(1.5),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top,
+                Child = new TextBlock
+                {
+                    Text = "!",
+                    Foreground = danger,
+                    FontFamily = UiKit.MonoFont,
+                    FontSize = 20,
+                    FontWeight = FontWeights.Bold,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                }
             });
-            root.Children.Add(titleBar);
-
-            // ── Error header ─────────────────────────────────────────
-            var headerPanel = new StackPanel
+            var summaryText = new StackPanel();
+            summaryText.Children.Add(new TextBlock
             {
-                Background = dimBg,
-                Margin     = new Thickness(0, 1, 0, 0)
-            };
-            Grid.SetRow(headerPanel, 1);
-
-            var headerInner = new StackPanel { Margin = new Thickness(20, 14, 20, 14) };
-
-            var typeRow = new StackPanel { Orientation = Orientation.Horizontal };
-            typeRow.Children.Add(new TextBlock
-            {
-                Text              = "⚠  ",
-                Foreground        = red,
-                FontSize          = 18,
-                VerticalAlignment = VerticalAlignment.Center
+                Text = ex.GetType().Name,
+                Foreground = danger,
+                FontFamily = UiKit.MonoFont,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold
             });
-            typeRow.Children.Add(new TextBlock
+            summaryText.Children.Add(new TextBlock
             {
-                Text              = ex.GetType().Name,
-                Foreground        = red,
-                FontSize          = 16,
-                FontWeight        = FontWeights.SemiBold,
-                VerticalAlignment = VerticalAlignment.Center
-            });
-            headerInner.Children.Add(typeRow);
-
-            headerInner.Children.Add(new TextBlock
-            {
-                Text         = ex.Message,
-                Foreground   = Brushes.White,
-                FontSize     = 13,
+                Text = ex.Message,
+                Foreground = text,
+                FontSize = 14,
+                LineHeight = 20,
                 TextWrapping = TextWrapping.Wrap,
-                Margin       = new Thickness(0, 6, 0, 0)
+                Margin = new Thickness(0, 7, 0, 0)
             });
-            headerInner.Children.Add(new TextBlock
+            summaryText.Children.Add(new TextBlock
             {
-                Text       = string.Format(CrashText("Str_Crash_Log", "Log: {0}"), logPath),
-                Foreground = dimText,
-                FontSize   = 11,
-                Margin     = new Thickness(0, 6, 0, 0)
+                Text = string.Format(CrashText("Str_Crash_Log", "Log: {0}"), logPath),
+                Foreground = dim,
+                FontFamily = UiKit.MonoFont,
+                FontSize = 10.5,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(0, 10, 0, 0)
             });
+            Grid.SetColumn(summaryText, 1);
+            summaryGrid.Children.Add(summaryText);
+            var summaryLayers = new Grid();
+            summaryLayers.Children.Add(new Border
+            {
+                Background = grain,
+                Opacity = grainOpacity,
+                CornerRadius = UiKit.RadCard,
+                IsHitTestVisible = false
+            });
+            summaryLayers.Children.Add(summaryGrid);
+            summary.Child = summaryLayers;
+            var summaryHost = new Grid { Margin = new Thickness(18, 8, 18, 12) };
+            summaryHost.Children.Add(new Border
+            {
+                Background = pane,
+                CornerRadius = UiKit.RadCard,
+                IsHitTestVisible = false,
+                Effect = paneShadow?.CloneCurrentValue()
+            });
+            summaryHost.Children.Add(summary);
+            Grid.SetRow(summaryHost, 0);
+            root.Children.Add(summaryHost);
 
-            headerPanel.Children.Add(headerInner);
-            root.Children.Add(headerPanel);
-
-            // ── Stack trace ──────────────────────────────────────────
             var traceBox = new TextBox
             {
-                Text                          = FormatExceptionChain(ex),
-                Background                    = codeBg,
-                Foreground                    = midText,
-                FontFamily                    = new FontFamily("Consolas,Courier New"),
-                FontSize                      = 11,
-                IsReadOnly                    = true,
-                VerticalScrollBarVisibility   = ScrollBarVisibility.Auto,
+                Text = FormatExceptionChain(ex),
+                Background = Brushes.Transparent,
+                Foreground = muted,
+                FontFamily = UiKit.MonoFont,
+                FontSize = 10.5,
+                IsReadOnly = true,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-                TextWrapping                  = TextWrapping.NoWrap,
-                BorderThickness               = new Thickness(0),
-                Padding                       = new Thickness(12, 8, 12, 8),
-                Margin                        = new Thickness(0, 1, 0, 0)
+                TextWrapping = TextWrapping.NoWrap,
+                BorderThickness = new Thickness(0),
+                Padding = new Thickness(12, 10, 12, 10)
             };
-            Grid.SetRow(traceBox, 2);
-            root.Children.Add(traceBox);
-
-            // ── Button bar ───────────────────────────────────────────
-            var btnBorder = new Border
+            var traceLayers = new Grid();
+            traceLayers.Children.Add(new Border
             {
-                Background = dimBg,
-                Padding    = new Thickness(16, 10, 16, 10)
+                Background = grain,
+                Opacity = grainOpacity,
+                CornerRadius = UiKit.RadCard,
+                IsHitTestVisible = false
+            });
+            traceLayers.Children.Add(traceBox);
+            var traceCard = new Border
+            {
+                Background = code,
+                BorderBrush = border,
+                BorderThickness = new Thickness(1),
+                CornerRadius = UiKit.RadCard,
+                Child = traceLayers
             };
-            Grid.SetRow(btnBorder, 3);
+            var traceHost = new Grid { Margin = new Thickness(18, 0, 18, 14) };
+            traceHost.Children.Add(new Border
+            {
+                Background = code,
+                CornerRadius = UiKit.RadCard,
+                IsHitTestVisible = false,
+                Effect = paneShadow?.CloneCurrentValue()
+            });
+            traceHost.Children.Add(traceCard);
+            Grid.SetRow(traceHost, 1);
+            root.Children.Add(traceHost);
 
-            var btnPanel = new DockPanel();
-
-            // Left: utility buttons
+            var footer = new Border
+            {
+                Background = Brushes.Transparent,
+                BorderBrush = border,
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                Padding = new Thickness(18, 11, 18, 11)
+            };
+            var btnPanel = new DockPanel { LastChildFill = false };
             var leftBtns = new StackPanel { Orientation = Orientation.Horizontal };
-
-            var copyBtn = MakeCrashButton(CrashText("Str_Crash_Copy", "Copy Report"), grayBtn, grayHov, Brushes.White, 100);
+            var copyBtn = MakeCrashButton(CrashText("Str_Crash_Copy", "Copy Report"), button, buttonHover, text, 100);
             copyBtn.Click += (_, _) =>
             {
                 try { Clipboard.SetText(BuildFullCrashReport(ex)); } catch { }
             };
             leftBtns.Children.Add(copyBtn);
-
-            var logsBtn = MakeCrashButton(CrashText("Str_Crash_OpenLogs", "Open Logs"), grayBtn, grayHov, Brushes.White, 88);
+            var logsBtn = MakeCrashButton(CrashText("Str_Crash_OpenLogs", "Open Logs"), button, buttonHover, text, 88);
             logsBtn.Margin = new Thickness(8, 0, 0, 0);
             logsBtn.Click += (_, _) =>
             {
@@ -582,8 +671,7 @@ namespace KillerPDF
                 catch { }
             };
             leftBtns.Children.Add(logsBtn);
-
-            var githubBtn = MakeCrashButton(CrashText("Str_Crash_Report", "Report on GitHub"), grayBtn, grayHov,
+            var githubBtn = MakeCrashButton(CrashText("Str_Crash_Report", "Report on GitHub"), button, buttonHover,
                 new SolidColorBrush(Color.FromRgb(0x60, 0xc0, 0xff)), 128);
             githubBtn.Margin = new Thickness(8, 0, 0, 0);
             githubBtn.Click += (_, _) =>
@@ -610,38 +698,33 @@ namespace KillerPDF
                 catch { }
             };
             leftBtns.Children.Add(githubBtn);
-
             DockPanel.SetDock(leftBtns, Dock.Left);
             btnPanel.Children.Add(leftBtns);
-
-            // Right: Continue / Quit
             var rightBtns = new StackPanel
             {
-                Orientation         = Orientation.Horizontal,
+                Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Right
             };
-
-            var contBtn = MakeCrashButton(CrashText("Str_Crash_Continue", "Continue"), green, greenHov,
-                new SolidColorBrush(Color.FromRgb(0x0a, 0x0a, 0x0a)), 88);
-            contBtn.IsEnabled  = !isFatal;
+            var contBtn = MakeCrashButton(CrashText("Str_Crash_Continue", "Continue"), primary, primaryHover,
+                onPrimary, 88);
+            contBtn.IsEnabled = !isFatal;
             contBtn.FontWeight = isFatal ? FontWeights.Normal : FontWeights.SemiBold;
-            contBtn.Margin     = new Thickness(0, 0, 8, 0);
+            contBtn.Margin = new Thickness(0, 0, 8, 0);
             contBtn.Click += (_, _) => { shouldContinue = true; win.Close(); };
-
-            var quitBtnCtrl = MakeCrashButton(CrashText("Str_Crash_Quit", "Quit"), quitNorm, quitHov, Brushes.White, 72);
+            var quitBtnCtrl = MakeCrashButton(CrashText("Str_Crash_Quit", "Quit"), quitNormal, quitHover, Brushes.White, 72);
             quitBtnCtrl.FontWeight = isFatal ? FontWeights.SemiBold : FontWeights.Normal;
             quitBtnCtrl.Click += (_, _) => { shouldContinue = false; win.Close(); };
-
             rightBtns.Children.Add(contBtn);
             rightBtns.Children.Add(quitBtnCtrl);
-
             DockPanel.SetDock(rightBtns, Dock.Right);
             btnPanel.Children.Add(rightBtns);
+            footer.Child = btnPanel;
+            Grid.SetRow(footer, 2);
+            root.Children.Add(footer);
 
-            btnBorder.Child = btnPanel;
-            root.Children.Add(btnBorder);
-
-            win.Content = root;
+            win.Content = DialogChrome.Frame(win, owner, title,
+                () => { shouldContinue = false; win.Close(); }, root,
+                new Thickness(20, 20, 20, 24));
             win.ShowDialog();
             return shouldContinue;
         }
@@ -686,7 +769,7 @@ namespace KillerPDF
         }
 
         private static Button MakeCrashButton(string label,
-            SolidColorBrush normal, SolidColorBrush hover, SolidColorBrush fg,
+            Brush normal, Brush hover, Brush fg,
             double width = 88)
         {
             var btn = UiKit.Make(label, normal, hover, fg, fg);
