@@ -167,7 +167,7 @@ namespace KillerPDF.Controls
         // tab you have to click to identify, and at that point the strip has stopped being navigation.
         //
         // So the COUNT is capped rather than the width. As many tabs as fit at TabFloorWidth stay in
-        // the strip and the rest are collapsed. The chevron at the right end lists every tab, so
+        // the strip and the rest are collapsed. The chevron at the right end lists collapsed tabs, so
         // nothing is unreachable.
         //
         // Scrolling was the other option and is what a browser does. It lost because the band is a
@@ -273,17 +273,17 @@ namespace KillerPDF.Controls
 
         private void TabStripBorder_SizeChanged(object sender, SizeChangedEventArgs e) => TabBarResized();
 
-        /// <summary>The chevron: every tab in this pane, hidden ones included, in strip order.</summary>
+        /// <summary>The chevron lists only tabs collapsed out of this pane's strip.</summary>
         /// <remarks>
-        /// EVERY tab, not only the overflowed ones. A list that shows just what is off screen makes
-        /// you work out which those are before you can use it, and the visible ones cost nothing to
-        /// include. Built on each open rather than kept: titles change on every save and load.
+        /// Built on each open rather than kept because titles change on every save and load.
         /// </remarks>
         private void TabOverflow_Click(object sender, RoutedEventArgs e)
         {
             var menu = MakeThemedMenu();
             foreach (var t in _sessions)
             {
+                if (t.IsStripVisible) continue;
+
                 var sess = t;
                 // Doubled, because a lone underscore in a MenuItem header is an access-key marker:
                 // "Q3_Report" would draw as "Q3Report" with an R underlined, and file names carry

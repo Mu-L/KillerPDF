@@ -48,7 +48,7 @@
                         BorderThickness="1,1,1,0" CornerRadius="{DynamicResource TabCornerRadius}" IsHitTestVisible="False"
                         BorderBrush="{DynamicResource PaneEdgeBrush}"/>
                 <DockPanel LastChildFill="True">
-                    <!-- Overflow chevron: every tab in this pane, hidden ones included
+                    <!-- Overflow chevron: only tabs collapsed out of this pane's strip
                          (TabOverflowMenu). Docked BEFORE the strip so the strip measures against
                          the band's REMAINING width - docked after, the strip would take the whole
                          band and the chevron would sit on top of the last tab.
