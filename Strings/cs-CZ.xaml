@@ -86,6 +86,7 @@
 
     <!-- ── Keyboard shortcuts overlay ───────────────────────────────── -->
     <sys:String x:Key="Str_KS_Title">Klávesové zkratky</sys:String>
+    <sys:String x:Key="Str_KS_FormField">Vyplnitelné textové pole</sys:String>
     <sys:String x:Key="Str_KS_File">SOUBOR</sys:String>
     <sys:String x:Key="Str_KS_Open">Otevřít</sys:String>
     <sys:String x:Key="Str_KS_CloseFile">Zavřít soubor</sys:String>

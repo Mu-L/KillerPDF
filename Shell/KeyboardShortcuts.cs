@@ -712,7 +712,9 @@ namespace KillerPDF
                 if (btn == null || TryFindResource(key) is not string s) return;
                 btn.ToolTip = string.IsNullOrEmpty(n) ? s : $"{s} ({n})";
             }
-            Set(ToolSelectBtn, "Str_TT_SelectTool", "V");
+            // Select and Form Field already carry their letter shortcuts in the localized base
+            // text. Only add the numeric aliases that are not already present there.
+            Set(ToolSelectBtn, "Str_TT_SelectTool", null);
             Set(ToolTextBtn, "Str_TT_TextTool", "1");
             Set(ToolHighlightBtn, "Str_TT_HighlightTool", "2");
             Set(ToolUnderlineBtn, "Str_TT_LineTool", "3");   // repurposed to the Line tool
@@ -722,6 +724,7 @@ namespace KillerPDF
             Set(ToolSignatureBtn, "Str_TT_SignatureTool", "7");
             Set(ToolCropBtn, "Str_TT_CropTool", "8");
             Set(_toolRotateBtn, "Str_TT_RotateTool", "9");
+            Set(ToolStampBtn, "Str_TT_StampTool", "0");
             // Not a tool, but the same treatment. Cycling has no key any more: F9 went to the
             // sidebar, so the wheel over the view (or the button itself) is how you jog modes,
             // and advertising a dead key here is worse than advertising none.

@@ -86,6 +86,7 @@
 
     <!-- ── Keyboard shortcuts overlay ───────────────────────────────── -->
     <sys:String x:Key="Str_KS_Title">Billentyűparancsok</sys:String>
+    <sys:String x:Key="Str_KS_FormField">Kitölthető szövegmező</sys:String>
     <sys:String x:Key="Str_KS_File">FÁJL</sys:String>
     <sys:String x:Key="Str_KS_Open">Megnyitás</sys:String>
     <sys:String x:Key="Str_KS_CloseFile">Fájl bezárása</sys:String>

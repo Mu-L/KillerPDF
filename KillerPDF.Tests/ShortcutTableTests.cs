@@ -182,6 +182,16 @@ namespace KillerPDF.Tests
             Assert.Equal("Str_Toolbar_Hide", ShortcutTable.BuildMap()[KbLayer.Alt]["M"].Label);
         }
 
+        [Fact]
+        public void FormFieldAndStampShortcutsAreOnTheMap()
+        {
+            var map = ShortcutTable.BuildMap()[KbLayer.Base];
+
+            Assert.Equal("Str_KS_FormField", map["F"].Label);
+            Assert.Equal("Str_Ctx_StampPages", map["D0"].Label);
+            Assert.Equal("Str_Ctx_StampPages", map["S"].Label);
+        }
+
         /// <summary>Gesture-only rows (the wheel ones, Ctrl+Scroll, Shift+Click, Middle drag) have
         /// no keycap by design. Anything else with no caps is likely an oversight, so the count is
         /// pinned rather than left to drift.</summary>

@@ -86,6 +86,7 @@
 
     <!-- ── Keyboard shortcuts overlay ───────────────────────────────── -->
     <sys:String x:Key="Str_KS_Title">Scorciatoie tastiera</sys:String>
+    <sys:String x:Key="Str_KS_FormField">Campo testo compilabile</sys:String>
     <sys:String x:Key="Str_KS_File">FILE</sys:String>
     <sys:String x:Key="Str_KS_Open">Apri</sys:String>
     <sys:String x:Key="Str_KS_CloseFile">Chiudi file</sys:String>

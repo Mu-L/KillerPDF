@@ -22,6 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Fixed
 
+- Corrected the annotation-tool shortcut labels and added Fillable Text Field to the shortcut reference (#339).
 - Fillable fields can now be added to tagged PDFs that organize pages as multiple top-level structure elements.
 - Creating and filling a text field no longer visibly rebuilds the document view, and new fields start with a font size suited to their height.
 - The Highlight bar now names its broad deletion mode as the annotation eraser instead of implying that it only erases highlights (#325).

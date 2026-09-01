@@ -114,6 +114,7 @@ namespace KillerPDF
             B("8 (%or% C)",      "Str_Lbl_Crop",      "Tools", Cap("D8"), Cap("C")),
             B("9 (%or% R)",      "Str_Lbl_Rotate",    "Tools", Cap("D9"), Cap("R")),
             B("0 (%or% S)",      "Str_Ctx_StampPages","Tools", Cap("D0"), Cap("S")),
+            B("F",               "Str_KS_FormField",  "Tools", Cap("F")),
 
             B("%ctrl%+Z",         "Str_KS_Undo",        "Edit", Cap("Ctrl:Z")),
             B("%ctrl%+Y",         "Str_Ctx_Redo",       "Edit", Cap("Ctrl:Y")),

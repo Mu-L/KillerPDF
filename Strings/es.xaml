@@ -82,6 +82,7 @@
 
     <!-- ── Keyboard shortcuts overlay ───────────────────────────────── -->
     <sys:String x:Key="Str_KS_Title">Atajos de teclado</sys:String>
+    <sys:String x:Key="Str_KS_FormField">Campo de texto rellenable</sys:String>
     <sys:String x:Key="Str_KS_File">ARCHIVO</sys:String>
     <sys:String x:Key="Str_KS_Open">Abrir</sys:String>
     <sys:String x:Key="Str_KS_CloseFile">Cerrar archivo</sys:String>

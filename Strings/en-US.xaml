@@ -86,6 +86,7 @@
 
     <!-- ── Keyboard shortcuts overlay ───────────────────────────────── -->
     <sys:String x:Key="Str_KS_Title">Keyboard Shortcuts</sys:String>
+    <sys:String x:Key="Str_KS_FormField">Fillable text field</sys:String>
     <sys:String x:Key="Str_KS_File">FILE</sys:String>
     <sys:String x:Key="Str_KS_Open">Open</sys:String>
     <sys:String x:Key="Str_KS_CloseFile">Close file</sys:String>
