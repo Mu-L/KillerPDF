@@ -135,11 +135,13 @@ namespace KillerPDF
                     byte[] pixels = new byte[composed.PixelWidth * composed.PixelHeight * 4];
                     composed.CopyPixels(pixels, composed.PixelWidth * 4, 0);
                     ReadOnlyMemory<byte> jpeg = useJpegCompression
-                        ? EncodeJpeg(composed, jpegQuality) : default;
+                        ? EncodeJpeg(composed, jpegQuality,
+                            colorMode == PageColorMode.Grayscale) : default;
                     File.WriteAllBytes(tmp, PdfEngineIntegration.CreateRasterDocument([
                         new PdfEngineIntegration.RasterPage(composed.PixelWidth,
                             composed.PixelHeight, newWpt, newHpt, pixels, jpeg,
-                            colorMode == PageColorMode.BlackAndWhite)]));
+                            Bitonal: colorMode == PageColorMode.BlackAndWhite,
+                            Grayscale: colorMode == PageColorMode.Grayscale)]));
                     replacements[pageIdx] = tmp;
                 }
                 if (ct.IsCancellationRequested)
@@ -188,13 +190,17 @@ namespace KillerPDF
             }
         }
 
-        private static byte[] EncodeJpeg(BitmapSource source, int quality)
+        private static byte[] EncodeJpeg(
+            BitmapSource source, int quality, bool grayscale)
         {
+            BitmapSource encodedSource = grayscale
+                ? new FormatConvertedBitmap(source, PixelFormats.Gray8, null, 0)
+                : source;
             var encoder = new JpegBitmapEncoder
             {
                 QualityLevel = Math.Clamp(quality, 1, 100)
             };
-            encoder.Frames.Add(BitmapFrame.Create(source));
+            encoder.Frames.Add(BitmapFrame.Create(encodedSource));
             using var stream = new MemoryStream();
             encoder.Save(stream);
             return stream.ToArray();

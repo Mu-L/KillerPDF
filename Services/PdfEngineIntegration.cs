@@ -495,7 +495,8 @@ internal static class PdfEngineIntegration
         int PixelWidth, int PixelHeight, double PageWidth, double PageHeight,
         ReadOnlyMemory<byte> BgraPixels,
         ReadOnlyMemory<byte> JpegData = default,
-        bool Bitonal = false);
+        bool Bitonal = false,
+        bool Grayscale = false);
 
     internal sealed record SearchableWord(
         string Text, int Left, int Top, int Right, int Bottom);
@@ -607,7 +608,7 @@ internal static class PdfEngineIntegration
                 throw new ArgumentOutOfRangeException(nameof(pages),
                     "Raster page dimensions must be positive.");
             PdfImage image;
-            if (page.Bitonal)
+            if (page.Bitonal || page.Grayscale && page.JpegData.IsEmpty)
             {
                 int required = checked(page.PixelWidth * page.PixelHeight * 4);
                 if (page.BgraPixels.Length != required)
@@ -617,7 +618,9 @@ internal static class PdfEngineIntegration
                 ReadOnlySpan<byte> bgra = page.BgraPixels.Span;
                 for (int pixel = 0; pixel < gray.Length; pixel++)
                     gray[pixel] = bgra[pixel * 4];
-                image = PdfImage.FromBitonal(page.PixelWidth, page.PixelHeight, gray);
+                image = page.Bitonal
+                    ? PdfImage.FromBitonal(page.PixelWidth, page.PixelHeight, gray)
+                    : PdfImage.FromGray(page.PixelWidth, page.PixelHeight, gray);
             }
             else if (!page.JpegData.IsEmpty)
             {

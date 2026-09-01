@@ -704,6 +704,20 @@ public sealed class PdfEngineIntegrationTests
     }
 
     [Fact]
+    public void CreateRasterDocument_StoresGrayscalePagesWithOneColorComponent()
+    {
+        byte[] result = PdfEngineIntegration.CreateRasterDocument([
+            new PdfEngineIntegration.RasterPage(2, 1, 144, 72,
+                new byte[] { 24, 24, 24, 255, 208, 208, 208, 255 },
+                Grayscale: true)]);
+
+        string syntax = System.Text.Encoding.Latin1.GetString(result);
+        Assert.Contains("/BitsPerComponent 8", syntax);
+        Assert.Contains("/ColorSpace /DeviceGray", syntax);
+        Assert.DoesNotContain("/SMask", syntax);
+    }
+
+    [Fact]
     public void MergeReadableFiles_SkipsInvalidFolderImportEntries()
     {
         string validPath = Path.Combine(Path.GetTempPath(), $"killerpdf-readable-{Guid.NewGuid():N}.pdf");

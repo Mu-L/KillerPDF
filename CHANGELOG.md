@@ -10,6 +10,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Changed
 
+- Grayscale Transform output now stores one color channel instead of three equal RGB channels (#324).
 - Updated interface translations, including fillable-field and page-copy status messages (#227).
 
 ### Fixed
