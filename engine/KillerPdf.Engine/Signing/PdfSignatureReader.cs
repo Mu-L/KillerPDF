@@ -144,7 +144,7 @@ public static class PdfSignatureReader
         ResolvedValue resolvedSignatureValue = ResolveWithIdentity(document, value,
             $"The signature field '{fieldName}' /V value");
         PdfObject resolvedValue = resolvedSignatureValue.Value;
-        if (resolvedValue is PdfNull)
+        if (IsUnsignedValue(resolvedValue))
             return new PdfSignatureInfo { FieldName = fieldName };
         PdfIndirectReference? signatureReference = resolvedSignatureValue.FinalReference;
         PdfDictionary signature = resolvedValue as PdfDictionary
@@ -202,6 +202,9 @@ public static class PdfSignatureReader
             CoversWholeDocument = coversWholeDocument
         };
     }
+
+    private static bool IsUnsignedValue(PdfObject value) =>
+        value is PdfNull || value is PdfString { Bytes.Length: 0 };
 
     private static bool GapIsExactContentsString(
         ReadOnlyMemory<byte> source,

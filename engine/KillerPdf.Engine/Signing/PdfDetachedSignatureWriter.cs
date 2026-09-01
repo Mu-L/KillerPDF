@@ -58,7 +58,7 @@ public static class PdfDetachedSignatureWriter
             {
                 PdfObject resolvedValue = Resolve(document, existingValue,
                     $"The signature field '{options.FieldName}' /V value");
-                if (resolvedValue is not PdfNull)
+                if (!IsUnsignedValue(resolvedValue))
                     throw new InvalidOperationException(
                         $"The signature field '{options.FieldName}' is already signed.");
             }
@@ -945,7 +945,7 @@ public static class PdfDetachedSignatureWriter
             {
                 PdfObject resolved = Resolve(document, signatureValue,
                     "A signed signature field /V value");
-                if (resolved is not PdfNull)
+                if (!IsUnsignedValue(resolved))
                 {
                     PdfDictionary signature = resolved as PdfDictionary
                         ?? throw new InvalidOperationException(
@@ -969,6 +969,9 @@ public static class PdfDetachedSignatureWriter
             return false;
         }
     }
+
+    private static bool IsUnsignedValue(PdfObject value) =>
+        value is PdfNull || value is PdfString { Bytes.Length: 0 };
 
     private static PdfDictionary? AddCertificationPermission(
         PdfDocument document,

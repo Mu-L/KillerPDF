@@ -377,6 +377,32 @@ public sealed class PdfDetachedSignatureWriterTests
         Assert.Equal(3, Assert.IsType<PdfInteger>(form[Name("SigFlags")]).Value);
     }
 
+    [Fact]
+    public void Sign_FillsExistingFieldWithEmptySignatureString()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "approval", 20, 20, 160, 40)
+            .Build());
+        PdfDictionary catalog = ResolveDictionary(source, source.Trailer[Name("Root")]);
+        PdfDictionary form = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfIndirectReference fieldReference = Assert.IsType<PdfIndirectReference>(
+            Assert.Single(Assert.IsType<PdfArray>(form[Name("Fields")])));
+        PdfDictionary field = ResolveDictionary(source, fieldReference);
+        PdfDocument emptyStringField = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(fieldReference.ObjectNumber, new PdfDictionary(field.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("V"),
+                    new PdfString([], PdfStringForm.Literal)))))
+            .Build());
+
+        byte[] signed = PdfDetachedSignatureWriter.Sign(
+            emptyStringField, _ => [0x30, 0x01, 0x00],
+            new PdfSignatureOptions { FieldName = "approval", ReservedSignatureSize = 16 });
+
+        Assert.True(Assert.Single(PdfSignatureReader.Read(
+            PdfDocument.Open(signed))).IsSigned);
+    }
+
     [Theory]
     [InlineData(false, "approval")]
     [InlineData(true, "group.approval")]

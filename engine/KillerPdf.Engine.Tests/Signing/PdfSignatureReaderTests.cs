@@ -165,6 +165,30 @@ public sealed class PdfSignatureReaderTests
     }
 
     [Fact]
+    public void Read_TreatsEmptySignatureStringAsUnsigned()
+    {
+        PdfDocument source = PdfDocument.Open(new PdfDocumentBuilder()
+            .AddBlankPage()
+            .AddSignatureField(0, "approval", 20, 20, 160, 40)
+            .Build());
+        PdfDictionary catalog = Assert.IsType<PdfDictionary>(source.Resolve(
+            Assert.IsType<PdfIndirectReference>(source.Trailer[Name("Root")])));
+        PdfDictionary form = Assert.IsType<PdfDictionary>(catalog[Name("AcroForm")]);
+        PdfIndirectReference fieldReference = Assert.IsType<PdfIndirectReference>(
+            Assert.Single(Assert.IsType<PdfArray>(form[Name("Fields")])));
+        PdfDictionary field = Assert.IsType<PdfDictionary>(source.Resolve(fieldReference));
+        PdfDocument reopened = PdfDocument.Open(new PdfIncrementalUpdateBuilder(source)
+            .ReplaceObject(fieldReference.ObjectNumber, new PdfDictionary(field.Append(
+                new KeyValuePair<PdfName, PdfObject>(Name("V"),
+                    new PdfString([], PdfStringForm.Literal)))))
+            .Build());
+
+        PdfSignatureInfo signature = Assert.Single(PdfSignatureReader.Read(reopened));
+
+        Assert.False(signature.IsSigned);
+    }
+
+    [Fact]
     public void Read_ReportsUnsignedAndCertificationSignaturesAndExtractsSignedContent()
     {
         byte[] source = new PdfDocumentBuilder()

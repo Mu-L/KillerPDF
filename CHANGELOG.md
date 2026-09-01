@@ -22,6 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Fixed
 
+- PDFs containing empty unsigned signature values now save and export normally.
 - Fillable text fields can now be selected, moved, resized, and deleted without rebuilding the document view (#307).
 - Corrected the annotation-tool shortcut labels and added Fillable Text Field to the shortcut reference (#339).
 - Fillable fields can now be added to tagged PDFs that organize pages as multiple top-level structure elements.
