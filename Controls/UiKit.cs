@@ -480,7 +480,7 @@ namespace KillerPDF
             }
             var themed = accent
                 ? Make(content, Brush("SelectionBg"), Brush("PrimaryBrush"), Brush("SelectionFg"), Brush("OnPrimaryBrush"), Brush("PrimaryBrush"))
-                : Make(content, Brush("PaneBrush"), Brush("RowHoverBrush"), Brush("TextBrush"), Brush("TextBrush"), Brush("CardBorderBrush"));
+                : Make(content, Brush("PaneBrush"), Brush("SurfaceHoverBrush"), Brush("TextBrush"), Brush("TextBrush"), Brush("CardBorderBrush"));
 
             // Make(object,bool) is used by long-lived annotation bars and modeless tool windows.
             // A local brush value would preserve the palette that happened to be active when the
@@ -494,7 +494,7 @@ namespace KillerPDF
             }
             void ApplyHover()
             {
-                themed.SetResourceReference(Control.BackgroundProperty, accent ? "PrimaryBrush" : "RowHoverBrush");
+                themed.SetResourceReference(Control.BackgroundProperty, accent ? "PrimaryBrush" : "SurfaceHoverBrush");
                 themed.SetResourceReference(Control.ForegroundProperty, accent ? "OnPrimaryBrush" : "TextBrush");
                 themed.SetResourceReference(Control.BorderBrushProperty, accent ? "PrimaryBrush" : "CardBorderBrush");
             }

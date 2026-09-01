@@ -378,6 +378,7 @@ namespace KillerPDF.Services
             // Install outline on teal-accent Black was fixed THERE.
             if (!d.Contains("OutlineRestBrush")) d["OutlineRestBrush"] = Pick("OutlineBtnBrush", "PrimaryBrush");
             if (!d.Contains("ButtonEdgeBrush")) d["ButtonEdgeBrush"] = Pick("MenuBorderBrush", "PaneBrush");
+            Alias("SurfaceHoverBrush", "RowHoverBrush");
             // The confirm button remains accent-led in modern themes. 98SE supplies classic gray
             // face/text/hover values so Open and Save never become a blue selection rectangle.
             if (!d.Contains("OutlineFaceBrush")) d["OutlineFaceBrush"] = Brushes.Transparent;
