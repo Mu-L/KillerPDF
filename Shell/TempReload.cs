@@ -28,7 +28,8 @@ namespace KillerPDF
             Action<string>? finalizeSavedFile = null,
             Action<Dictionary<int, int>>? remapRotations = null,
             int? selectedPageAfterReload = null,
-            UndoEntry? documentUndo = null)
+            UndoEntry? documentUndo = null,
+            bool preserveRenderedPages = false)
         {
             if (_doc is null || _currentFile is null) return;
             // Capture the previous serialized working file before any rewrite. Most operations
@@ -41,17 +42,23 @@ namespace KillerPDF
             // Stop render workers tied to the outgoing file before clearing the cache. Without this,
             // an already-running Grid or Continuous task can finish after the clear and put an old
             // page bitmap straight back into the active session.
-            _secondaryRenderCts?.Cancel();
-            _continuousRenderCts?.Cancel();
-            _continuousSharpenCts?.Cancel();
+            if (!preserveRenderedPages)
+            {
+                _secondaryRenderCts?.Cancel();
+                _continuousRenderCts?.Cancel();
+                _continuousSharpenCts?.Cancel();
+            }
             // Overlay annotations are unsaved, still-editable user work. Callers that don't change
             // page identity (crop) pass keepAnnotations:true so annotations on other pages survive
             // the reload and stay selectable/movable; they are re-rendered after the doc reopens.
             if (!keepAnnotations) _annotations.Clear();
-            _renderDims.Clear();
-            Controls.PdfViewer.InvalidateRenderCacheExt(_active);   // pages changed pixels / order: drop this tab's cached bitmaps
-            _renderedPrimaryPage = -1;        // force a re-render after reload even if the same page stays selected (e.g. rotate)
-            ClearSelection();
+            if (!preserveRenderedPages)
+            {
+                _renderDims.Clear();
+                Controls.PdfViewer.InvalidateRenderCacheExt(_active);   // pages changed pixels / order: drop this tab's cached bitmaps
+                _renderedPrimaryPage = -1;        // force a re-render after reload even if the same page stays selected (e.g. rotate)
+                ClearSelection();
+            }
             MarkDirty();
             var doc = _doc;
             int selectedIdx = selectedPageAfterReload ?? PageList.SelectedIndex;
@@ -115,6 +122,12 @@ namespace KillerPDF
             _currentFile = tempPath;
             if (documentUndo is { } completedUndo)
                 ActiveViewer.PushUndoExt(completedUndo);
+
+            if (preserveRenderedPages)
+            {
+                ActiveViewer.RefreshFormFieldsExt(selectedIdx);
+                return;
+            }
 
             // Clear once more after the old workers have observed cancellation. This closes the race
             // where a worker was already inside PDFium when the first clear happened and published its

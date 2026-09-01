@@ -75,7 +75,8 @@ namespace KillerPDF.Features
             Action<string>? finalizeSavedFile = null,
             Action<Dictionary<int, int>>? remapRotations = null,
             int? selectedPageAfterReload = null,
-            UndoEntry? documentUndo = null);
+            UndoEntry? documentUndo = null,
+            bool preserveRenderedPages = false);
         void RecordNavJump();
         PageAnnotation? PairPartner(PageAnnotation annotation);
         void RenderStamps(int page);

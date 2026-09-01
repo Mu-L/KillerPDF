@@ -18,6 +18,10 @@ public sealed class PdfFormWidgetReaderTests
                     ReadOnly = true,
                     Multiline = true,
                     MaximumLength = 80
+                }, appearanceStyle: new PdfFormFieldAppearanceStyle
+                {
+                    BackgroundColor = new PdfRgbColor(0.9, 0.8, 0.7),
+                    BorderColor = new PdfRgbColor(0.1, 0.2, 0.3)
                 })
             .AddCheckBox(0, "approved", 20, 250, 18, 18, true, "Accepted")
             .AddRadioGroup("priority",
@@ -49,6 +53,8 @@ public sealed class PdfFormWidgetReaderTests
         Assert.NotEqual(0, text.Flags & 4096);
         Assert.Equal(80, text.MaximumLength);
         Assert.Contains("11", text.DefaultAppearance);
+        Assert.Equal(new PdfRgbColor(0.9, 0.8, 0.7), text.BackgroundColor);
+        Assert.Equal(new PdfRgbColor(0.1, 0.2, 0.3), text.BorderColor);
         Assert.Equal((20d, 300d, 200d, 324d),
             (text.Left, text.Bottom, text.Right, text.Top));
         Assert.Equal((10d, 15d, 280d, 370d, 90),

@@ -38,6 +38,9 @@ namespace KillerPDF.Controls
         private string? _selectedFormFieldName;
 
         private const double FormResizeGripSize = 14;
+        private static readonly DependencyProperty FormFillCursorProperty =
+            DependencyProperty.RegisterAttached(
+                "FormFillCursor", typeof(Cursor), typeof(PdfViewer));
 
         private sealed class CombTextBox : Grid
         {
@@ -102,29 +105,35 @@ namespace KillerPDF.Controls
 
         internal void RefreshFormDesignMode()
         {
-            var pages = new HashSet<int>(_pages.Keys);
-            if (_currentPage >= 0) pages.Add(_currentPage);
-            foreach (int page in pages)
-                RenderAllAnnotations(page);
+            bool designMode = _currentTool == EditTool.FormField;
+            foreach (Canvas canvas in AllPageCanvases())
+            foreach (FrameworkElement element in canvas.Children
+                         .OfType<FrameworkElement>()
+                         .Where(child => child.Tag as string == FormOverlayTag))
+            {
+                element.Cursor = designMode
+                    ? Cursors.SizeAll
+                    : (Cursor?)element.GetValue(FormFillCursorProperty);
+                element.ForceCursor = designMode;
+            }
         }
 
         private void AttachFormDesignDrag(
             UIElement control, FormFieldInfo field, int pageIndex, Canvas canvas)
         {
             if (control is not FrameworkElement element) return;
+            element.Tag = FormOverlayTag;
+            element.SetValue(FormFillCursorProperty, element.Cursor);
             if (_currentTool == EditTool.FormField && field.ObjNum > 0)
             {
                 element.Cursor = Cursors.SizeAll;
                 element.ForceCursor = true;
-                if (element is ComboBox comboBox) comboBox.IsEnabled = false;
             }
 
             element.PreviewMouseLeftButtonDown += (_, e) =>
             {
-                bool selectTextField = _currentTool == EditTool.Select && field.FieldType == "/Tx";
-                if ((_currentTool != EditTool.FormField && !selectTextField) || field.ObjNum <= 0) return;
+                if (_currentTool != EditTool.FormField || field.ObjNum <= 0) return;
                 _selectedFormFieldName = field.FieldName;
-                if (selectTextField && e.ClickCount > 1) return;
                 Point local = e.GetPosition(element);
                 bool resize = local.X >= element.ActualWidth - FormResizeGripSize
                     && local.Y >= element.ActualHeight - FormResizeGripSize;
@@ -244,7 +253,8 @@ namespace KillerPDF.Controls
                 preserveZoom: true,
                 finalizeSavedFile: path => PdfEngineIntegration.SetTextFieldBackground(
                     path, field.FieldName, value, selected, fontSize),
-                selectedPageAfterReload: pageIndex);
+                selectedPageAfterReload: pageIndex,
+                preserveRenderedPages: true);
             _selectedFormFieldName = field.FieldName;
             SetStatus(string.Format(Loc("Str_St_FormFieldFillChanged"), field.FieldName));
         }
@@ -296,7 +306,8 @@ namespace KillerPDF.Controls
             double Scale,      // canvas units per PDF point, for converting DaFontPt to canvas size
             bool   IsComb,     // #158: /Tx with the Comb flag (bit 25) and a MaxLen
             int    MaxLen,     // #158: comb cell count (also the input length cap)
-            Color? BackgroundColor);
+            Color? BackgroundColor,
+            Color? BorderColor);
 
         /// <summary>
         /// Scans the current page's /Annots for Widget subtypes and overlays interactive
@@ -364,6 +375,8 @@ namespace KillerPDF.Controls
                     // (Consolas advance is ~0.55em), capped by MaxLen; the SAVED appearance
                     // stream places each character exactly at its cell center.
                     double combCellW = f.IsComb ? f.Cw / f.MaxLen : 0;
+                    var restingBorder = new SolidColorBrush(
+                        f.BorderColor ?? Color.FromRgb(0x88, 0x88, 0x88));
                     var tb = new TextBox
                     {
                         Tag              = FormOverlayTag,
@@ -388,7 +401,7 @@ namespace KillerPDF.Controls
                         ForceCursor      = true,
                         SelectionBrush   = (System.Windows.Media.Brush)FindResource("HeaderLineBrush"),
                         Style            = (Style)FindResource("FormFieldTextBox"),
-                        BorderBrush      = Brushes.Transparent,
+                        BorderBrush      = f.IsComb ? Brushes.Transparent : restingBorder,
                         BorderThickness  = new Thickness(1),
                         FontSize         = fontSize,
                         Padding          = f.IsComb
@@ -399,12 +412,11 @@ namespace KillerPDF.Controls
                         ToolTip          = string.IsNullOrEmpty(f.FieldName) ? null : f.FieldName,
                     };
                     if (f.IsComb) tb.FontFamily = new FontFamily("Consolas");
-                    // No outline at rest (the page already shows the field box); accent only on focus.
                     // Focus also raises the per-field font-size stepper (and hides it on blur).
                     string capturedKey   = f.FieldName;
                     double capturedScale = f.Scale;
-                    tb.GotFocus  += (_, _) => { tb.SetResourceReference(Control.BorderBrushProperty, "HeaderLineBrush"); ShowFormSizeBar(tb, capturedKey, capturedScale); };
-                    tb.LostFocus += (_, _) => { tb.BorderBrush = Brushes.Transparent; HideFormSizeBar(); };
+                    tb.GotFocus  += (_, _) => { _selectedFormFieldName = capturedKey; tb.SetResourceReference(Control.BorderBrushProperty, "HeaderLineBrush"); ShowFormSizeBar(tb, capturedKey, capturedScale); };
+                    tb.LostFocus += (_, _) => { tb.BorderBrush = f.IsComb ? Brushes.Transparent : restingBorder; HideFormSizeBar(); };
                     tb.TextChanged += (_, _) => { _formTextValues[capturedKey] = tb.Text; MarkDirty(true); };
                     ctrl = f.IsComb ? new CombTextBox(tb, f.MaxLen, fontSize) : tb;
                 }
@@ -696,6 +708,12 @@ namespace KillerPDF.Controls
                                 (byte)Math.Round(background.Red * 255),
                                 (byte)Math.Round(background.Green * 255),
                                 (byte)Math.Round(background.Blue * 255))
+                            : null,
+                        widget.BorderColor is { } border
+                            ? Color.FromRgb(
+                                (byte)Math.Round(border.Red * 255),
+                                (byte)Math.Round(border.Green * 255),
+                                (byte)Math.Round(border.Blue * 255))
                             : null));
                 }
             }

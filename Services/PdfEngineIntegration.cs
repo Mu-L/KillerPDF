@@ -101,8 +101,10 @@ internal static class PdfEngineIntegration
             BorderWidth = 1
         };
         var options = new PdfTextFieldOptions { Multiline = height >= 32 };
+        double initialFontSize = Math.Clamp(height * 0.5, 12, 24);
         byte[] result = new PdfIncrementalPageEditor(document).AddTextField(
-            pageIndex, name, x, y, width, height, options: options,
+            pageIndex, name, x, y, width, height, fontSize: initialFontSize,
+            options: options,
             fieldMetadata: new PdfFormFieldMetadata
             {
                 Tooltip = $"Answer {suffix - 1}"

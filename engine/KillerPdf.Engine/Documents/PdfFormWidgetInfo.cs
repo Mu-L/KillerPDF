@@ -51,6 +51,8 @@ public sealed record PdfFormWidgetInfo
     public required string DefaultAppearance { get; init; }
     /// <summary>Gets the widget background color, or null when none is defined.</summary>
     public PdfRgbColor? BackgroundColor { get; init; }
+    /// <summary>Gets the widget border color, or null when none is defined.</summary>
+    public PdfRgbColor? BorderColor { get; init; }
     /// <summary>Gets the effective maximum text length, or zero when unspecified.</summary>
     public required int MaximumLength { get; init; }
     /// <summary>Gets the widget's button on-state name, including the leading slash.</summary>

@@ -65,7 +65,8 @@ namespace KillerPDF.Controls
                 preserveZoom: true,
                 finalizeSavedFile: path => fieldName = PdfEngineIntegration.AddTextField(
                     path, pageIndex, x1, y1, x2 - x1, y2 - y1),
-                selectedPageAfterReload: pageIndex);
+                selectedPageAfterReload: pageIndex,
+                preserveRenderedPages: true);
             SetStatus(fieldName is null
                 ? Loc("Str_St_FormFieldCreateFailed")
                 : string.Format(Loc("Str_St_FormFieldCreated"), fieldName));
