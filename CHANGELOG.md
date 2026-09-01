@@ -22,6 +22,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Fixed
 
+- Fillable text fields can now be selected, moved, resized, and deleted without rebuilding the document view (#307).
 - Corrected the annotation-tool shortcut labels and added Fillable Text Field to the shortcut reference (#339).
 - Fillable fields can now be added to tagged PDFs that organize pages as multiple top-level structure elements.
 - Creating and filling a text field no longer visibly rebuilds the document view, and new fields start with a font size suited to their height.

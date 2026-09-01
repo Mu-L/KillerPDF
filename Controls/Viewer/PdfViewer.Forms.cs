@@ -132,8 +132,12 @@ namespace KillerPDF.Controls
 
             element.PreviewMouseLeftButtonDown += (_, e) =>
             {
-                if (_currentTool != EditTool.FormField || field.ObjNum <= 0) return;
+                bool selectTextField = _currentTool == EditTool.Select
+                    && field.FieldType == "/Tx";
+                if ((_currentTool != EditTool.FormField && !selectTextField)
+                    || field.ObjNum <= 0) return;
                 _selectedFormFieldName = field.FieldName;
+                if (selectTextField && e.ClickCount > 1) return;
                 Point local = e.GetPosition(element);
                 bool resize = local.X >= element.ActualWidth - FormResizeGripSize
                     && local.Y >= element.ActualHeight - FormResizeGripSize;
@@ -143,10 +147,11 @@ namespace KillerPDF.Controls
                 _formDragStart = e.GetPosition(canvas);
                 _formDragOrigin = new Point(Canvas.GetLeft(element), Canvas.GetTop(element));
                 _formDragSize = new Size(element.ActualWidth, element.ActualHeight);
-                _formDragIsResize = _currentTool == EditTool.FormField && resize;
+                _formDragIsResize = resize;
                 _formDragMoved = false;
                 HideFormSizeBar();
                 Keyboard.ClearFocus();
+                Window.GetWindow(element)?.Focus();
                 element.CaptureMouse();
                 Panel.SetZIndex(element, 30);
                 e.Handled = true;
@@ -161,7 +166,9 @@ namespace KillerPDF.Controls
             {
                 if (!ReferenceEquals(_formDragControl, element))
                 {
-                    if (_currentTool == EditTool.FormField)
+                    bool selectTextField = _currentTool == EditTool.Select
+                        && field.FieldType == "/Tx";
+                    if (_currentTool == EditTool.FormField || selectTextField)
                     {
                         Point local = e.GetPosition(element);
                         bool resize = local.X >= element.ActualWidth - FormResizeGripSize
@@ -233,7 +240,8 @@ namespace KillerPDF.Controls
                 keepAnnotations: true,
                 preserveZoom: true,
                 finalizeSavedFile: path => PdfEngineIntegration.RemoveFormField(path, fieldName),
-                selectedPageAfterReload: pageIndex);
+                selectedPageAfterReload: pageIndex,
+                preserveRenderedPages: true);
             SetStatus(string.Format(Loc("Str_St_FormFieldDeleted"), fieldName));
         }
 
@@ -281,7 +289,8 @@ namespace KillerPDF.Controls
                 preserveZoom: true,
                 finalizeSavedFile: path => PdfEngineIntegration.MoveFormWidget(
                     path, field.ObjNum, field.Generation, left, bottom, right, top),
-                selectedPageAfterReload: pageIndex);
+                selectedPageAfterReload: pageIndex,
+                preserveRenderedPages: true);
             SetStatus(resized
                 ? string.Format(Loc("Str_St_FormFieldResized"), field.FieldName)
                 : string.Format(Loc("Str_St_FormFieldMoved"), field.FieldName));
