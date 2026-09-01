@@ -12,12 +12,10 @@ namespace KillerPDF.Services
         private readonly string _dir;
         private readonly string _file;
 
-        private static readonly string DefaultDir  = System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "KillerPDF");
+        private static string DefaultDir => AppDataPaths.UserRoot;
 
         public SignatureStore()
-            : this(DefaultDir, System.IO.Path.Combine(DefaultDir, "signatures.json")) { }
+            : this(DefaultDir, AppDataPaths.SignaturesFile) { }
 
         internal SignatureStore(string dir, string file)
         {

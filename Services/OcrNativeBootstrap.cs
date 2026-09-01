@@ -32,9 +32,7 @@ namespace KillerPDF.Services
         /// Version-independent tessdata folder. The bundled English is extracted here on first use, and
         /// user-downloaded language packs are written here too, so they persist across app updates.
         /// </summary>
-        public static string TessDataDir { get; } = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "KillerPDF", "tessdata");
+        public static string TessDataDir { get; } = AppDataPaths.TessDataDirectory;
 
         /// <summary>
         /// Ensures the bundled language data (English) is present in <see cref="TessDataDir"/> and returns
@@ -78,9 +76,7 @@ namespace KillerPDF.Services
 
                 var asm = typeof(OcrNativeBootstrap).Assembly;
                 string version = asm.GetName().Version?.ToString() ?? "0";
-                string baseDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "KillerPDF", "ocr", version);
+                string baseDir = Path.Combine(AppDataPaths.LocalRoot, "ocr", version);
                 string nativeDir = Path.Combine(baseDir, "x64");
                 Directory.CreateDirectory(nativeDir);
 

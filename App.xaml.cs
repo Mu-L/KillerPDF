@@ -1080,6 +1080,8 @@ namespace KillerPDF
 
         internal static string? GetSetting(string name)
         {
+            if (Services.AppDataPaths.PortableRoot is not null)
+                return Services.AppDataPaths.GetPortableSetting(name);
             try
             {
                 using var key = Registry.CurrentUser.OpenSubKey(@"Software\KillerPDF\Settings");
@@ -1090,6 +1092,11 @@ namespace KillerPDF
 
         internal static void SetSetting(string name, string value)
         {
+            if (Services.AppDataPaths.PortableRoot is not null)
+            {
+                try { Services.AppDataPaths.SetPortableSetting(name, value); } catch { }
+                return;
+            }
             try
             {
                 using var key = Registry.CurrentUser.CreateSubKey(@"Software\KillerPDF\Settings");
@@ -1100,6 +1107,11 @@ namespace KillerPDF
 
         internal static void RemoveSetting(string name)
         {
+            if (Services.AppDataPaths.PortableRoot is not null)
+            {
+                try { Services.AppDataPaths.RemovePortableSetting(name); } catch { }
+                return;
+            }
             try
             {
                 using var key = Registry.CurrentUser.OpenSubKey(@"Software\KillerPDF\Settings", writable: true);
@@ -1115,12 +1127,13 @@ namespace KillerPDF
         /// </summary>
         internal static void ClearAllData()
         {
-            try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\KillerPDF\Settings", throwOnMissingSubKey: false); } catch { }
+            if (Services.AppDataPaths.PortableRoot is not null)
+                TryDeleteDir(Services.AppDataPaths.UserRoot);
+            else
+                try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\KillerPDF\Settings", throwOnMissingSubKey: false); } catch { }
 
-            string localKp = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "KillerPDF");
-            TryDeleteDir(Path.Combine(localKp, "tessdata"));   // downloaded language packs + bundled English
-            TryDeleteDir(Path.Combine(localKp, "ocr"));        // native Tesseract cache
+            TryDeleteDir(Services.AppDataPaths.TessDataDirectory);
+            TryDeleteDir(Path.Combine(Services.AppDataPaths.LocalRoot, "ocr"));
             TryDeleteDir(TempDir);                              // temp working files
 
             // Legacy temp PDFs that may linger in %TEMP%.

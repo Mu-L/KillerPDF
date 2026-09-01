@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 1.8.3 improves tagged form editing, file selection, crash reporting, translations, and contributor guidance.
 
+### Added
+
+- Portable builds now keep settings, signatures, swatches, and OCR models in a `KillerPDF-Data` folder beside the launcher (#327).
+
 ### Changed
 
 - Grayscale Transform output now stores one color channel instead of three equal RGB channels (#324).
