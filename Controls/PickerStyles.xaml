@@ -177,6 +177,84 @@
         </MenuItem>
     </ContextMenu>
 
+    <Style x:Key="PickerContextMenu" TargetType="ContextMenu">
+        <Setter Property="Background" Value="{DynamicResource FileDialogPaneBrush}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="Padding" Value="3"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ContextMenu">
+                    <Grid Margin="8">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="{DynamicResource ControlCornerRadius}"
+                                IsHitTestVisible="False">
+                            <Border.Effect>
+                                <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2"
+                                                  Direction="270" Opacity="{DynamicResource FlyoutShadowOpacity}"/>
+                            </Border.Effect>
+                        </Border>
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                CornerRadius="{DynamicResource ControlCornerRadius}">
+                            <Grid>
+                                <StackPanel IsItemsHost="True" Margin="{TemplateBinding Padding}"/>
+                                <Border IsHitTestVisible="False"
+                                        CornerRadius="{DynamicResource ControlCornerRadius}"
+                                        Background="{DynamicResource GrainTileBrush}"
+                                        Opacity="{DynamicResource GrainOpacity}"/>
+                            </Grid>
+                        </Border>
+                        <Control Panel.ZIndex="20" Style="{StaticResource PaneBevelOverlay}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="PickerMenuItem" TargetType="MenuItem">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+        <Setter Property="Padding" Value="8,5"/>
+        <Setter Property="FontFamily" Value="{DynamicResource MenuFontFamily}"/>
+        <Setter Property="FontSize" Value="{DynamicResource MenuFontSize}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="MenuItem">
+                    <Border x:Name="ItemBorder" Background="{TemplateBinding Background}"
+                            CornerRadius="{DynamicResource ControlCornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="18"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="CheckGlyph" Text="&#xE73E;"
+                                       FontFamily="Segoe MDL2 Assets" FontSize="11"
+                                       Foreground="{DynamicResource PrimaryBrush}"
+                                       VerticalAlignment="Center" Visibility="Collapsed"/>
+                            <ContentPresenter Grid.Column="1" ContentSource="Header"
+                                              VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background"
+                                    Value="{DynamicResource SurfaceHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="CheckGlyph" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- The places / bookmarks rail. Same template as PickerRow but tight: the rail is a
          navigation list beside a folder tree, so its rows should match the tree's line height and
          let you see more at once. PickerRow's 8,5 padding plus 2,1 margin made each place ~28px

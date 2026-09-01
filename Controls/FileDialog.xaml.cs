@@ -120,6 +120,8 @@ namespace KillerPDF.Controls
         private const string PlacesHKey    = "FileDlgPlacesH";
         private const string LastOpenKey   = "FileDlgLastOpenDir";
         private const string LastSaveKey   = "FileDlgLastSaveDir";
+        private const string SortKeyKey    = "FileDlgSortKey";
+        private const string SortAscKey    = "FileDlgSortAsc";
 
         // Image pickers (every caller with ShowImagePreview) remember their own folder, separate
         // from the document open/save memory. One shared key meant Insert Image always started
@@ -202,6 +204,11 @@ namespace KillerPDF.Controls
             _showHidden = App.GetSetting(ShowHiddenKey) == "1";
             FolderNode.ShowHidden = _showHidden;
             ApplyShowHiddenButton();
+            if (int.TryParse(App.GetSetting(SortKeyKey), out int savedSortKey)
+                && savedSortKey is >= 0 and <= 2)
+                _sortKey = savedSortKey;
+            _sortAsc = App.GetSetting(SortAscKey) is not string savedSortAsc
+                || savedSortAsc != "0";
 
             Closing += (_, _) =>
             {
@@ -1166,10 +1173,18 @@ namespace KillerPDF.Controls
         private void SortSize_Click(object sender, RoutedEventArgs e)     => SetSort(1);
         private void SortModified_Click(object sender, RoutedEventArgs e) => SetSort(2);
 
+        private void SortButton_Click(object sender, RoutedEventArgs e)
+        {
+            SortMenu.PlacementTarget = SortButton;
+            SortMenu.IsOpen = true;
+        }
+
         private void SetSort(int key)
         {
             if (_sortKey == key) _sortAsc = !_sortAsc;
-            else { _sortKey = key; _sortAsc = true; }
+            else { _sortKey = key; _sortAsc = key == 0; }
+            App.SetSetting(SortKeyKey, _sortKey.ToString());
+            App.SetSetting(SortAscKey, _sortAsc ? "1" : "0");
             ApplySort();
         }
 
@@ -1197,6 +1212,10 @@ namespace KillerPDF.Controls
             NameArrow.Text = _sortKey == 0 ? (_sortAsc ? ArrowUp : ArrowDown) : "";
             SizeArrow.Text = _sortKey == 1 ? (_sortAsc ? ArrowUp : ArrowDown) : "";
             ModArrow.Text  = _sortKey == 2 ? (_sortAsc ? ArrowUp : ArrowDown) : "";
+            SortNameItem.IsChecked = _sortKey == 0;
+            SortSizeItem.IsChecked = _sortKey == 1;
+            SortModifiedItem.IsChecked = _sortKey == 2;
+            SortButton.Tag = "on";
 
             EmptyHint.Visibility = Entries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }

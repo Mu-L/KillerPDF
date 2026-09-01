@@ -180,6 +180,29 @@
                     </Popup>
                 </Grid>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="8,0,0,0" VerticalAlignment="Center">
+                    <Button x:Name="SortButton" Style="{StaticResource PickerViewBtn}" Content="&#xE8CB;"
+                            Click="SortButton_Click" Margin="0,0,6,0">
+                        <Button.ToolTip>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{DynamicResource Str_Col_Name}"/>
+                                <TextBlock Text=" / "/>
+                                <TextBlock Text="{DynamicResource Str_Col_Size}"/>
+                                <TextBlock Text=" / "/>
+                                <TextBlock Text="{DynamicResource Str_Col_Modified}"/>
+                            </StackPanel>
+                        </Button.ToolTip>
+                        <Button.ContextMenu>
+                            <ContextMenu x:Name="SortMenu" Style="{StaticResource PickerContextMenu}"
+                                         ItemContainerStyle="{StaticResource PickerMenuItem}">
+                                <MenuItem x:Name="SortNameItem" Header="{DynamicResource Str_Col_Name}"
+                                          IsCheckable="True" Click="SortName_Click"/>
+                                <MenuItem x:Name="SortSizeItem" Header="{DynamicResource Str_Col_Size}"
+                                          IsCheckable="True" Click="SortSize_Click"/>
+                                <MenuItem x:Name="SortModifiedItem" Header="{DynamicResource Str_Col_Modified}"
+                                          IsCheckable="True" Click="SortModified_Click"/>
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                    </Button>
                     <!-- E7B3 (off) / E890 (on) - KillerShell's build-proven pair (ViewOptions.cs). -->
                     <Button x:Name="ShowHiddenBtn"  Style="{StaticResource PickerViewBtn}" Content="&#xE7B3;" ToolTip="{DynamicResource Str_TT_ShowHidden}"  Click="ShowHidden_Click"  Margin="0,0,6,0"/>
                     <Button x:Name="ViewListBtn"    Style="{StaticResource PickerViewBtn}" Content="&#xE8FD;" ToolTip="{DynamicResource Str_TT_ViewList}"    Click="ViewList_Click"/>
