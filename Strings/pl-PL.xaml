@@ -991,4 +991,18 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF nie mógł pobrać pliku PDF.</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">Upłynął limit czasu pobierania pliku PDF.</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">KillerPDF nie mógł zapisać ani odczytać pobranego pliku PDF.</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">Przeciągnij, aby utworzyć wypełnialne pole tekstowe</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">Tworzenie pola tekstowego anulowane</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">Nie można utworzyć wypełnialnego pola tekstowego</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">Utworzono wypełnialne pole tekstowe {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">Zmienianie rozmiaru pola {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">Przenoszenie pola {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">Usunięto wypełnialne pole {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">Zmieniono kolor wypełnienia pola {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">Zmieniono rozmiar pola {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">Przeniesiono pole {0}</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">Skopiowano 1 stronę do tego dokumentu.</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">Skopiowano {0} stron do tego dokumentu.</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">Kopiowanie strony nie powiodło się:&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">Nie można naprawić pliku „{0}”.</sys:String>
 </ResourceDictionary>

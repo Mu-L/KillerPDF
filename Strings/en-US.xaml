@@ -1003,4 +1003,18 @@ Scale them to a supported size? The pages keep their look and proportions.</sys:
     <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF could not download the PDF.</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">The PDF download timed out.</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">KillerPDF could not save or read the downloaded PDF.</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">Drag to create a fillable text field</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">Fillable text field canceled</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">Could not create the fillable text field</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">Created fillable text field {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">Resizing fillable field {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">Moving fillable field {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">Deleted fillable field {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">Changed fill color for {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">Resized fillable field {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">Moved fillable field {0}</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">Copied 1 page to this document.</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">Copied {0} pages to this document.</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">Page copy failed:&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">&quot;{0}&quot; could not be repaired.</sys:String>
 </ResourceDictionary>

@@ -985,4 +985,18 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF無法下載PDF。</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">PDF下載逾時。</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">KillerPDF無法儲存或讀取下載的PDF。</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">拖曳以建立可填寫文字欄位</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">已取消建立可填寫文字欄位</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">無法建立可填寫文字欄位</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">已建立可填寫文字欄位 {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">正在調整可填寫欄位 {0} 的大小</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">正在移動可填寫欄位 {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">已刪除可填寫欄位 {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">已變更 {0} 的填滿顏色</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">已調整可填寫欄位 {0} 的大小</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">已移動可填寫欄位 {0}</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">已將 1 頁複製到此文件。</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">已將 {0} 頁複製到此文件。</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">頁面複製失敗：&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">無法修復「{0}」。</sys:String>
 </ResourceDictionary>

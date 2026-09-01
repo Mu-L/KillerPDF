@@ -170,8 +170,8 @@ namespace KillerPDF.Controls
                 {
                     _formDragMoved = true;
                     SetStatus(_formDragIsResize
-                        ? $"Resizing fillable field {field.FieldName}"
-                        : $"Moving fillable field {field.FieldName}");
+                        ? string.Format(Loc("Str_St_FormFieldResizing"), field.FieldName)
+                        : string.Format(Loc("Str_St_FormFieldMoving"), field.FieldName));
                 }
                 if (_formDragIsResize)
                 {
@@ -225,7 +225,7 @@ namespace KillerPDF.Controls
                 preserveZoom: true,
                 finalizeSavedFile: path => PdfEngineIntegration.RemoveFormField(path, fieldName),
                 selectedPageAfterReload: pageIndex);
-            SetStatus($"Deleted fillable field {fieldName}");
+            SetStatus(string.Format(Loc("Str_St_FormFieldDeleted"), fieldName));
         }
 
         private void OpenFormFieldColorPicker(FormFieldInfo field, int pageIndex)
@@ -246,7 +246,7 @@ namespace KillerPDF.Controls
                     path, field.FieldName, value, selected, fontSize),
                 selectedPageAfterReload: pageIndex);
             _selectedFormFieldName = field.FieldName;
-            SetStatus($"Changed fill color for {field.FieldName}");
+            SetStatus(string.Format(Loc("Str_St_FormFieldFillChanged"), field.FieldName));
         }
 
         private void CommitFormFieldRectangle(
@@ -273,8 +273,8 @@ namespace KillerPDF.Controls
                     path, field.ObjNum, field.Generation, left, bottom, right, top),
                 selectedPageAfterReload: pageIndex);
             SetStatus(resized
-                ? $"Resized fillable field {field.FieldName}"
-                : $"Moved fillable field {field.FieldName}");
+                ? string.Format(Loc("Str_St_FormFieldResized"), field.FieldName)
+                : string.Format(Loc("Str_St_FormFieldMoved"), field.FieldName));
         }
 
         private readonly record struct FormFieldInfo(

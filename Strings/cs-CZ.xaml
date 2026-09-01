@@ -988,4 +988,18 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF nemohl stáhnout PDF.</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">Časový limit stahování PDF vypršel.</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">KillerPDF nemohl uložit nebo přečíst stažené PDF.</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">Tažením vytvořte vyplnitelné textové pole</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">Vytváření textového pole zrušeno</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">Vyplnitelné textové pole se nepodařilo vytvořit</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">Vyplnitelné textové pole {0} bylo vytvořeno</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">Mění se velikost vyplnitelného pole {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">Přesouvá se vyplnitelné pole {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">Vyplnitelné pole {0} bylo odstraněno</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">Barva výplně pole {0} byla změněna</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">Velikost vyplnitelného pole {0} byla změněna</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">Vyplnitelné pole {0} bylo přesunuto</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">Do tohoto dokumentu byla zkopírována 1 stránka.</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">Do tohoto dokumentu bylo zkopírováno {0} stránek.</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">Kopírování stránky selhalo:&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">Soubor „{0}“ se nepodařilo opravit.</sys:String>
 </ResourceDictionary>

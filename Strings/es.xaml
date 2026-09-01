@@ -983,4 +983,18 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF no pudo descargar el PDF.</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">Se ha agotado el tiempo de espera de la descarga del PDF.</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">KillerPDF no pudo guardar o leer el PDF descargado.</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">Arrastre para crear un campo de texto rellenable</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">Creación del campo de texto cancelada</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">No se pudo crear el campo de texto rellenable</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">Campo de texto rellenable {0} creado</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">Cambiando el tamaño del campo rellenable {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">Moviendo el campo rellenable {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">Campo rellenable {0} eliminado</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">Color de relleno cambiado para {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">Tamaño del campo rellenable {0} cambiado</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">Campo rellenable {0} movido</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">Se copió 1 página a este documento.</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">Se copiaron {0} páginas a este documento.</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">Error al copiar la página:&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">No se pudo reparar &quot;{0}&quot;.</sys:String>
 </ResourceDictionary>

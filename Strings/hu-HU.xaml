@@ -990,4 +990,18 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Handoff_DownloadFailed">A KillerPDF nem tudta letölteni a PDF-et.</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">A PDF-letöltés túllépte az időkorlátot.</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">A KillerPDF nem tudta menteni vagy olvasni a letöltött PDF-et.</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">Húzással hozzon létre kitölthető szövegmezőt</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">A kitölthető szövegmező létrehozása megszakítva</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">Nem sikerült létrehozni a kitölthető szövegmezőt</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">A(z) {0} kitölthető szövegmező létrejött</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">A(z) {0} kitölthető mező átméretezése</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">A(z) {0} kitölthető mező áthelyezése</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">A(z) {0} kitölthető mező törölve</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">A(z) {0} kitöltési színe megváltozott</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">A(z) {0} kitölthető mező átméretezve</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">A(z) {0} kitölthető mező áthelyezve</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">1 oldal átmásolva ebbe a dokumentumba.</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">{0} oldal átmásolva ebbe a dokumentumba.</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">Az oldal másolása sikertelen:&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">A(z) „{0}” nem javítható.</sys:String>
 </ResourceDictionary>

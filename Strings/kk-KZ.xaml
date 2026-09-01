@@ -1002,4 +1002,18 @@ Windows параметрлері - Әдепкі қолданбалар ашыл�
     <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF PDF-ті жүктеп ала алмады.</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">PDF жүктеу уақыты аяқталды.</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">KillerPDF жүктеп алынған PDF-ті сақтай да, оқи да алмады.</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">Толтырылатын мәтін өрісін жасау үшін сүйреңіз</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">Толтырылатын мәтін өрісін жасау тоқтатылды</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">Толтырылатын мәтін өрісін жасау мүмкін болмады</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">{0} толтырылатын мәтін өрісі жасалды</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">{0} толтырылатын өрісінің өлшемі өзгертілуде</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">{0} толтырылатын өрісі жылжытылуда</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">{0} толтырылатын өрісі жойылды</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">{0} үшін толтыру түсі өзгертілді</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">{0} толтырылатын өрісінің өлшемі өзгертілді</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">{0} толтырылатын өрісі жылжытылды</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">Осы құжатқа 1 бет көшірілді.</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">Осы құжатқа {0} бет көшірілді.</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">Бетті көшіру сәтсіз аяқталды:&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">«{0}» файлын жөндеу мүмкін болмады.</sys:String>
 </ResourceDictionary>

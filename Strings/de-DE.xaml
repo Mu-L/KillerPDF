@@ -989,4 +989,18 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF konnte das PDF nicht herunterladen.</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">Die Zeit für den PDF-Download ist abgelaufen.</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">KillerPDF konnte die heruntergeladene PDF-Datei nicht speichern oder lesen.</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">Ziehen Sie, um ein ausfüllbares Textfeld zu erstellen</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">Ausfüllbares Textfeld abgebrochen</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">Das ausfüllbare Textfeld konnte nicht erstellt werden</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">Ausfüllbares Textfeld {0} erstellt</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">Größe des ausfüllbaren Felds {0} wird geändert</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">Ausfüllbares Feld {0} wird verschoben</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">Ausfüllbares Feld {0} gelöscht</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">Füllfarbe für {0} geändert</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">Größe des ausfüllbaren Felds {0} geändert</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">Ausfüllbares Feld {0} verschoben</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">1 Seite in dieses Dokument kopiert.</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">{0} Seiten in dieses Dokument kopiert.</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">Kopieren der Seite fehlgeschlagen:&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">&quot;{0}&quot; konnte nicht repariert werden.</sys:String>
 </ResourceDictionary>

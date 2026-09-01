@@ -29,7 +29,7 @@ namespace KillerPDF.Controls
             _activeCanvas.Children.Add(preview);
             _activePreview = preview;
             _activeCanvas.CaptureMouse();
-            SetStatus("Drag to create a fillable text field");
+            SetStatus(Loc("Str_St_FormFieldDrag"));
         }
 
         private void CommitFormFieldDrag(int pageIndex, Rectangle preview)
@@ -40,7 +40,7 @@ namespace KillerPDF.Controls
             _activeCanvas?.Children.Remove(preview);
             if (canvasRect.Width < 12 || canvasRect.Height < 12)
             {
-                SetStatus("Fillable text field canceled");
+                SetStatus(Loc("Str_St_FormFieldCanceled"));
                 return;
             }
             if (_currentFile is null || _activeCanvas is null)
@@ -67,8 +67,8 @@ namespace KillerPDF.Controls
                     path, pageIndex, x1, y1, x2 - x1, y2 - y1),
                 selectedPageAfterReload: pageIndex);
             SetStatus(fieldName is null
-                ? "Could not create the fillable text field"
-                : $"Created fillable text field {fieldName}");
+                ? Loc("Str_St_FormFieldCreateFailed")
+                : string.Format(Loc("Str_St_FormFieldCreated"), fieldName));
         }
     }
 }

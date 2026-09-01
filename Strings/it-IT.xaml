@@ -1003,4 +1003,18 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF non è riuscito a scaricare il PDF.</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">Timeout per il download del PDF.</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">KillerPDF non è riuscito a salvare o leggere il PDF scaricato.</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">Trascina per creare un campo di testo compilabile</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">Creazione del campo di testo annullata</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">Impossibile creare il campo di testo compilabile</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">Campo di testo compilabile {0} creato</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">Ridimensionamento del campo compilabile {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">Spostamento del campo compilabile {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">Campo compilabile {0} eliminato</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">Colore di riempimento modificato per {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">Campo compilabile {0} ridimensionato</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">Campo compilabile {0} spostato</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">1 pagina copiata in questo documento.</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">{0} pagine copiate in questo documento.</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">Copia della pagina non riuscita:&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">Impossibile riparare &quot;{0}&quot;.</sys:String>
 </ResourceDictionary>

@@ -261,12 +261,12 @@ namespace KillerPDF
                 }
 
                 SetStatus(payload.PageIndices.Length == 1
-                    ? "Copied 1 page to this document."
-                    : $"Copied {payload.PageIndices.Length} pages to this document.");
+                    ? Loc("Str_St_PageCopiedHere")
+                    : string.Format(Loc("Str_St_PagesCopiedHere"), payload.PageIndices.Length));
             }
             catch (Exception ex)
             {
-                KillerDialog.Show(this, $"Page copy failed:\n{ex.Message}",
+                KillerDialog.Show(this, string.Format(Loc("Str_Err_PageCopyFailed"), ex.Message),
                     Loc("Str_Dlg_AppTitle"), MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -490,7 +490,8 @@ namespace KillerPDF
 
                 if (repaired is null)
                     KillerDialog.Show(this,
-                        $"\"{System.IO.Path.GetFileName(path)}\" could not be repaired.",
+                        string.Format(Loc("Str_Err_FileRepairFailed"),
+                            System.IO.Path.GetFileName(path)),
                         "KillerPDF", MessageBoxButton.OK, MessageBoxImage.Error);
                 return repaired;
             }

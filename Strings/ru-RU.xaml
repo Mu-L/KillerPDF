@@ -1003,4 +1003,18 @@ KillerPDF не будет создавать две установленные �
     <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF не удалось загрузить PDF-файл.</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">Время загрузки PDF-файла истекло.</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">KillerPDF не удалось сохранить или прочитать загруженный PDF-файл.</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">Перетащите, чтобы создать заполняемое текстовое поле</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">Создание текстового поля отменено</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">Не удалось создать заполняемое текстовое поле</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">Создано заполняемое текстовое поле {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">Изменение размера заполняемого поля {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">Перемещение заполняемого поля {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">Удалено заполняемое поле {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">Изменен цвет заливки для {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">Размер заполняемого поля {0} изменен</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">Заполняемое поле {0} перемещено</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">В этот документ скопирована 1 страница.</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">В этот документ скопировано страниц: {0}.</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">Не удалось скопировать страницу:&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">Не удалось восстановить файл «{0}».</sys:String>
 </ResourceDictionary>

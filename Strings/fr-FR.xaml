@@ -1003,4 +1003,18 @@ Les redimensionner à une taille prise en charge ? Les pages conservent leur app
     <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF n'a pas pu télécharger le PDF.</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">Le téléchargement du PDF a expiré.</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">KillerPDF n'a pas pu enregistrer ou lire le PDF téléchargé.</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">Faites glisser pour créer un champ de texte remplissable</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">Création du champ de texte annulée</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">Impossible de créer le champ de texte remplissable</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">Champ de texte remplissable {0} créé</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">Redimensionnement du champ remplissable {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">Déplacement du champ remplissable {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">Champ remplissable {0} supprimé</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">Couleur de remplissage modifiée pour {0}</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">Champ remplissable {0} redimensionné</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">Champ remplissable {0} déplacé</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">1 page copiée dans ce document.</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">{0} pages copiées dans ce document.</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">Échec de la copie de la page :&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">Impossible de réparer « {0} ».</sys:String>
 </ResourceDictionary>

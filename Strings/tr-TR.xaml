@@ -983,4 +983,18 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF PDF&apos;yi indiremedi.</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">PDF indirme işlemi zaman aşımına uğradı.</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">KillerPDF indirilen PDF&apos;yi kaydedemedi veya okuyamadı.</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">Doldurulabilir metin alanı oluşturmak için sürükleyin</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">Doldurulabilir metin alanı oluşturma iptal edildi</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">Doldurulabilir metin alanı oluşturulamadı</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">Doldurulabilir metin alanı {0} oluşturuldu</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">Doldurulabilir alan {0} yeniden boyutlandırılıyor</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">Doldurulabilir alan {0} taşınıyor</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">Doldurulabilir alan {0} silindi</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">{0} için dolgu rengi değiştirildi</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">Doldurulabilir alan {0} yeniden boyutlandırıldı</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">Doldurulabilir alan {0} taşındı</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">Bu belgeye 1 sayfa kopyalandı.</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">Bu belgeye {0} sayfa kopyalandı.</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">Sayfa kopyalanamadı:&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">&quot;{0}&quot; onarılamadı.</sys:String>
 </ResourceDictionary>

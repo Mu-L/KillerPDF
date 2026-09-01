@@ -1003,4 +1003,18 @@ Windows の設定 - 既定のアプリ を開きます。</sys:String>
     <sys:String x:Key="Str_Handoff_DownloadFailed">KillerPDF は PDF をダウンロードできませんでした。</sys:String>
     <sys:String x:Key="Str_Handoff_TimedOut">PDF のダウンロードがタイムアウトしました。</sys:String>
     <sys:String x:Key="Str_Handoff_FileError">KillerPDF はダウンロードした PDF を保存または読み取ることができませんでした。</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDrag">ドラッグして入力可能なテキストフィールドを作成</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCanceled">入力可能なテキストフィールドの作成をキャンセルしました</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreateFailed">入力可能なテキストフィールドを作成できませんでした</sys:String>
+    <sys:String x:Key="Str_St_FormFieldCreated">入力可能なテキストフィールド {0} を作成しました</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResizing">入力可能なフィールド {0} のサイズを変更中</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoving">入力可能なフィールド {0} を移動中</sys:String>
+    <sys:String x:Key="Str_St_FormFieldDeleted">入力可能なフィールド {0} を削除しました</sys:String>
+    <sys:String x:Key="Str_St_FormFieldFillChanged">{0} の塗りつぶし色を変更しました</sys:String>
+    <sys:String x:Key="Str_St_FormFieldResized">入力可能なフィールド {0} のサイズを変更しました</sys:String>
+    <sys:String x:Key="Str_St_FormFieldMoved">入力可能なフィールド {0} を移動しました</sys:String>
+    <sys:String x:Key="Str_St_PageCopiedHere">この文書に 1 ページをコピーしました。</sys:String>
+    <sys:String x:Key="Str_St_PagesCopiedHere">この文書に {0} ページをコピーしました。</sys:String>
+    <sys:String x:Key="Str_Err_PageCopyFailed">ページのコピーに失敗しました:&#10;{0}</sys:String>
+    <sys:String x:Key="Str_Err_FileRepairFailed">「{0}」を修復できませんでした。</sys:String>
 </ResourceDictionary>

@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 1.8.3 improves tagged form editing, file selection, crash reporting, translations, and contributor guidance.
 
+### Changed
+
+- Updated interface translations, including fillable-field and page-copy status messages (#227).
+
 ### Fixed
 
 - The Highlight bar now names its broad deletion mode as the annotation eraser instead of implying that it only erases highlights (#325).
