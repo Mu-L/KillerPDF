@@ -472,6 +472,7 @@ Změnit jejich velikost na podporovanou? Stránky si zachovají vzhled i proporc
     <sys:String x:Key="Str_Bar_Font">Písmo:</sys:String>
     <sys:String x:Key="Str_Bar_Level">Přichytit k ose</sys:String>
     <sys:String x:Key="Str_Bar_Eraser">Guma</sys:String>
+    <sys:String x:Key="Str_Bar_AnnotationEraser">Mazání anotací</sys:String>
     <sys:String x:Key="Str_Bar_MoreColors">Další barvy...</sys:String>
     <sys:String x:Key="Str_Sig_Signatures">Podpisy</sys:String>
     <sys:String x:Key="Str_Sig_Initials">Iniciály</sys:String>

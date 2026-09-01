@@ -406,6 +406,7 @@ Abre Configuración de Windows - Aplicaciones predeterminadas.</sys:String>
     <sys:String x:Key="Str_Bar_Font">Fuente:</sys:String>
     <sys:String x:Key="Str_Bar_Level">Nivelar</sys:String>
     <sys:String x:Key="Str_Bar_Eraser">Borrador</sys:String>
+    <sys:String x:Key="Str_Bar_AnnotationEraser">Borrador de anotaciones</sys:String>
     <sys:String x:Key="Str_Bar_MoreColors">Más colores...</sys:String>
     <sys:String x:Key="Str_Sig_Signatures">Firmas</sys:String>
     <sys:String x:Key="Str_Sig_Initials">Iniciales</sys:String>

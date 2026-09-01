@@ -406,6 +406,7 @@ KillerPDF 不会创建两个已安装的副本。</sys:String>
     <sys:String x:Key="Str_Bar_Font">字体：</sys:String>
     <sys:String x:Key="Str_Bar_Level">水平</sys:String>
     <sys:String x:Key="Str_Bar_Eraser">橡皮擦</sys:String>
+    <sys:String x:Key="Str_Bar_AnnotationEraser">注释橡皮擦</sys:String>
     <sys:String x:Key="Str_Bar_MoreColors">更多颜色...</sys:String>
     <sys:String x:Key="Str_Sig_Signatures">签名</sys:String>
     <sys:String x:Key="Str_Sig_Initials">姓名缩写</sys:String>

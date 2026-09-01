@@ -406,6 +406,7 @@ Auf eine unterstützte Größe skalieren? Aussehen und Proportionen der Seiten b
     <sys:String x:Key="Str_Bar_Font">Schriftart:</sys:String>
     <sys:String x:Key="Str_Bar_Level">Stufe</sys:String>
     <sys:String x:Key="Str_Bar_Eraser">Radierer</sys:String>
+    <sys:String x:Key="Str_Bar_AnnotationEraser">Anmerkungen löschen</sys:String>
     <sys:String x:Key="Str_Bar_MoreColors">Weitere Farben...</sys:String>
     <sys:String x:Key="Str_Sig_Signatures">Signaturen</sys:String>
     <sys:String x:Key="Str_Sig_Initials">Initialen</sys:String>

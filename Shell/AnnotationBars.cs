@@ -626,7 +626,7 @@ namespace KillerPDF
                 EditTool.Line => BarCheck(Loc("Str_Bar_Level"), _lineLevel,
                     Loc("Str_Bar_TT_Level"),
                     () => { _lineLevel = !_lineLevel; ShowDrawSettings(tool); }),
-                EditTool.Highlight => BarCheck(Loc("Str_Bar_Eraser"), _highlightErase,
+                EditTool.Highlight => BarCheck(Loc("Str_Bar_AnnotationEraser"), _highlightErase,
                     Loc("Str_Bar_TT_EraserBox"),
                     () => { _highlightErase = !_highlightErase; ShowDrawSettings(tool); }),
                 EditTool.Draw => BarCheck(Loc("Str_Bar_Eraser"), _drawErase,
@@ -891,7 +891,7 @@ namespace KillerPDF
             opacityGroup.Children.Add(opacityLabel);
             dOpacityUnit.Children.Add(opacityGroup);
 
-            // Level (Line) / Eraser (Highlight, Draw) toggle rides at the end of the Opacity unit, so it
+            // Level (Line) / annotation eraser (Highlight) / eraser (Draw) toggle rides at the end of the Opacity unit, so it
             // stays beside Opacity as the bar collapses instead of dropping onto a row by itself.
             if (barCheck is not null)
             {

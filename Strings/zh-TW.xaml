@@ -408,6 +408,7 @@ KillerPDF 不會建立兩個已安裝的複本。</sys:String>
     <sys:String x:Key="Str_Bar_Font">字型：</sys:String>
     <sys:String x:Key="Str_Bar_Level">水平</sys:String>
     <sys:String x:Key="Str_Bar_Eraser">橡皮擦</sys:String>
+    <sys:String x:Key="Str_Bar_AnnotationEraser">註釋橡皮擦</sys:String>
     <sys:String x:Key="Str_Bar_MoreColors">更多顏色...</sys:String>
     <sys:String x:Key="Str_Sig_Signatures">簽名</sys:String>
     <sys:String x:Key="Str_Sig_Initials">姓名縮寫</sys:String>

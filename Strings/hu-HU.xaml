@@ -479,6 +479,7 @@ Megnyílik a Windows Beállítások - Alapértelmezett alkalmazások.</sys:Strin
     <sys:String x:Key="Str_Bar_Font">Betűtípus:</sys:String>
     <sys:String x:Key="Str_Bar_Level">Szint</sys:String>
     <sys:String x:Key="Str_Bar_Eraser">Radír</sys:String>
+    <sys:String x:Key="Str_Bar_AnnotationEraser">Jegyzettörlő</sys:String>
     <sys:String x:Key="Str_Bar_MoreColors">További színek...</sys:String>
     <sys:String x:Key="Str_Bar_ShapeFill">Kitöltés</sys:String>
     <sys:String x:Key="Str_Sig_Signatures">Aláírások</sys:String>

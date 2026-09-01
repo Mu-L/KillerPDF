@@ -475,6 +475,7 @@ Windows параметрлері - Әдепкі қолданбалар ашыл�
     <sys:String x:Key="Str_Bar_Font">Қаріп:</sys:String>
     <sys:String x:Key="Str_Bar_Level">Деңгей</sys:String>
     <sys:String x:Key="Str_Bar_Eraser">Өшіргіш</sys:String>
+    <sys:String x:Key="Str_Bar_AnnotationEraser">Аннотация өшіргіші</sys:String>
     <sys:String x:Key="Str_Bar_MoreColors">Басқа түстер...</sys:String>
     <sys:String x:Key="Str_Bar_ShapeFill">Толтыру</sys:String>
     <sys:String x:Key="Str_Sig_Signatures">Қолтаңбалар</sys:String>

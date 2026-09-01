@@ -479,6 +479,7 @@ Vuoi ridimensionare le pagine ad una dimensione supportata? Le pagine manterrann
     <sys:String x:Key="Str_Bar_Font">Font:</sys:String>
     <sys:String x:Key="Str_Bar_Level">Livello</sys:String>
     <sys:String x:Key="Str_Bar_Eraser">Gomma</sys:String>
+    <sys:String x:Key="Str_Bar_AnnotationEraser">Gomma per annotazioni</sys:String>
     <sys:String x:Key="Str_Bar_MoreColors">Altri colori...</sys:String>
     <sys:String x:Key="Str_Bar_ShapeFill">Riempi</sys:String>
     <sys:String x:Key="Str_Sig_Signatures">Firme</sys:String>

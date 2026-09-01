@@ -406,6 +406,7 @@ Desteklenen bir boyuta ölçeklensin mi? Sayfaların görünümü ve oranları k
     <sys:String x:Key="Str_Bar_Font">Yazı tipi:</sys:String>
     <sys:String x:Key="Str_Bar_Level">Düz</sys:String>
     <sys:String x:Key="Str_Bar_Eraser">Silgi</sys:String>
+    <sys:String x:Key="Str_Bar_AnnotationEraser">Açıklama silgisi</sys:String>
     <sys:String x:Key="Str_Bar_MoreColors">Daha fazla renk...</sys:String>
     <sys:String x:Key="Str_Sig_Signatures">İmzalar</sys:String>
     <sys:String x:Key="Str_Sig_Initials">Paraflar</sys:String>

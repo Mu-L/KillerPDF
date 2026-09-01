@@ -464,6 +464,7 @@ Przeskalować je do obsługiwanego rozmiaru? Strony zachowują swój wygląd i p
     <sys:String x:Key="Str_Bar_Font">Czcionka:</sys:String>
     <sys:String x:Key="Str_Bar_Level">Poziom</sys:String>
     <sys:String x:Key="Str_Bar_Eraser">Wymaż</sys:String>
+    <sys:String x:Key="Str_Bar_AnnotationEraser">Gumka do adnotacji</sys:String>
     <sys:String x:Key="Str_Bar_MoreColors">Więcej kolorów...</sys:String>
     <sys:String x:Key="Str_Bar_ShapeFill">Wypełnij</sys:String>
     <sys:String x:Key="Str_Sig_Signatures">Podpisy</sys:String>

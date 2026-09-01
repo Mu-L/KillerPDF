@@ -479,6 +479,7 @@ KillerPDF не будет создавать две установленные �
     <sys:String x:Key="Str_Bar_Font">Шрифт:</sys:String>
     <sys:String x:Key="Str_Bar_Level">Уровень</sys:String>
     <sys:String x:Key="Str_Bar_Eraser">Ластик</sys:String>
+    <sys:String x:Key="Str_Bar_AnnotationEraser">Ластик для аннотаций</sys:String>
     <sys:String x:Key="Str_Bar_MoreColors">Больше цветов...</sys:String>
     <sys:String x:Key="Str_Bar_ShapeFill">Заливка</sys:String>
     <sys:String x:Key="Str_Sig_Signatures">Подписи</sys:String>
