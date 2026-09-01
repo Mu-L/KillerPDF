@@ -10,17 +10,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Added
 
+- Added name, size, and last-modified sorting to the file picker, with the selected order remembered between sessions.
+- Added contributor guidance for code, documentation, and translation work.
 - Portable builds now keep settings, signatures, swatches, and OCR models in a `KillerPDF-Data` folder beside the launcher (#327).
 
 ### Changed
 
+- Crash reports now use KillerPDF's themed dialog chrome and a clearer error summary layout.
 - Grayscale Transform output now stores one color channel instead of three equal RGB channels (#324).
 - Updated interface translations, including fillable-field and page-copy status messages (#227).
 
 ### Fixed
 
+- Fillable fields can now be added to tagged PDFs that organize pages as multiple top-level structure elements.
+- Creating and filling a text field no longer visibly rebuilds the document view, and new fields start with a font size suited to their height.
 - The Highlight bar now names its broad deletion mode as the annotation eraser instead of implying that it only erases highlights (#325).
-
 
 ## [1.8.2] - 2026-08-31
 
