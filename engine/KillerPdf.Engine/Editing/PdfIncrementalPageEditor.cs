@@ -2080,22 +2080,40 @@ public sealed class PdfIncrementalPageEditor
         PdfObject[] rootKids = root.TryGetValue(StructureKidsName, out PdfObject? rootKidsValue)
             ? [.. TaggedWidgetStructureKids(document, rootKidsValue,
                 "The structure-tree root kids")] : [];
-        if (rootKids.Length != 1)
-            throw new NotSupportedException(
-                "Adding form widgets requires one top-level Document structure element.");
-        var documentIdentity = ResolveCatalogWithIdentity(
-            document, rootKids[0], "The top-level Document structure element");
-        PdfDictionary documentElement = documentIdentity.Value as PdfDictionary
-            ?? throw new InvalidOperationException(
-                "The top-level structure element is not a dictionary.");
-        PdfIndirectReference documentReference = documentIdentity.FinalReference
-            ?? FindTaggedStructureElementParentReference(document, documentElement)
-            ?? update.ReserveObject();
-        bool documentIsNew = documentIdentity.FinalReference is null
-            && document.Resolve(documentReference) is PdfNull;
-        if (!IsTaggedDocumentElement(document, documentElement))
-            throw new NotSupportedException(
-                "Adding form widgets requires a top-level Document structure element.");
+        PdfDictionary documentElement;
+        PdfIndirectReference documentReference;
+        bool documentIsNew;
+        bool replaceRootKids;
+        if (rootKids.Length == 1)
+        {
+            var documentIdentity = ResolveCatalogWithIdentity(
+                document, rootKids[0], "The top-level Document structure element");
+            if (documentIdentity.Value is PdfDictionary existingDocument
+                && IsTaggedDocumentElement(document, existingDocument))
+            {
+                documentElement = existingDocument;
+                documentReference = documentIdentity.FinalReference
+                    ?? FindTaggedStructureElementParentReference(document, documentElement)
+                    ?? update.ReserveObject();
+                documentIsNew = documentIdentity.FinalReference is null
+                    && document.Resolve(documentReference) is PdfNull;
+                replaceRootKids = documentIdentity.FinalReference is null;
+            }
+            else
+            {
+                (documentElement, documentReference) = WrapTopLevelStructureElements(
+                    document, update, rootReference, rootKids);
+                documentIsNew = true;
+                replaceRootKids = true;
+            }
+        }
+        else
+        {
+            (documentElement, documentReference) = WrapTopLevelStructureElements(
+                document, update, rootReference, rootKids);
+            documentIsNew = true;
+            replaceRootKids = true;
+        }
 
         List<PdfNumberTreeEntry> parentEntries = root.TryGetValue(
                 ParentTreeName, out PdfObject? parentTreeValue)
@@ -2165,7 +2183,7 @@ public sealed class PdfIncrementalPageEditor
         PdfIndirectReference parentTreeReference = update.AddObject(
             Dictionary(("Nums", new PdfArray(numbers))));
         var rootEntries = root.ToDictionary(entry => entry.Key, entry => entry.Value);
-        if (documentIdentity.FinalReference is null)
+        if (replaceRootKids)
             rootEntries[StructureKidsName] = documentReference;
         rootEntries[ParentTreeName] = parentTreeReference;
         rootEntries[ParentTreeNextKeyName] = new PdfInteger(nextKey);
@@ -2182,7 +2200,7 @@ public sealed class PdfIncrementalPageEditor
 
         var documentEntries = documentElement.ToDictionary(
             entry => entry.Key, entry => entry.Value);
-        if (documentIdentity.FinalReference is null)
+        if (replaceRootKids)
             documentEntries[StructureElementParentName] = rootReference;
         var documentKids = new List<PdfObject>();
         if (documentEntries.TryGetValue(StructureKidsName, out PdfObject? documentKidsValue))
@@ -2341,6 +2359,48 @@ public sealed class PdfIncrementalPageEditor
         if (resolved is PdfNull)
             throw new InvalidOperationException($"{description} resolves to null.");
         return resolved is PdfArray array ? [.. array] : [value];
+    }
+
+    private static (PdfDictionary Element, PdfIndirectReference Reference)
+        WrapTopLevelStructureElements(
+            PdfDocument document,
+            PdfIncrementalUpdateBuilder update,
+            PdfIndirectReference rootReference,
+            PdfObject[] rootKids)
+    {
+        PdfIndirectReference documentReference = update.ReserveObject();
+        var documentKids = new List<PdfObject>(rootKids.Length);
+        foreach (PdfObject rootKid in rootKids)
+        {
+            var (value, finalReference) = ResolveCatalogWithIdentity(
+                document, rootKid, "A top-level structure element");
+            PdfDictionary element = value as PdfDictionary
+                ?? throw new InvalidOperationException(
+                    "A top-level structure element is not a dictionary.");
+            var entries = element.ToDictionary(entry => entry.Key, entry => entry.Value);
+            entries[StructureElementParentName] = documentReference;
+            var reparented = new PdfDictionary(entries);
+            if (finalReference is PdfIndirectReference reference)
+            {
+                update.ReplaceObject(reference.ObjectNumber, reparented);
+                documentKids.Add(reference);
+            }
+            else
+            {
+                documentKids.Add(reparented);
+            }
+        }
+
+        var documentEntries = new List<KeyValuePair<PdfName, PdfObject>>
+        {
+            new(TypeName, StructureElementName),
+            new(StructureTypeName, Name("Document")),
+            new(StructureElementParentName, rootReference)
+        };
+        if (documentKids.Count > 0)
+            documentEntries.Add(new(StructureKidsName, documentKids.Count == 1
+                ? documentKids[0] : new PdfArray(documentKids)));
+        return (new PdfDictionary(documentEntries), documentReference);
     }
 
     private static PdfIndirectReference? FindTaggedStructureElementParentReference(

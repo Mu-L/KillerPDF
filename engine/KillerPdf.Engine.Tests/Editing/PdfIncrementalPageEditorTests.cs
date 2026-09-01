@@ -13726,6 +13726,78 @@ public sealed class PdfIncrementalPageEditorTests
     }
 
     [Fact]
+    public void AddTextField_WrapsMultipleTopLevelPageStructureElements()
+    {
+        PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder()
+            .SetMetadata(new PdfDocumentMetadata
+            {
+                Title = "Tagged page containers",
+                Language = "en-US"
+            })
+            .AddBlankPage().AddBlankPage()
+            .AddStructureContainer(PdfStructureType.Document)
+            .Build());
+        (_, PdfIndirectReference[] pages, _) = FlatPages(authored);
+        PdfIndirectReference catalogReference = Assert.IsType<PdfIndirectReference>(
+            authored.Trailer[Name("Root")]);
+        PdfDictionary catalog = ResolveDictionary(authored, catalogReference);
+        PdfIndirectReference rootReference = Assert.IsType<PdfIndirectReference>(
+            catalog[Name("StructTreeRoot")]);
+        PdfDictionary root = ResolveDictionary(authored, rootReference);
+        var setup = new PdfIncrementalUpdateBuilder(authored);
+        PdfIndirectReference firstPageStructure = setup.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("StructElem")), new(Name("S"), Name("Page1")),
+            new(Name("P"), rootReference), new(Name("Pg"), pages[0])
+        ]));
+        PdfIndirectReference secondPageStructure = setup.AddObject(new PdfDictionary([
+            new(Name("Type"), Name("StructElem")), new(Name("S"), Name("Page2")),
+            new(Name("P"), rootReference), new(Name("Pg"), pages[1])
+        ]));
+        var rootEntries = root.ToDictionary(entry => entry.Key, entry => entry.Value);
+        rootEntries[Name("K")] = new PdfArray(
+            [firstPageStructure, secondPageStructure]);
+        rootEntries[Name("RoleMap")] = new PdfDictionary([
+            new(Name("Page1"), Name("Div")), new(Name("Page2"), Name("Div"))
+        ]);
+        setup.ReplaceObject(rootReference.ObjectNumber, new PdfDictionary(rootEntries));
+
+        PdfDocument document = PdfDocument.Open(
+            new PdfIncrementalPageEditor(PdfDocument.Open(setup.Build()))
+                .AddTextField(1, "answer", 20, 30, 160, 24,
+                    fieldMetadata: new PdfFormFieldMetadata
+                    {
+                        Tooltip = "Answer"
+                    })
+                .Build());
+
+        PdfDictionary updatedCatalog = ResolveDictionary(
+            document, document.Trailer[Name("Root")]);
+        PdfDictionary updatedRoot = ResolveDictionary(
+            document, updatedCatalog[Name("StructTreeRoot")]);
+        PdfIndirectReference documentReference = Assert.IsType<PdfIndirectReference>(
+            updatedRoot[Name("K")]);
+        PdfDictionary documentElement = ResolveDictionary(document, documentReference);
+        Assert.Equal("Document",
+            Assert.IsType<PdfName>(documentElement[Name("S")]).ValueAsLatin1());
+        PdfArray documentKids = Assert.IsType<PdfArray>(documentElement[Name("K")]);
+        Assert.Equal(3, documentKids.Count);
+        foreach (PdfObject pageStructureValue in documentKids.Take(2))
+        {
+            PdfDictionary pageStructure = ResolveDictionary(document, pageStructureValue);
+            Assert.Equal(documentReference.ObjectNumber,
+                Assert.IsType<PdfIndirectReference>(
+                    pageStructure[Name("P")]).ObjectNumber);
+        }
+        PdfDictionary formStructure = ResolveDictionary(document, documentKids[2]);
+        Assert.Equal("Form",
+            Assert.IsType<PdfName>(formStructure[Name("S")]).ValueAsLatin1());
+        Assert.Equal(documentReference.ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(formStructure[Name("P")]).ObjectNumber);
+        Assert.Equal(pages[1].ObjectNumber,
+            Assert.IsType<PdfIndirectReference>(formStructure[Name("Pg")]).ObjectNumber);
+    }
+
+    [Fact]
     public void AddCheckBox_NormalizesDirectTaggedRootAndDocumentElement()
     {
         PdfDocument authored = PdfDocument.Open(new PdfDocumentBuilder()
