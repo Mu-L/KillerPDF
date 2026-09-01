@@ -343,7 +343,7 @@ namespace KillerPDF.Controls
                     VerticalAlignment = VerticalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(0, 0, 8, 0), Style = (Style)FindResource("FormFieldTextBox")
                 };
-                tb.SetResourceReference(TextBox.BackgroundProperty,  "PaneBrush");
+                tb.SetResourceReference(TextBox.BackgroundProperty,  "TextFieldBrush");
                 tb.SetResourceReference(TextBox.ForegroundProperty,  "TextBrush");
                 tb.SetResourceReference(TextBox.BorderBrushProperty, "CardBorderBrush");
                 tb.KeyDown   += (_, e) => { if (e.Key == Key.Enter) { CommitCropBoxInput(); ApplyCrop([currentPage]); e.Handled = true; } };
@@ -398,7 +398,7 @@ namespace KillerPDF.Controls
                 Style = (Style)FindResource("FormFieldTextBox")
             };
             _cropRangeBox.SetResourceReference(FrameworkElement.ToolTipProperty, "Str_Crop_RangeTip");
-            _cropRangeBox.SetResourceReference(TextBox.BackgroundProperty,  "PaneBrush");
+            _cropRangeBox.SetResourceReference(TextBox.BackgroundProperty,  "TextFieldBrush");
             _cropRangeBox.SetResourceReference(TextBox.ForegroundProperty,  "TextBrush");
             _cropRangeBox.SetResourceReference(TextBox.BorderBrushProperty, "CardBorderBrush");
             outer.Children.Add(_cropRangeBox);
@@ -451,7 +451,7 @@ namespace KillerPDF.Controls
                 Effect              = AnnotBarShadow(),
                 Child               = BuildBarHost(outer)
             };
-            bar.SetResourceReference(Border.BackgroundProperty,  "BgFlyout");
+            bar.SetResourceReference(Border.BackgroundProperty,  "AnnotationBarBrush");
             bar.SetResourceReference(Border.BorderBrushProperty, "PaneBorderBrush");
             _cropConfirmBar = bar;
 

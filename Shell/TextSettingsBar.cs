@@ -387,7 +387,7 @@ namespace KillerPDF
                 BorderThickness = new Thickness(1),
                 Template = FlatTextBoxTemplate()
             };
-            sizeBox.SetResourceReference(TextBox.BackgroundProperty, "PaneBrush");
+            sizeBox.SetResourceReference(TextBox.BackgroundProperty, "TextFieldBrush");
             sizeBox.SetResourceReference(TextBox.ForegroundProperty, "TextBrush");
             sizeBox.SetResourceReference(TextBox.BorderBrushProperty, "CardBorderBrush");
             sizeBox.SetResourceReference(TextBox.CaretBrushProperty, "PrimaryBrush");
@@ -675,7 +675,7 @@ namespace KillerPDF
                 Child = BuildBarHost(pairHost),
                 Margin = new Thickness(0, 0, 0, 0)
             };
-            _textSettingsBar.SetResourceReference(Border.BackgroundProperty, "BgFlyout");
+            _textSettingsBar.SetResourceReference(Border.BackgroundProperty, "AnnotationBarBrush");
             _textSettingsBar.SetResourceReference(Border.BorderBrushProperty, "PaneBorderBrush");
             _textSettingsBar.SetResourceReference(Border.CornerRadiusProperty, "AnnotationBarCornerRadius");
 

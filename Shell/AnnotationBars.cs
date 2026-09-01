@@ -912,7 +912,7 @@ namespace KillerPDF
                 Child = BuildBarHost(panel),
                 Margin = new Thickness(0, 0, 0, 0)
             };
-            _drawSettingsBar.SetResourceReference(Border.BackgroundProperty, "BgFlyout");
+            _drawSettingsBar.SetResourceReference(Border.BackgroundProperty, "AnnotationBarBrush");
             _drawSettingsBar.SetResourceReference(Border.CornerRadiusProperty, "AnnotationBarCornerRadius");
             // Match the Text bar's pane-integrated edge. BarEdgeBrush is white in 98SE and made
             // this one bar look like a separate raised slab even though both use the same host.
