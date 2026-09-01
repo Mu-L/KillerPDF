@@ -113,7 +113,7 @@ namespace KillerPDF
             B("7 (%or% G)",      "Str_Lbl_Signature", "Tools", Cap("D7"), Cap("G")),
             B("8 (%or% C)",      "Str_Lbl_Crop",      "Tools", Cap("D8"), Cap("C")),
             B("9 (%or% R)",      "Str_Lbl_Rotate",    "Tools", Cap("D9"), Cap("R")),
-            B("0 (%or% S)",      "Str_TT_StampTool",  "Tools", Cap("D0"), Cap("S")),
+            B("0 (%or% S)",      "Str_Ctx_StampPages","Tools", Cap("D0"), Cap("S")),
 
             B("%ctrl%+Z",         "Str_KS_Undo",        "Edit", Cap("Ctrl:Z")),
             B("%ctrl%+Y",         "Str_Ctx_Redo",       "Edit", Cap("Ctrl:Y")),
@@ -147,7 +147,7 @@ namespace KillerPDF
             B("%ctrl%+%zin% / %ctrl%+%zout%", "Str_KS_ZoomInOut", "Nav", Cap("Ctrl:Equals", "Str_Lbl_ZoomIn"),
                                                                          Cap("Ctrl:Minus",  "Str_Lbl_ZoomOut")),
             B("%ctrl%+0",      "Str_KS_ResetZoom",   "Nav", Cap("Ctrl:D0")),
-            B("%ctrl%+1/2/3",  "Str_KS_ZoomPresets", "Nav", Cap("Ctrl:D1", "Str_Zoom_ActualSize"),
+            B("%ctrl%+1 / 2 / 3",  "Str_KS_ZoomPresets", "Nav", Cap("Ctrl:D1", "Str_Zoom_ActualSize"),
                                                             Cap("Ctrl:D2", "Str_Zoom_FitWidth"),
                                                             Cap("Ctrl:D3", "Str_Zoom_FitPage")),
             B("%middledrag%",  "Str_KS_PanView",     "Nav"),
@@ -176,7 +176,7 @@ namespace KillerPDF
                                                                              Cap("CtrlShift:D0")),
             B("%wheellogo%",   "Str_KS_AppSize",      "View"),
             // The toolbar appearance six, mirroring the bar's right-click menu top to bottom.
-            B("%ctrl%+%shift%+1..6", "Str_KS_ToolbarStyle", "View", Cap("CtrlShift:D1", "Str_Toolbar_SmallIcons"),
+            B("%ctrl%+%shift%+1-6", "Str_KS_ToolbarStyle", "View", Cap("CtrlShift:D1", "Str_Toolbar_SmallIcons"),
                                                                 Cap("CtrlShift:D2", "Str_Toolbar_LargeIcons"),
                                                                 Cap("CtrlShift:D3", "Str_Toolbar_TextNone"),
                                                                 Cap("CtrlShift:D4", "Str_Toolbar_TextBeside"),
