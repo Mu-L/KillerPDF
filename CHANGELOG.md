@@ -16,6 +16,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Changed
 
+- Image export and Transform now show output pixel dimensions for the selected DPI (#310).
 - First launch now uses a supported Windows display language instead of always starting in English (#322).
 - Crash reports now use KillerPDF's themed dialog chrome and a clearer error summary layout.
 - Grayscale Transform output now stores one color channel instead of three equal RGB channels (#324).

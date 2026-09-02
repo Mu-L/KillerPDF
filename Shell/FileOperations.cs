@@ -1178,9 +1178,14 @@ namespace KillerPDF
         {
             if (_doc is null || _currentFile is null) { KillerDialog.Show(this, Loc("Str_Msg_OpenFirst")); return; }
             CommitActiveTextBox();
-            int pageCount = EnsureEngineDocumentSession().PageCount;
+            PdfEngineDocumentSession engineSession = EnsureEngineDocumentSession();
+            int pageCount = engineSession.PageCount;
+            int previewPage = Math.Max(0, Math.Min(PageList.SelectedIndex, pageCount - 1));
+            var (pageWidthPoints, pageHeightPoints) =
+                engineSession.VisualPageSize(previewPage, _pageRotations);
 
-            var opts = new ExportImagesDialog(this, presetRange);
+            var opts = new ExportImagesDialog(
+                this, presetRange, pageWidthPoints, pageHeightPoints);
             opts.ShowDialog();   // fade-close dialogs don't reliably return true; rely on Confirmed
             if (!opts.Confirmed) return;
 

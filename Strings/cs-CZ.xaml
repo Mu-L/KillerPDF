@@ -177,6 +177,7 @@
     <sys:String x:Key="Str_ExportImg_Suffix">Exportovat stránky jako obrázky</sys:String>
     <sys:String x:Key="Str_ExportImg_Format">Formát</sys:String>
     <sys:String x:Key="Str_ExportImg_Dpi">Rozlišení (DPI)</sys:String>
+    <sys:String x:Key="Str_OutputPixels">{0} x {1} px</sys:String>
     <sys:String x:Key="Str_ExportImg_Export">Exportovat</sys:String>
     <sys:String x:Key="Str_ExportImg_Done">Exportováno stránek: {0}, do {1}</sys:String>
     <sys:String x:Key="Str_Print_AllPages">Všechny stránky</sys:String>

@@ -177,6 +177,7 @@
     <sys:String x:Key="Str_ExportImg_Suffix">Exporter les pages en images</sys:String>
     <sys:String x:Key="Str_ExportImg_Format">Format</sys:String>
     <sys:String x:Key="Str_ExportImg_Dpi">Résolution (DPI)</sys:String>
+    <sys:String x:Key="Str_OutputPixels">{0} x {1} px</sys:String>
     <sys:String x:Key="Str_ExportImg_Export">Exporter</sys:String>
     <sys:String x:Key="Str_ExportImg_Done">{0} pages exportées vers {1}</sys:String>
     <sys:String x:Key="Str_Print_AllPages">Toutes les pages</sys:String>

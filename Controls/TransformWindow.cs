@@ -60,6 +60,7 @@ namespace KillerPDF
         private readonly Button _previousPage = null!;
         private readonly Button _nextPage = null!;
         private readonly TextBlock _sizeReadout = null!;
+        private readonly TextBlock _dpiReadout = null!;
         private int _quarter;        // 0..3 quarter turns clockwise
         private double _fine;        // fine deskew, degrees
         private double _scale = 1.0;
@@ -352,8 +353,8 @@ namespace KillerPDF
             _setDpi.Checked += (_, _) => { OutputDpi = (int)Math.Round(_dpiSlider.Value); _dpiSlider.IsEnabled = true; };
             _setDpi.Unchecked += (_, _) => { OutputDpi = 0; _dpiSlider.IsEnabled = false; };
             stack.Children.Add(_setDpi);
-            var dpiValue = SliderLabel("300 DPI");
-            dpiValue.HorizontalAlignment = HorizontalAlignment.Right;
+            _dpiReadout = SliderLabel("300 DPI");
+            _dpiReadout.HorizontalAlignment = HorizontalAlignment.Right;
             _dpiSlider = new Slider
             {
                 Minimum = 72, Maximum = 600, Value = 300, IsEnabled = false,
@@ -363,11 +364,11 @@ namespace KillerPDF
             if (darkSlider != null) _dpiSlider.Style = darkSlider;
             _dpiSlider.ValueChanged += (_, ev) =>
             {
-                dpiValue.Text = $"{ev.NewValue:0} DPI";
                 if (_setDpi.IsChecked == true) OutputDpi = (int)Math.Round(ev.NewValue);
+                UpdateDpiReadout();
             };
             stack.Children.Add(_dpiSlider);
-            stack.Children.Add(dpiValue);
+            stack.Children.Add(_dpiReadout);
 
             _useJpeg = MakeCheck(S("Str_Tf_UseJpeg"));
             _useJpeg.Checked += (_, _) => { UseJpegCompression = true; _jpegSlider.IsEnabled = true; };
@@ -789,7 +790,23 @@ namespace KillerPDF
                 double outHin = b.PixelHeight * (_pageHpt / _srcH) / 72.0;
                 _sizeReadout.Text = string.Format(S("Str_Tf_Output"), outWin.ToString("0.0"), outHin.ToString("0.0"));
             }
+            UpdateDpiReadout();
             SizePreviewImage();
+        }
+
+        private void UpdateDpiReadout()
+        {
+            if (_dpiReadout is null || _preview.Source is not BitmapSource b
+                || _srcW <= 0 || _srcH <= 0 || _pageWpt <= 0 || _pageHpt <= 0)
+                return;
+
+            double widthPoints = b.PixelWidth * (_pageWpt / _srcW);
+            double heightPoints = b.PixelHeight * (_pageHpt / _srcH);
+            double dpi = _dpiSlider?.Value ?? 300;
+            var (width, height) = OutputPixelDimensions.FromPoints(
+                widthPoints, heightPoints, dpi);
+            _dpiReadout.Text = $"{dpi:0} DPI  |  " +
+                string.Format(S("Str_OutputPixels"), width, height);
         }
 
         // Sizes the page to its TRUE relative scale within the preview box, so "Resize the whole page" makes
