@@ -7,8 +7,8 @@ namespace KillerPDF
 {
     /// <summary>
     /// The rail's flyout buttons (family order, locked 2026-07-30: app-specific toggles, then
-    /// ? / language / theme, theme bottom-most) and their flyouts. The theme, language and view
-    /// pickers all moved here OUT of the retired Settings panel - one implementation each, as
+    /// ? / language / theme, theme bottom-most) and their flyouts. The theme and language
+    /// pickers live here as
     /// family-standard flyouts: ContextMenus with FlyoutCard/FlyoutGrain chrome, opened against
     /// the content pane's bottom-left corner via FlyoutPlacement so they never cover the rail,
     /// the footer, or the desktop. Their radio/dot sync is SyncPickerState (SettingsPanel.cs).
@@ -21,33 +21,6 @@ namespace KillerPDF
         private void RailLang_Click(object sender, RoutedEventArgs e) => ToggleRailFlyout(LangFlyout);
 
         private void RailTheme_Click(object sender, RoutedEventArgs e) => ToggleRailFlyout(ThemeFlyout);
-
-        private void RailView_Click(object sender, RoutedEventArgs e) => ToggleRailFlyout(ViewFlyout);
-
-        // Rolling the wheel over the view-mode rail button steps through the modes without
-        // opening the flyout: up = next, down = previous (2026-07-31 - down-as-next felt
-        // reversed). F9 jogs forward from the keyboard.
-        private void RailView_Wheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
-        {
-            CycleViewMode(forward: e.Delta > 0);
-            e.Handled = true;
-        }
-
-        /// <summary>Steps to the neighboring view mode, wrapping at the ends. Cycle order is the
-        /// enum order: Single -> Continuous -> TwoPage -> Grid. Syncs the flyout radios in case
-        /// the flyout is open while the wheel or F9 drives the change.</summary>
-        private void CycleViewMode(bool forward = true)
-        {
-            var modes = Enum.GetValues<ViewMode>();
-            // Step from the PENDING mode when a fade-wrapped switch is in flight: _viewMode only
-            // updates after the ~90ms fade-out, so wheel notches faster than that would otherwise
-            // recompute from the stale mode and retarget the same switch - several notches
-            // collapsing into one step (2-4 clicks per mode, as first built).
-            int idx = Array.IndexOf(modes, _pendingViewMode ?? _viewMode);
-            int next = (idx + (forward ? 1 : -1) + modes.Length) % modes.Length;
-            SetViewMode(modes[next]);
-            SyncPickerState();
-        }
 
         private void ToggleRailFlyout(ContextMenu menu)
         {

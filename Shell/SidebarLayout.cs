@@ -212,51 +212,31 @@ namespace KillerPDF
             UpdateFooterFade();
         }
 
-        // Keep the portable install action centered on the real A/B boundary. The old footer centered
-        // the PORTABLE + button group across the whole status bar; after removing the label that left
-        // no relationship between the button and the pane divider, especially after either pane was
-        // resized. In a single-pane window, the document pane's center is the natural fallback.
+        // Center Portable while there is a clear gap before the right-side controls. At narrower
+        // widths it returns to its compact slot immediately before those controls.
         private void UpdateFooterFade()
         {
-            if (_portableBadge is null || SplitHost is null || SplitHost.ActualWidth <= 0) return;
-            if (_portableBadge.Parent is not Visual footerGrid) return;
+            if (StatusText is null || PortableBadge is null || FooterBorder is null
+                || FooterDocumentControls is null || FooterVersionCell is null) return;
 
-            try
-            {
-                double hostLeft = SplitHost.TransformToVisual(footerGrid)
-                                           .Transform(new Point(0, 0)).X;
-                double anchor = _isSplit && PaneBCol.ActualWidth > 0
-                    ? hostLeft + PaneACol.ActualWidth + PaneGutterCol.ActualWidth / 2
-                    : hostLeft + SplitHost.ActualWidth / 2;
+            double footerWidth = FooterBorder.ActualWidth;
+            double badgeWidth = PortableBadge.ActualWidth;
+            double rightWidth = FooterDocumentControls.ActualWidth + FooterVersionCell.ActualWidth;
+            bool centerBadge = PortableBadge.Visibility == Visibility.Visible
+                && footerWidth > 0 && badgeWidth > 0
+                && footerWidth / 2 + badgeWidth / 2 + 16 <= footerWidth - rightWidth;
 
-                double width = _portableBadge.ActualWidth;
-                if (width <= 0)
-                {
-                    _portableBadge.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                    width = _portableBadge.DesiredSize.Width;
-                }
-
-                _portableBadge.Margin = new Thickness(Math.Round(anchor - width / 2), 0, 0, 0);
-
-                // Cap the status line so it ellipsizes before reaching the Install action - at a
-                // small window width a long status painted straight through the button.
-                if (StatusText is not null)
-                {
-                    if (_portableBadge.Visibility == Visibility.Visible)
-                    {
-                        double statusLeft = StatusText.TransformToVisual(footerGrid)
-                                                      .Transform(new Point(0, 0)).X;
-                        double badgeLeft = anchor - width / 2;
-                        StatusText.MaxWidth = Math.Max(0, badgeLeft - statusLeft - 8);
-                    }
-                    else StatusText.MaxWidth = double.PositiveInfinity;
-                }
-            }
-            catch (InvalidOperationException)
-            {
-                // The two elements are briefly disconnected during startup/theme reconstruction.
-                // A queued layout refresh retries once they share the live visual tree again.
-            }
+            Grid.SetColumn(PortableBadge, centerBadge ? 0 : 1);
+            Grid.SetColumnSpan(PortableBadge, centerBadge ? 4 : 1);
+            PortableBadge.HorizontalAlignment = centerBadge
+                ? HorizontalAlignment.Center
+                : HorizontalAlignment.Right;
+            PortableBadge.Margin = centerBadge
+                ? new Thickness(0)
+                : new Thickness(6, 0, 8, 0);
+            StatusText.MaxWidth = centerBadge
+                ? Math.Max(0, footerWidth / 2 - badgeWidth / 2 - 24)
+                : double.PositiveInfinity;
         }
 
         // The collapse arrow points toward where the page-list content goes when toggled, which

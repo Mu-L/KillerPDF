@@ -961,6 +961,150 @@
             </Setter>
         </Style>
 
+        <Style x:Key="FooterNavButton" TargetType="Button">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFooter}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                CornerRadius="{DynamicResource ControlCornerRadius}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FooterModeButton" TargetType="RadioButton">
+            <Setter Property="Width" Value="25"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFooter}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="Transparent" BorderThickness="0,0,0,2"
+                                CornerRadius="{DynamicResource ControlCornerRadius}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="0,3,0,0"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FooterZoomComboItem" TargetType="ComboBoxItem" BasedOn="{StaticResource DarkComboItem}">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="10"/>
+        </Style>
+
+        <Style x:Key="FooterZoomCombo" TargetType="ComboBox">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Background" Value="{DynamicResource FooterZoomClosedBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource FooterZoomComboItem}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="{DynamicResource SmallCornerRadius}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="16"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter x:Name="ContentSite" Grid.Column="0"
+                                                      Content="{TemplateBinding SelectionBoxItem}"
+                                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                      Margin="6,0,0,0" VerticalAlignment="Center"
+                                                      HorizontalAlignment="Left" IsHitTestVisible="False"/>
+                                    <TextBox x:Name="PART_EditableTextBox" Grid.Column="0" Margin="5,0,0,0"
+                                             Background="Transparent" BorderThickness="0"
+                                             Foreground="{DynamicResource TextBrush}" FontFamily="Consolas"
+                                             FontSize="10" VerticalAlignment="Center"
+                                             IsReadOnly="{TemplateBinding IsReadOnly}" Visibility="Hidden"
+                                             Focusable="True" SelectionBrush="Transparent"/>
+                                    <TextBlock Grid.Column="1" Text="&#xE70D;" FontFamily="Segoe MDL2 Assets"
+                                               FontSize="7" Foreground="{DynamicResource MutedTextBrush}"
+                                               VerticalAlignment="Center" HorizontalAlignment="Center"
+                                               IsHitTestVisible="False"/>
+                                    <ToggleButton Grid.ColumnSpan="2" Style="{StaticResource DarkComboToggle}"
+                                                  IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                </Grid>
+                            </Border>
+                            <Popup x:Name="PART_Popup" AllowsTransparency="True"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}" Focusable="False"
+                                   PopupAnimation="Fade" Placement="Bottom">
+                                <Border Background="{DynamicResource FooterZoomSurfaceBrush}"
+                                        BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
+                                        CornerRadius="{DynamicResource SmallCornerRadius}" Padding="2" Margin="0,2,6,6"
+                                        MinWidth="96" MaxHeight="220">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="Black" BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="0.5"/>
+                                    </Border.Effect>
+                                    <Grid>
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                            <ItemsPresenter/>
+                                        </ScrollViewer>
+                                        <Border IsHitTestVisible="False" Background="{StaticResource GrainBrushShared}"
+                                                Opacity="{DynamicResource GrainOpacity}"/>
+                                    </Grid>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEditable" Value="True">
+                                <Setter TargetName="ContentSite" Property="Visibility" Value="Hidden"/>
+                                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsDropDownOpen" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource FooterZoomSurfaceBrush}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Settings panel radio button -->
         <!-- Clickable accent-color swatch for the Dark theme family (website-style picker).
              Literal hue colors, identical across themes. The selection ring is set in code. -->
@@ -1017,8 +1161,11 @@
                                     </Setter.Value>
                                 </Setter>
                             </Trigger>
+                            <!-- Hovered: the ring takes RadioHoverFgBrush too, for the same reason
+                                 as the label below - on Sepulchre an accent ring on the accent
+                                 hover fill is no ring at all. -->
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ring" Property="Stroke" Value="{DynamicResource RadioAccent}"/>
+                                <Setter TargetName="ring" Property="Stroke" Value="{DynamicResource RadioHoverFgBrush}"/>
                                 <Setter TargetName="bd" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
                             </Trigger>
                             <!-- Checked AND hovered: the accent label sits on the hover fill, and a
@@ -1030,6 +1177,8 @@
                                     <Condition Property="IsChecked" Value="True"/>
                                     <Condition Property="IsMouseOver" Value="True"/>
                                 </MultiTrigger.Conditions>
+                                <Setter TargetName="ring" Property="Stroke" Value="{DynamicResource RadioHoverFgBrush}"/>
+                                <Setter TargetName="dot" Property="Fill" Value="{DynamicResource RadioHoverFgBrush}"/>
                                 <Setter Property="Foreground" Value="{DynamicResource RadioHoverFgBrush}"/>
                             </MultiTrigger>
                         </ControlTemplate.Triggers>
@@ -1354,27 +1503,6 @@
                         <Rectangle Width="1" Fill="{DynamicResource CardBorderBrush}" Margin="4,6"/>
                         <Button x:Name="SearchBtn" Content="&#xE721;" Style="{StaticResource ToolbarButton}" Click="Search_Click" ToolTip="{DynamicResource Str_TT_Search}"/>
                     </StackPanel>
-                    <!-- 10px left gap so the zoom cluster reads as separate from the Search button. -->
-                    <Button x:Name="ZoomOutBtn" Content="&#xECC9;" Style="{StaticResource ToolbarButton}"
-                            Click="ZoomOut_Click" ToolTip="{DynamicResource Str_TT_ZoomOut}" Margin="10,0,4,0"/>
-                    <ComboBox x:Name="ZoomBox" Width="{DynamicResource ZoomBoxWidth}" MinWidth="88"
-                              Height="{DynamicResource ZoomBoxHeight}" VerticalAlignment="Center"
-                              Margin="2,0,4,0"
-                              IsEditable="True" IsReadOnly="True"
-                              Style="{StaticResource DarkComboBox}"
-                              SelectionChanged="ZoomBox_SelectionChanged"
-                              PreviewMouseWheel="ZoomBox_PreviewMouseWheel" ToolTip="{DynamicResource Str_TT_ZoomLevel}">
-                        <ComboBoxItem Tag="fitpage" Content="{DynamicResource Str_Zoom_FitPage}"/>
-                        <ComboBoxItem Tag="fitwidth" Content="{DynamicResource Str_Zoom_FitWidth}"/>
-                        <ComboBoxItem Tag="0.5">50%</ComboBoxItem>
-                        <ComboBoxItem Tag="0.75">75%</ComboBoxItem>
-                        <ComboBoxItem Tag="1.0" IsSelected="True">100%</ComboBoxItem>
-                        <ComboBoxItem Tag="1.25">125%</ComboBoxItem>
-                        <ComboBoxItem Tag="1.5">150%</ComboBoxItem>
-                        <ComboBoxItem Tag="2.0">200%</ComboBoxItem>
-                    </ComboBox>
-                    <Button x:Name="ZoomInBtn" Content="&#xECC8;" Style="{StaticResource ToolbarButton}"
-                            Click="ZoomIn_Click" ToolTip="{DynamicResource Str_TT_ZoomIn}" Margin="0,0,4,0"/>
                     </StackPanel>
                     <!-- Overflow chevron: shown only when the bar is too narrow -->
                     <ToggleButton x:Name="OverflowChevron" Visibility="Collapsed" Width="26"
@@ -1855,121 +1983,6 @@
                                         </Border>
                                     </ControlTemplate>
                                 </Button.Template>
-                            </Button>
-                            <!-- View mode: click opens the picker flyout, rolling the WHEEL over the
-                                 button cycles Single -> Continuous -> TwoPage -> Grid directly.
-                                 Cycling has no key of its own since F9 became the sidebar toggle;
-                                 F5-F8 still jump straight to a mode. -->
-                            <Button x:Name="ViewModeBtn" Click="RailView_Click"
-                                    PreviewMouseWheel="RailView_Wheel"
-                                    Cursor="Hand" FocusVisualStyle="{x:Null}"
-                                    ToolTip="{DynamicResource Str_TT_ViewMode}"
-                                    Width="24" Height="24" Padding="0" Margin="0,0,0,6">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="Transparent">
-                                            <TextBlock Text="&#xF0E2;"
-                                                       FontFamily="Segoe MDL2 Assets" FontSize="15"
-                                                       HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                <TextBlock.Effect>
-                                                    <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Direction="270" Opacity="{DynamicResource IconShadowOpacity}"/>
-                                                </TextBlock.Effect>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
-                                                                <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Border>
-                                    </ControlTemplate>
-                                </Button.Template>
-                                <Button.ContextMenu>
-                                    <ContextMenu x:Name="ViewFlyout">
-                                        <!-- Family flyout standard: chrome ONLY from FlyoutCard/FlyoutGrain, grain LAST. -->
-                                        <ContextMenu.Template>
-                                            <ControlTemplate TargetType="ContextMenu">
-                                                <Border Style="{StaticResource FlyoutCard}">
-                                                    <Grid>
-                                                        <ItemsPresenter/>
-                                                        <Border Style="{StaticResource FlyoutGrain}"/>
-                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False"
-                                                                CornerRadius="{DynamicResource FlyoutCornerRadius}"
-                                                                BorderBrush="{DynamicResource BevelLightBrush}"
-                                                                BorderThickness="{DynamicResource BevelLightThickness}"/>
-                                                        <Border Panel.ZIndex="1" IsHitTestVisible="False"
-                                                                CornerRadius="{DynamicResource FlyoutCornerRadius}"
-                                                                BorderBrush="{DynamicResource BevelDarkBrush}"
-                                                                BorderThickness="{DynamicResource BevelDarkThickness}"/>
-                                                    </Grid>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </ContextMenu.Template>
-                                        <ContextMenu.ItemContainerStyle>
-                                            <Style TargetType="MenuItem" BasedOn="{StaticResource PanelMenuItem}"/>
-                                        </ContextMenu.ItemContainerStyle>
-                                        <!-- Same shape as the locale flyout: label left, key hint right.
-                                             Stays open on a pick so modes can be compared (PanelMenuItem). -->
-                                        <StackPanel x:Name="ViewSubmenu" Margin="12,10,14,10">
-                                            <RadioButton x:Name="ViewContinuousRadio" GroupName="ViewGroup" Style="{StaticResource ThemeRadio}"
-                                                         Checked="ViewContinuousRadio_Checked">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{DynamicResource Str_View_Continuous}" VerticalAlignment="Center"
-                                                               FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                                    <TextBlock Grid.Column="1" Text="F5" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                               Foreground="{DynamicResource MutedTextBrush}"/>
-                                                </Grid>
-                                            </RadioButton>
-                                            <RadioButton x:Name="ViewSingleRadio" GroupName="ViewGroup" Style="{StaticResource ThemeRadio}"
-                                                         Checked="ViewSingleRadio_Checked">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{DynamicResource Str_View_Single}" VerticalAlignment="Center"
-                                                               FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                                    <TextBlock Grid.Column="1" Text="F6" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                               Foreground="{DynamicResource MutedTextBrush}"/>
-                                                </Grid>
-                                            </RadioButton>
-                                            <RadioButton x:Name="ViewTwoPageRadio" GroupName="ViewGroup" Style="{StaticResource ThemeRadio}"
-                                                         Checked="ViewTwoPageRadio_Checked">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{DynamicResource Str_View_TwoPage}" VerticalAlignment="Center"
-                                                               FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                                    <TextBlock Grid.Column="1" Text="F7" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                               Foreground="{DynamicResource MutedTextBrush}"/>
-                                                </Grid>
-                                            </RadioButton>
-                                            <RadioButton x:Name="ViewGridRadio" GroupName="ViewGroup" Style="{StaticResource ThemeRadio}"
-                                                         Checked="ViewGridRadio_Checked">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="*"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBlock Grid.Column="0" Text="{DynamicResource Str_View_Grid}" VerticalAlignment="Center"
-                                                               FontFamily="Segoe UI, Microsoft JhengHei UI, Nirmala UI"/>
-                                                    <TextBlock Grid.Column="1" Text="F8" Margin="12,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                                               Foreground="{DynamicResource MutedTextBrush}"/>
-                                                </Grid>
-                                            </RadioButton>
-                                        </StackPanel>
-                                    </ContextMenu>
-                                </Button.ContextMenu>
                             </Button>
                             <!-- Family rail order (locked 2026-07-30): app-specific toggles above, then
                                  ? / language / theme - the three universal buttons, theme bottom-most, so
@@ -2637,8 +2650,9 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Border Grid.ColumnSpan="3" IsHitTestVisible="False"
+                <Border Grid.ColumnSpan="4" IsHitTestVisible="False"
                         Opacity="{DynamicResource GrainOpacity}" Margin="-16,0">
                     <Border.Background>
                         <ImageBrush x:Name="StatusGrainBrush" TileMode="Tile"
@@ -2658,12 +2672,11 @@
                     <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelDarkBrush}" BorderThickness="{DynamicResource FooterCellLightThickness}"/>
                     <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelLightBrush}" BorderThickness="{DynamicResource FooterCellDarkThickness}"/>
                 </Grid>
-                <!-- Portable install action (hidden when installed). UpdateFooterFade positions
-                     this button on the actual A/B divider instead of centering a label+button
-                     group across the whole window. -->
-                <Grid x:Name="PortableBadge" Grid.Column="0" Grid.ColumnSpan="3" Panel.ZIndex="3"
-                      HorizontalAlignment="Left" VerticalAlignment="Center"
-                      Visibility="Collapsed">
+                <!-- Portable install action sits immediately left of the document controls. -->
+                <Grid x:Name="PortableBadge" Grid.Column="1" Panel.ZIndex="3"
+                      HorizontalAlignment="Right" VerticalAlignment="Center"
+                      WindowChrome.IsHitTestVisibleInChrome="True"
+                      Margin="6,0,8,0" Visibility="Collapsed">
                     <Button x:Name="InstallBtn" Content="{DynamicResource Str_Portable}"
                             Click="Install_Click" Style="{StaticResource OutlineButton}"
                             ToolTip="Portable mode - get the installed version"
@@ -2677,11 +2690,96 @@
                         </Button.Resources>
                     </Button>
                 </Grid>
-                <Grid Grid.Column="2" HorizontalAlignment="Right" Margin="{DynamicResource FooterCellMargin}">
+                <Grid x:Name="FooterDocumentControls" Grid.Column="2"
+                      HorizontalAlignment="Right" Margin="{DynamicResource FooterCellMargin}"
+                      WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelDarkBrush}"
+                            BorderThickness="{DynamicResource FooterCellLightThickness}" Panel.ZIndex="2"/>
+                    <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelLightBrush}"
+                            BorderThickness="{DynamicResource FooterCellDarkThickness}" Panel.ZIndex="2"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                                VerticalAlignment="Center" Margin="{DynamicResource FooterCellPadding}">
+                    <TextBlock x:Name="PageSizeLabel" Margin="4,0,5,0" MinWidth="90"
+                               Foreground="{DynamicResource TextFooter}" FontFamily="Consolas" FontSize="10"
+                               VerticalAlignment="Center" TextAlignment="Center"/>
+                    <Border Width="1" Height="14" Background="{DynamicResource CardBorderBrush}" Margin="2,0,5,0"/>
+                    <RadioButton x:Name="ViewContinuousRadio" GroupName="ViewGroup"
+                                 Style="{StaticResource FooterModeButton}"
+                                 Checked="ViewContinuousRadio_Checked">
+                        <RadioButton.ToolTip>
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="{DynamicResource Str_View_Continuous}"/><TextBlock Text=" (F5)"/></StackPanel>
+                        </RadioButton.ToolTip>
+                        <StackPanel Width="13" Height="13" VerticalAlignment="Center">
+                            <Border Height="3" BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" BorderThickness="1"/>
+                            <Border Height="3" Margin="0,2,0,0" BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" BorderThickness="1"/>
+                            <Border Height="3" Margin="0,2,0,0" BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" BorderThickness="1"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="ViewSingleRadio" GroupName="ViewGroup"
+                                 Style="{StaticResource FooterModeButton}"
+                                 Checked="ViewSingleRadio_Checked">
+                        <RadioButton.ToolTip>
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="{DynamicResource Str_View_Single}"/><TextBlock Text=" (F6)"/></StackPanel>
+                        </RadioButton.ToolTip>
+                        <Border Width="10" Height="13" BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" BorderThickness="1"/>
+                    </RadioButton>
+                    <RadioButton x:Name="ViewTwoPageRadio" GroupName="ViewGroup"
+                                 Style="{StaticResource FooterModeButton}"
+                                 Checked="ViewTwoPageRadio_Checked">
+                        <RadioButton.ToolTip>
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="{DynamicResource Str_View_TwoPage}"/><TextBlock Text=" (F7)"/></StackPanel>
+                        </RadioButton.ToolTip>
+                        <StackPanel Orientation="Horizontal">
+                            <Border Width="7" Height="13" BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" BorderThickness="1"/>
+                            <Border Width="7" Height="13" Margin="2,0,0,0" BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" BorderThickness="1"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="ViewGridRadio" GroupName="ViewGroup"
+                                 Style="{StaticResource FooterModeButton}"
+                                 Checked="ViewGridRadio_Checked">
+                        <RadioButton.ToolTip>
+                            <StackPanel Orientation="Horizontal"><TextBlock Text="{DynamicResource Str_View_Grid}"/><TextBlock Text=" (F8)"/></StackPanel>
+                        </RadioButton.ToolTip>
+                        <Grid Width="13" Height="13">
+                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <Border Grid.Row="0" Grid.Column="0" Margin="0,0,1,1" BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" BorderThickness="1"/>
+                            <Border Grid.Row="0" Grid.Column="1" Margin="1,0,0,1" BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" BorderThickness="1"/>
+                            <Border Grid.Row="1" Grid.Column="0" Margin="0,1,1,0" BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" BorderThickness="1"/>
+                            <Border Grid.Row="1" Grid.Column="1" Margin="1,1,0,0" BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" BorderThickness="1"/>
+                        </Grid>
+                    </RadioButton>
+                    <Border Width="1" Height="14" Background="{DynamicResource CardBorderBrush}" Margin="5,0"/>
+                    <Button x:Name="ZoomOutBtn" Content="&#xECC9;" Style="{StaticResource FooterNavButton}"
+                            Click="ZoomOut_Click" ToolTip="{DynamicResource Str_TT_ZoomOut}"/>
+                    <ComboBox x:Name="ZoomBox" Width="78" MinWidth="70"
+                              Height="20" VerticalAlignment="Center" Margin="1,0"
+                              IsEditable="True" IsReadOnly="True"
+                              Style="{StaticResource FooterZoomCombo}"
+                              SelectionChanged="ZoomBox_SelectionChanged"
+                              PreviewMouseWheel="ZoomBox_PreviewMouseWheel" ToolTip="{DynamicResource Str_TT_ZoomLevel}">
+                        <ComboBoxItem Tag="fitpage" Content="{DynamicResource Str_Zoom_FitPage}"/>
+                        <ComboBoxItem Tag="fitwidth" Content="{DynamicResource Str_Zoom_FitWidth}"/>
+                        <ComboBoxItem Tag="0.5">50%</ComboBoxItem>
+                        <ComboBoxItem Tag="0.75">75%</ComboBoxItem>
+                        <ComboBoxItem Tag="1.0" IsSelected="True">100%</ComboBoxItem>
+                        <ComboBoxItem Tag="1.25">125%</ComboBoxItem>
+                        <ComboBoxItem Tag="1.5">150%</ComboBoxItem>
+                        <ComboBoxItem Tag="2.0">200%</ComboBoxItem>
+                    </ComboBox>
+                    <Button x:Name="ZoomInBtn" Content="&#xECC8;" Style="{StaticResource FooterNavButton}"
+                            Click="ZoomIn_Click" ToolTip="{DynamicResource Str_TT_ZoomIn}"/>
+                    </StackPanel>
+                </Grid>
+                <Grid x:Name="FooterVersionCell" Grid.Column="3"
+                      HorizontalAlignment="Right" Margin="{DynamicResource FooterCellMargin}">
                     <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelDarkBrush}" BorderThickness="{DynamicResource FooterCellLightThickness}" Panel.ZIndex="2"/>
                     <Border IsHitTestVisible="False" BorderBrush="{DynamicResource FooterBevelLightBrush}" BorderThickness="{DynamicResource FooterCellDarkThickness}" Panel.ZIndex="2"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
                             Margin="{DynamicResource FooterCellPadding}">
+                    <Border Width="1" Height="14" Background="{DynamicResource CardBorderBrush}"
+                            Margin="5,0,8,0" IsHitTestVisible="False"
+                            Visibility="{DynamicResource FooterVersionDividerVisibility}"/>
                     <TextBlock x:Name="VersionLabel" Text="v1.6.3"
                                Foreground="{DynamicResource TextFooter}" FontFamily="Consolas"
                                FontSize="10" VerticalAlignment="Center" Margin="0,0,12,0"

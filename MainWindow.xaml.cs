@@ -358,6 +358,7 @@ namespace KillerPDF
                     etb.SelectionBrush = System.Windows.Media.Brushes.Transparent;
             };
             _portableBadge = (Grid)FindName("PortableBadge")!;
+            _portableBadge.SizeChanged += (_, _) => ScheduleFadeRefresh();
             _pageJumpBox = (TextBox)FindName("PageJumpBox")!;
             _pageTotalLabel = (TextBlock)FindName("PageTotalLabel")!;
             _sidebarPages = new Controls.SidebarPageBinding(PageList, _pageTotalLabel);

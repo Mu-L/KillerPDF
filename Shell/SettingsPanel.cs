@@ -619,8 +619,7 @@ namespace KillerPDF
             });
         }
 
-        // Size the editable zoom ComboBox to its widest item in the CURRENT language, so localized fit-mode
-        // terms (e.g. French "Ajuster a la largeur") are never clipped. Re-run on locale change and at load.
+        // Keep the footer zoom box compact. Its popup has a wider minimum for localized fit labels.
         private void AdjustZoomBoxWidth()
         {
             if (ZoomBox is null) return;
@@ -641,10 +640,7 @@ namespace KillerPDF
                         typeface, emSize, System.Windows.Media.Brushes.Black, pixelsPerDip);
                     if (ft.WidthIncludingTrailingWhitespace > max) max = ft.WidthIncludingTrailingWhitespace;
                 }
-                // Measured text + text insets (12) + chevron column (22) + borders (2), with
-                // breathing room between the value and arrow. Keep the compact toolbar control
-                // usable even when the current locale happens to have very short labels.
-                ZoomBox.Width = System.Math.Max(88, System.Math.Ceiling(max) + 40);
+                ZoomBox.Width = System.Math.Clamp(System.Math.Ceiling(max) + 28, 70, 92);
             }
             catch { /* best-effort; leave the XAML default width */ }
         }

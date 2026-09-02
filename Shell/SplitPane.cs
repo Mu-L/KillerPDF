@@ -513,6 +513,8 @@ namespace KillerPDF
             RestorePageListForActivePane();
             LoadOutlines();
             SyncZoomBox();
+            SyncPickerState();
+            UpdatePageSizeDisplay();
             SetTool(_currentTool, restoringPane: true);
 
             // No render here. Each pane keeps its own tile tree, so its document stays painted

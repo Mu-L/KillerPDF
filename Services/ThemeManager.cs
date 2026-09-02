@@ -308,6 +308,8 @@ namespace KillerPDF.Services
             Alias("ComboFieldBrush", "PaneBrush");
             Alias("ComboFieldHoverBrush", "RowHoverBrush");
             Alias("ComboPopupBrush", "PaneBrush");
+            Alias("FooterZoomClosedBrush", "MenuBackgroundBrush");
+            Alias("FooterZoomSurfaceBrush", "MenuBackgroundBrush");
             // The chevron sits directly on the combo field: no button face by default, so the
             // arrow does not read as a separate boxed control. 98SE sets ComboButtonBrush
             // explicitly (#c0c0c0) and keeps its raised Win98 drop-down button.
@@ -342,6 +344,7 @@ namespace KillerPDF.Services
             if (!d.Contains("ThemeRadioShadowOpacity")) d["ThemeRadioShadowOpacity"] = 0.5;
             if (!d.Contains("ShortcutCaptionVisibility")) d["ShortcutCaptionVisibility"] = Visibility.Collapsed;
             if (!d.Contains("ShortcutModernHeaderVisibility")) d["ShortcutModernHeaderVisibility"] = Visibility.Visible;
+            if (!d.Contains("FooterVersionDividerVisibility")) d["FooterVersionDividerVisibility"] = Visibility.Visible;
             if (!d.Contains("KsCatTools")) d["KsCatTools"] = new SolidColorBrush(Color.FromRgb(0xff, 0xd3, 0x19));
             if (!d.Contains("KsCatOcr")) d["KsCatOcr"] = new SolidColorBrush(Color.FromRgb(0xff, 0x90, 0x1f));
             if (!d.Contains("WindowFramePadding")) d["WindowFramePadding"] = new Thickness(0);

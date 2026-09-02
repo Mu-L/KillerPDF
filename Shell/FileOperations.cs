@@ -185,14 +185,14 @@ namespace KillerPDF
             _gridScrollToPage = -1;
             MarkDirty(false);
             _openedFromProtected = false;   // #149: set true by the two protected-open paths after this returns
-            // Restore this file's last view/page if we've seen it before. A user-selected Fit Width or
-            // Fit Page preference is global and wins over an older per-document fit choice, so small-screen
-            // users do not have to pick Fit Width again for every new manual they open.
+            // Restore this file's last page and zoom if we've seen it before. View mode is global:
+            // the last mode selected with the footer controls becomes the default for every PDF.
+            _viewMode = Enum.TryParse<ViewMode>(App.GetSetting("ViewMode"), out var preferredView)
+                ? preferredView : ViewMode.Continuous;
             FitMode? preferredFit = Enum.TryParse<FitMode>(App.GetSetting("DefaultFitMode"), out var savedFit)
                 && savedFit != FitMode.None ? savedFit : null;
-            if (TryGetDocState(displayPath, out var sfit, out var szoom, out var sview, out var spage))
+            if (TryGetDocState(displayPath, out var sfit, out var szoom, out _, out var spage))
             {
-                _viewMode  = sview;
                 _fitMode   = preferredFit ?? sfit;
                 _zoomLevel = szoom;
                 int pg = Math.Max(0, Math.Min(spage, pageCount - 1));

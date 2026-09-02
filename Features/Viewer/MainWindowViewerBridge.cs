@@ -78,6 +78,7 @@ namespace KillerPDF
                 return;
             }
             ActiveViewer.SetViewMode(mode);
+            SyncPickerState();
         }
         private void SelectViewMode(ViewMode mode) => SetViewMode(mode);
         private void ApplyViewMode(ViewMode mode) => ActiveViewer.ApplyViewMode(mode);

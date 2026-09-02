@@ -114,11 +114,19 @@ namespace KillerPDF
         {
             ComparisonPageChanged(viewer, pageIndex);
             if (!ReferenceEquals(ActiveViewer, viewer)) return;
+            UpdatePageSizeDisplay();
             // Direct assignment, because that is what the 84 existing call sites do - there is no
             // SyncPageListSelection helper today. The guard avoids re-entering the selection
             // handler when the list already agrees.
             if (pageIndex < 0 || PageList is null) return;
             if (PageList.SelectedIndex != pageIndex) PageList.SelectedIndex = pageIndex;
+        }
+
+        private void UpdatePageSizeDisplay()
+        {
+            var size = ActiveViewer?.CurrentPageSizeExt();
+            PageSizeLabel.Text = size?.Label ?? string.Empty;
+            PageSizeLabel.ToolTip = size?.Details;
         }
 
         void IViewerHost.EnsureSidebarPageVisible(PdfViewer viewer, int pageIndex)

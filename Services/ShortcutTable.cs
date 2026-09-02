@@ -163,9 +163,6 @@ namespace KillerPDF
             B("F7",            "Str_View_TwoPage",    "View", Cap("F7")),
             B("B",             "Str_View_BookMode",   "View", Cap("B")),   // #193: Two-Page only
             B("F8",            "Str_View_Grid",       "View", Cap("F8")),
-            // Cycling lost its F9 when the sidebar took the key. F5-F8 still reach every mode
-            // directly, so the wheel gesture is the only thing that needed to survive.
-            B("%wheelview%",   "Str_KS_CycleView",    "View"),
             B("F10",           "Str_KS_SplitPane",    "View", Cap("F10")),
             // Esc belongs to Cancel on the base layer, so full screen only claims F11.
             B("F11 / %esc%",   "Str_KS_FullScreen",   "View", Cap("F11")),

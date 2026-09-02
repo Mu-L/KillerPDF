@@ -725,10 +725,6 @@ namespace KillerPDF
             Set(ToolCropBtn, "Str_TT_CropTool", "8");
             Set(_toolRotateBtn, "Str_TT_RotateTool", "9");
             Set(ToolStampBtn, "Str_TT_StampTool", "0");
-            // Not a tool, but the same treatment. Cycling has no key any more: F9 went to the
-            // sidebar, so the wheel over the view (or the button itself) is how you jog modes,
-            // and advertising a dead key here is worse than advertising none.
-            Set(ViewModeBtn, "Str_TT_ViewMode", null);
         }
 
         // Opens the online help / how-to page in the user's default browser.

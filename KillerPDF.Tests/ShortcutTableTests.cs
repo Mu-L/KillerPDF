@@ -192,7 +192,7 @@ namespace KillerPDF.Tests
             Assert.Equal("Str_Ctx_StampPages", map["S"].Label);
         }
 
-        /// <summary>Gesture-only rows (the wheel ones, Ctrl+Scroll, Shift+Click, Middle drag) have
+        /// <summary>Gesture-only rows (Ctrl+Scroll, Shift+Click, Middle drag) have
         /// no keycap by design. Anything else with no caps is likely an oversight, so the count is
         /// pinned rather than left to drift.</summary>
         [Fact]
@@ -204,7 +204,7 @@ namespace KillerPDF.Tests
                                              .Select(b => b.LabelKey).ToList();
 
             Assert.Equal(
-                new[] { "Str_KS_ZoomCursor", "Str_KS_PanView", "Str_KS_CycleView",
+                new[] { "Str_KS_ZoomCursor", "Str_KS_PanView",
                         "Str_KS_AppSize", "Str_KS_MultiSelect" }
                     .OrderBy(s => s, StringComparer.Ordinal).ToArray(),
                 capless.OrderBy(s => s, StringComparer.Ordinal).ToArray());
