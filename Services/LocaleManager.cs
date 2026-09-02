@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Windows;
 
@@ -36,8 +37,47 @@ namespace KillerPDF.Services
         public static void Initialize()
         {
             var saved = App.GetSetting("Locale");
-            _current = Enum.TryParse<Locale>(saved, out var l) ? l : Locale.EnUS;
+            if (Enum.TryParse<Locale>(saved, out var locale))
+            {
+                _current = locale;
+            }
+            else
+            {
+                _current = LocaleForCulture(CultureInfo.CurrentUICulture);
+                App.SetSetting("Locale", _current.ToString());
+            }
             ApplyInternal(_current);
+        }
+
+        internal static Locale LocaleForCulture(CultureInfo culture)
+        {
+            string name = culture.Name;
+            string language = culture.TwoLetterISOLanguageName;
+
+            if (language == "zh")
+                return name.Contains("Hant", StringComparison.OrdinalIgnoreCase) ||
+                       name.EndsWith("-TW", StringComparison.OrdinalIgnoreCase) ||
+                       name.EndsWith("-HK", StringComparison.OrdinalIgnoreCase) ||
+                       name.EndsWith("-MO", StringComparison.OrdinalIgnoreCase)
+                    ? Locale.ZhTW
+                    : Locale.ZhCN;
+
+            return language switch
+            {
+                "bn" => Locale.Bn,
+                "cs" => Locale.CsCZ,
+                "de" => Locale.De,
+                "es" => Locale.Es,
+                "fr" => Locale.Fr,
+                "hu" => Locale.HuHU,
+                "it" => Locale.ItIT,
+                "ja" => Locale.JaJP,
+                "kk" => Locale.KkKZ,
+                "pl" => Locale.PlPL,
+                "ru" => Locale.RuRU,
+                "tr" => Locale.TrTR,
+                _ => Locale.EnUS,
+            };
         }
 
         /// <summary>

@@ -16,6 +16,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Changed
 
+- First launch now uses a supported Windows display language instead of always starting in English (#322).
 - Crash reports now use KillerPDF's themed dialog chrome and a clearer error summary layout.
 - Grayscale Transform output now stores one color channel instead of three equal RGB channels (#324).
 - Updated interface translations, including fillable-field and page-copy status messages (#227).
