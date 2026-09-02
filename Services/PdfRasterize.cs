@@ -2,6 +2,7 @@ using System.IO;
 using System.Threading;
 using Docnet.Core;
 using Docnet.Core.Models;
+using KillerPdf.Engine.Documents;
 
 namespace KillerPDF.Services
 {
@@ -33,6 +34,8 @@ namespace KillerPDF.Services
             // document parses) - the dominant cost on large files. A single scaling
             // factor renders each page at its own size at 150 DPI (150/72), so the doc
             // no longer needs reopening to apply per-page pixel dimensions.
+            IReadOnlyList<bool> bitonalHints = PdfPageRasterInformation
+                .ReadBitonalImagePageHints(PdfDocument.Open(File.ReadAllBytes(sourcePath)));
             var rasterPages = new PdfEngineIntegration.RasterPage[pageCount];
             var docGate  = new object();
             int done     = 0;
@@ -55,8 +58,11 @@ namespace KillerPDF.Services
                     bgra = PdfiumInterop.RenderPageWithAnnotations(sourcePath, i, rw, rh)
                         ?? pr.GetImage(new Docnet.Core.Converters.NaiveTransparencyRemover());
                 }
+                bool bitonal = i < bitonalHints.Count && bitonalHints[i]
+                    && BitonalPageDetector.IsOpaqueGrayscaleBgra(bgra, rw, rh);
                 rasterPages[i] = new PdfEngineIntegration.RasterPage(
-                    rw, rh, pageDims[i].widthPt, pageDims[i].heightPt, bgra);
+                    rw, rh, pageDims[i].widthPt, pageDims[i].heightPt, bgra,
+                    Bitonal: bitonal);
 
                 int n = System.Threading.Interlocked.Increment(ref done);
                 progress(n, pageCount);
