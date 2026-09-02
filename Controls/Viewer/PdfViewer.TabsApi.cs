@@ -188,7 +188,9 @@ namespace KillerPDF.Controls
         {
             if (preservedPage.HasValue) State.CurrentPage = preservedPage.Value;
             if (State.CurrentPage < 0) return;
-            Host?.ViewerPageChanged(this, State.CurrentPage);
+            _syncingPageList = true;
+            try { Host?.ViewerPageChanged(this, State.CurrentPage); }
+            finally { _syncingPageList = false; }
             Host?.PageJumpText = (State.CurrentPage + 1).ToString();
             Host?.EnsureSidebarPageVisible(this, State.CurrentPage);
         }

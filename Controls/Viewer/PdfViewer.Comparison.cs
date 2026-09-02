@@ -28,6 +28,20 @@ public partial class PdfViewer
             if (canvas.Children[i] is FrameworkElement { Tag: MissingPageOverlayTag })
                 canvas.Children.RemoveAt(i);
 
+        var content = new Grid();
+        var grain = new Border { CornerRadius = new CornerRadius(2), IsHitTestVisible = false };
+        grain.SetResourceReference(Border.BackgroundProperty, "GrainBrushShared");
+        grain.SetResourceReference(UIElement.OpacityProperty, "GrainOpacity");
+        content.Children.Add(grain);
+        content.Children.Add(new TextBlock
+        {
+            Text = text,
+            Foreground = Brushes.White,
+            FontSize = 15,
+            TextWrapping = TextWrapping.Wrap,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(16, 10, 16, 10)
+        });
         var label = new Border
         {
             Tag = MissingPageOverlayTag,
@@ -35,23 +49,44 @@ public partial class PdfViewer
             BorderBrush = new SolidColorBrush(Color.FromRgb(255, 55, 55)),
             BorderThickness = new Thickness(2),
             CornerRadius = new CornerRadius(4),
-            Padding = new Thickness(16, 10, 16, 10),
-            Child = new TextBlock
-            {
-                Text = text,
-                Foreground = Brushes.White,
-                FontSize = 15,
-                FontWeight = FontWeights.SemiBold
-            },
+            Child = content,
             IsHitTestVisible = false
         };
         canvas.Children.Add(label);
         label.Loaded += (_, _) =>
-        {
-            Canvas.SetLeft(label, Math.Max(8, (canvas.ActualWidth - label.ActualWidth) / 2));
-            Canvas.SetTop(label, Math.Max(8, (canvas.ActualHeight - label.ActualHeight) / 2));
-        };
+            ScaleAndCenterMissingPageLabel(label, canvas);
         Panel.SetZIndex(label, 9401);
+    }
+
+    private void UpdateMissingPageLabelScale()
+    {
+        foreach (Canvas canvas in AllPageCanvases())
+            foreach (Border label in canvas.Children.OfType<Border>())
+                if (Equals(label.Tag, MissingPageOverlayTag))
+                    ScaleAndCenterMissingPageLabel(label, canvas);
+    }
+
+    private void ScaleAndCenterMissingPageLabel(Border label, Canvas canvas)
+    {
+        double scale = 1.0;
+        DependencyObject? current = canvas;
+        while (current is not null && !ReferenceEquals(current, this))
+        {
+            if (current is FrameworkElement element && element.LayoutTransform is ScaleTransform layout
+                && layout.ScaleX > 0.0001)
+                scale *= layout.ScaleX;
+            if (current is UIElement visual && visual.RenderTransform is ScaleTransform render
+                && render.ScaleX > 0.0001)
+                scale *= render.ScaleX;
+            current = VisualTreeHelper.GetParent(current);
+        }
+        double inverse = scale > 0.0001 ? 1.0 / scale : 1.0;
+        // Keep the notice readable while the PDF canvas changes scale.
+        label.MaxWidth = Math.Max(48, canvas.ActualWidth * scale - 16);
+        label.LayoutTransform = new ScaleTransform(inverse, inverse);
+        label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        Canvas.SetLeft(label, Math.Max(8, (canvas.ActualWidth - label.DesiredSize.Width) / 2));
+        Canvas.SetTop(label, Math.Max(8, (canvas.ActualHeight - label.DesiredSize.Height) / 2));
     }
 
     private void ShowDifferenceRegions(int page, int sourceWidth, int sourceHeight,

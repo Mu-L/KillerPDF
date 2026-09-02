@@ -25,6 +25,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Fixed
 
+- Comparison now keeps both documents rendered when entering from another view mode. Scrolling and zoom stay synchronized, and missing-page notices stay readable at any zoom (#301).
+- Comparison opens with each document fitted to its pane's width. Aligned the comparison bar's rounded corners and added theme grain to missing-page notices (#301).
 - Save Flattened now stores fully black-and-white pages as compact 1-bit images (#323).
 - File-picker names now show complete text in tooltips, and 98SE horizontal scrollbars match the theme.
 - PDFs containing empty unsigned signature values now save and export normally.

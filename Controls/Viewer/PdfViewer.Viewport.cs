@@ -248,7 +248,12 @@ namespace KillerPDF.Controls
             // Everything below is window chrome that describes the FOCUSED pane - the one sidebar
             // list, the one jump box, the one status line. An unfocused pane scrolling must not
             // overwrite them with its own page number.
-            if (Host != null && !Host.IsViewerFocused(this)) return;
+            if (Host != null && !Host.IsViewerFocused(this))
+            {
+                State.CurrentPage = nearest;
+                if (_active != null) _active.PageIndex = nearest;
+                return;
+            }
             if (_currentPage == nearest)
             {
                 Host?.ViewerPageChanged(this, nearest);
@@ -1467,6 +1472,7 @@ namespace KillerPDF.Controls
                 st.ScaleX = _zoomLevel;
                 st.ScaleY = _zoomLevel;
             }
+            UpdateMissingPageLabelScale();
             SyncZoomBox();   // keep the toolbar box in step (FitToWidth/FitToPage don't call SetZoom)
             // Live-resize path: the ScaleTransform above already grew/shrank the existing render to
             // match the new size - smooth and flicker-free. Skip the bitmap re-render and tile rebuild;
@@ -1527,19 +1533,13 @@ namespace KillerPDF.Controls
                 _rerenderTimer.Tick += (_, _) =>
                 {
                     _rerenderTimer!.Stop();
-                    // A tick orphaned by a focus switch must not run: _doc, _renderDims and
-                    // PageList are shared fields describing the FOCUSED pane, so an unfocused
-                    // pane's re-sharpen rendered the OTHER pane's document into its own tiles at
-                    // the other document's dimensions - which is what made opening a file in
-                    // pane B zoom pane A in wildly (2026-08-01). The re-sharpen is a
-                    // crispness optimization for the pane being zoomed; a pane that lost focus
-                    // mid-debounce keeps its current render, same as the SizeChanged guard above
-                    // ("an unfocused pane simply sits the fit out").
-                    if (Host != null && !Host.IsViewerFocused(this)) return;
                     if (_doc is null) return;
+                    // Synchronized scrolling also exposes new pages in the unfocused pane.
+                    // Its page images must load even while optional sharpening waits for focus.
+                    if (_viewMode == ViewMode.Continuous) VirtualizeContinuousSlots();
+                    if (Host != null && !Host.IsViewerFocused(this)) return;
                     if (_viewMode == ViewMode.Continuous)
                     {
-                        VirtualizeContinuousSlots();   // #122: release far bitmaps / render approaching ones
                         ResharpenContinuousVisible();
                         return;
                     }
@@ -1685,7 +1685,8 @@ namespace KillerPDF.Controls
                                : _fitMode == FitMode.Page  ? "fitpage"
                                : null;
                 string target = $"{DisplayZoomPct():F0}%";
-                Host?.SyncZoomDisplay(fitTag, target);
+                if (Host == null || Host.IsViewerFocused(this))
+                    Host?.SyncZoomDisplay(fitTag, target);
                 Host?.ViewerZoomChanged(this, _zoomLevel);
             }
             finally { _syncingZoomBox = false; }
@@ -1836,7 +1837,8 @@ namespace KillerPDF.Controls
                 return;
             }
             if (_fitMode == FitMode.Page) FitToPage();
-            else FitToWidth();
+            else if (_fitMode == FitMode.Width) FitToWidth();
+            else ApplyZoom();
         }
 
         internal void NavigatePageByWheel(int delta)

@@ -321,31 +321,33 @@ public partial class MainWindow
 
     private void ComparisonZoomChanged(PdfViewer source)
     {
-        if (!_comparisonActive || _comparisonSyncing) return;
+        if (!_comparisonActive || _comparisonSyncing || !ReferenceEquals(source, ActiveViewer)) return;
         PdfViewer other = ReferenceEquals(source, Viewer) ? ViewerB : Viewer;
-        if (Math.Abs(other.TrueZoomLevelExt - source.TrueZoomLevelExt) < 0.0001) return;
         _comparisonSyncing = true;
-        try { other.SetTrueZoomExt(source.TrueZoomLevelExt); }
+        try { other.ApplyComparisonZoomExt(source); }
         finally { _comparisonSyncing = false; }
     }
 
     private void ComparisonScrolled(PdfViewer source, double horizontalRatio, double verticalRatio)
     {
-        if (!_comparisonActive || _comparisonSyncing) return;
+        if (!_comparisonActive || _comparisonSyncing || !ReferenceEquals(source, ActiveViewer)) return;
         PdfViewer other = ReferenceEquals(source, Viewer) ? ViewerB : Viewer;
         _comparisonSyncing = true;
-        try { other.ScrollToRatioExt(horizontalRatio, verticalRatio); }
+        try { other.ScrollToComparisonPositionExt(source, horizontalRatio, verticalRatio); }
         finally { _comparisonSyncing = false; }
     }
 
     private void ComparisonPageChanged(PdfViewer source, int pageIndex)
     {
-        if (!_comparisonActive || _comparisonSyncing || pageIndex < 0) return;
+        if (!_comparisonActive || _comparisonSyncing || pageIndex < 0
+            || !ReferenceEquals(source, ActiveViewer)) return;
         PdfViewer other = ReferenceEquals(source, Viewer) ? ViewerB : Viewer;
         _comparisonSyncing = true;
         try
         {
-            if (other.PageCountExt > 0)
+            // Continuous scrolling already carries the page and position within it. A second
+            // page-jump request would snap that position to the page top after layout.
+            if (other.PageCountExt > 0 && source.CaptureComparisonViewStateExt().View != ViewMode.Continuous)
                 other.NavigateToPageExt(Math.Min(pageIndex, other.PageCountExt - 1));
         }
         finally { _comparisonSyncing = false; }

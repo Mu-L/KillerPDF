@@ -82,6 +82,51 @@ namespace KillerPDF.Controls
         internal void SetZoomExt(double level) => SetZoom(level);
         internal double TrueZoomLevelExt => DisplayZoomPct() / 100.0;
         internal void SetTrueZoomExt(double level) => SetTrueZoom(level);
+        internal void ApplyComparisonZoomExt(PdfViewer source)
+        {
+            double zoom = Math.Clamp(source.TrueZoomLevelExt / DisplayZoomFactor(), ZoomMin, ZoomMax);
+            // Fit Width uses each pane's page size; equal percentages can leave wide gutters
+            // when the two documents have different physical widths.
+            if (source._fitMode == FitMode.Width && _viewMode == ViewMode.Continuous
+                && _continuousPageW > 0 && PagePreviewPanel.ActualWidth > 40)
+                zoom = Math.Clamp((PagePreviewPanel.ActualWidth - 40) / _continuousPageW, ZoomMin, ZoomMax);
+            bool changed = Math.Abs(_zoomLevel - zoom) >= 0.0001 || _fitMode != source._fitMode;
+            _zoomLevel = zoom;
+            _fitMode = source._fitMode;
+            // The unfocused pane restores this session when it next takes focus.
+            if (_active != null)
+            {
+                _active.ZoomLevel = zoom;
+                _active.Fit = _fitMode;
+            }
+            if (changed) ApplyZoom(lite: true);
+        }
+
+        internal void ScrollToComparisonPositionExt(PdfViewer source, double horizontalRatio, double verticalRatio)
+        {
+            if (source._viewMode != ViewMode.Continuous || _viewMode != ViewMode.Continuous
+                || source._continuousTops.Count == 0 || _continuousTops.Count == 0)
+            {
+                ScrollToRatioExt(horizontalRatio, verticalRatio);
+                return;
+            }
+            double y = source.PagePreviewPanel.VerticalOffset / Math.Max(0.01, source._zoomLevel);
+            int page = 0;
+            while (page + 1 < source._continuousTops.Count && source._continuousTops[page + 1] <= y) page++;
+            double sourceHeight = ((FrameworkElement)source._continuousPanel.Children[page]).Height + 12;
+            double fraction = Math.Clamp((y - source._continuousTops[page]) / sourceHeight, 0, 1);
+            double target;
+            if (page >= _continuousTops.Count) target = PagePreviewPanel.ScrollableHeight;
+            else
+            {
+                double height = ((FrameworkElement)_continuousPanel.Children[page]).Height + 12;
+                target = (_continuousTops[page] + fraction * height) * _zoomLevel;
+            }
+            _sidebarSelectionPinned = -1;
+            PagePreviewPanel.ScrollToHorizontalOffset(Math.Clamp(horizontalRatio, 0, 1) * PagePreviewPanel.ScrollableWidth);
+            PagePreviewPanel.ScrollToVerticalOffset(target);
+        }
+
         internal ComparisonViewState CaptureComparisonViewStateExt()
             => new(_viewMode, _fitMode, _zoomLevel, State.CurrentPage,
                 PagePreviewPanel.HorizontalOffset, PagePreviewPanel.VerticalOffset);
@@ -89,7 +134,10 @@ namespace KillerPDF.Controls
         {
             ApplyViewMode(ViewMode.Continuous, force: true);
             NavigateToPageExt(Math.Clamp(pageIndex, 0, Math.Max(0, PageCountExt - 1)));
-            FitToPage();
+            FitToWidth();
+            // A background pane restores its session during resize and focus changes.
+            // Save the comparison view before that can restore the previous layout mode.
+            CaptureActiveIfAny();
         }
         internal void RestoreComparisonViewStateExt(ComparisonViewState state)
         {

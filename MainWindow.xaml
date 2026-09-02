@@ -2547,7 +2547,7 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <Border Grid.Column="0" Background="{DynamicResource PrimaryBrush}" Padding="9,4"
+                        <Border Grid.Column="0" Background="{DynamicResource PrimaryBrush}" Padding="9,4" Margin="-1,-1,0,-1"
                                 CornerRadius="{DynamicResource ControlCornerRadius}">
                             <StackPanel Orientation="Horizontal">
                                 <Grid Width="15" Height="13" Margin="0,1,7,0" VerticalAlignment="Center">
