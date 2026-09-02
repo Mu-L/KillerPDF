@@ -333,9 +333,9 @@
                                                                     <Border BorderBrush="{DynamicResource BevelDarkBrush}" BorderThickness="{DynamicResource BevelDarkThickness}"/>
                                                                 </Grid>
                                                                 <ControlTemplate.Triggers>
-                                                                    <!-- Horizontal bar: keep the thumb thin on the vertical axis instead -->
+                                                                    <!-- Horizontal spacing is theme-specific so 98SE can keep its full-height beveled thumb. -->
                                                                     <DataTrigger Binding="{Binding Orientation, RelativeSource={RelativeSource AncestorType={x:Type ScrollBar}}}" Value="Horizontal">
-                                                                        <Setter TargetName="thumbBorder" Property="Margin" Value="0,4"/>
+                                                                        <Setter TargetName="thumbBorder" Property="Margin" Value="{DynamicResource ScrollThumbMarginH}"/>
                                                                     </DataTrigger>
                                                                     <!-- Highlight + fatten while hovering the thumb itself (keeps the press/drag reliable;
                                                                          binding this to the whole bar's IsMouseOver made the thumb shrink on mouse-down and

@@ -561,6 +561,7 @@ namespace KillerPDF.Services
             if (!d.Contains("ScrollArrowTopBevelMargin")) d["ScrollArrowTopBevelMargin"] = new Thickness(0);
             if (!d.Contains("ScrollThumbRadius")) d["ScrollThumbRadius"] = new CornerRadius(3);
             if (!d.Contains("ScrollThumbMargin")) d["ScrollThumbMargin"] = new Thickness(4, 0, 4, 0);
+            if (!d.Contains("ScrollThumbMarginH")) d["ScrollThumbMarginH"] = new Thickness(0, 4, 0, 4);
             if (!d.Contains("ScrollTrackBrush")) d["ScrollTrackBrush"] = Brushes.Transparent;
             if (!d.Contains("ScrollTrackBevelDark")) d["ScrollTrackBevelDark"] = Brushes.Transparent;
             if (!d.Contains("ScrollTrackBevelLight")) d["ScrollTrackBevelLight"] = Brushes.Transparent;

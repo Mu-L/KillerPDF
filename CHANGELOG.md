@@ -26,7 +26,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 ### Fixed
 
 - Save Flattened now stores fully black-and-white pages as compact 1-bit images (#323).
-- File-picker names now show their complete text in a hover tooltip when a column clips them.
+- File-picker names now show complete text in tooltips, and 98SE horizontal scrollbars match the theme.
 - PDFs containing empty unsigned signature values now save and export normally.
 - On the Sepulchre theme the theme picker's radio ring and dot no longer vanish into the row's hover highlight; they turn white with the label.
 - Fillable text fields can now be selected, moved, resized, and deleted without rebuilding the document view (#307).
