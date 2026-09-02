@@ -27,6 +27,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 - Save Flattened now stores fully black-and-white pages as compact 1-bit images (#323).
 - PDFs containing empty unsigned signature values now save and export normally.
+- On the Sepulchre theme the theme picker's radio ring and dot no longer vanish into the row's hover highlight; they turn white with the label.
 - Fillable text fields can now be selected, moved, resized, and deleted without rebuilding the document view (#307).
 - Corrected the annotation-tool shortcut labels and added Fillable Text Field to the shortcut reference (#339).
 - Fillable fields can now be added to tagged PDFs that organize pages as multiple top-level structure elements.
