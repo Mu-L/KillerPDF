@@ -2,7 +2,7 @@
 
 Test date: 2026-09-02
 
-The batch open/save comparison passed against the recorded 1.8.2 baseline: no previously successful input became a skip or failure. The candidate saved 1,485 additional files. All five measured passes agreed on every file's status and diagnostic detail. The damaged-file gate had zero crashes and zero timeouts.
+The batch open/save comparison passed against the recorded 1.8.2 baseline: no previously successful input became a skip or failure. KillerPDF 1.8.3 saved 1,485 additional files. All five measured passes agreed on every file's status and diagnostic detail. The damaged-file gate had zero crashes and zero timeouts.
 
 ## Results
 
@@ -41,7 +41,7 @@ Damaged-file statuses, details, and exit codes match 1.8.2 exactly: 78 skips and
 | Standards and color | 5.695 | 5.666 | 0.5% shorter |
 | Private stress | 512.967 | 523.400 | 2.0% longer |
 
-The candidate performs more successful saves. These figures compare the same input collections with an earlier recorded baseline, not an alternating same-session rerun of both executables.
+KillerPDF 1.8.3 performs more successful saves. These figures compare the same input collections with an earlier recorded baseline, not an alternating same-session rerun of both executables.
 
 ## Build and method
 
