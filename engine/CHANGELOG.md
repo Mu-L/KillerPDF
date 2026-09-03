@@ -4,6 +4,10 @@ All notable changes to The KillerPDF.Engine are documented here. Application cha
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.4] - Unreleased
+
+The 1.8.4 engine supports the application maintenance fixes.
+
 ## [1.8.3] - 2026-09-02
 
 The 1.8.3 engine package matches the engine source shipped with KillerPDF 1.8.3.
