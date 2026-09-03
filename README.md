@@ -51,8 +51,8 @@ Full reference on the [help page](https://killerpdf.net/help.html).
 
 | | |
 | --- | --- |
-| ![KillerPDF comparing two versions of a PDF side by side with changed regions highlighted](pdf-landing/screenshots/03.png)<br>**PDF comparison.** Compare synchronized pages, inspect highlighted differences, and move through changed page pairs. | ![KillerPDF showing the Transform preview in Kazakh over a split Grid workspace](pdf-landing/screenshots/04.png)<br>**Transform and localization.** Preview rotation, scale, flips, skew, perspective, and output settings in any of fifteen interface languages. |
-| ![KillerPDF showing reusable signatures beside a live fillable PDF form](pdf-landing/screenshots/06.png)<br>**Signatures and forms.** Create reusable signatures, fill live AcroForm fields, and save the completed document. | ![KillerPDF showing a document in Grid view with the language picker](pdf-landing/screenshots/02.png)<br>**Grid view and fifteen languages.** Survey a whole document at once and switch the complete interface language while working. |
+| ![KillerPDF comparing two PDFs side by side, with highlighted changes and a page-difference summary open](pdf-landing/screenshots/03.png)<br>**PDF comparison.** Review highlighted differences and a summary of changed and missing pages. | ![KillerPDF Transform preview with levels, color mode, DPI, output pixel dimensions, and JPEG compression controls](pdf-landing/screenshots/02.png)<br>**Transform output.** Adjust page quality and see the output pixel dimensions for your chosen DPI. |
+| ![KillerPDF in Two-Page view with highlighted text and a fillable text field on the right page](pdf-landing/screenshots/06.png)<br>**Fillable fields and annotations.** Add and move text fields alongside highlighted document text. | ![KillerPDF in Grid view with four view-mode buttons and the zoom menu in the footer](pdf-landing/screenshots/01.png)<br>**View and zoom controls.** Switch layouts and choose a zoom level directly from the footer. |
 
 ## Requirements
 
