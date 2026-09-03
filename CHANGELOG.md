@@ -10,8 +10,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Changed
 
-- Added pixel dimensions to the footer details and made its units clickable (#364).
-- Added output scale to the Transform and image export DPI previews (#365).
+- Added a clickable compact and expanded footer size display with pixel, inch, millimeter, and point dimensions (#364).
+- Added output scale to Transform output and image export DPI previews (#365).
 
 ### Fixed
 
