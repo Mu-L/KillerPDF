@@ -59,8 +59,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Release source checkout failed.' }
           [xml]$app = Get-Content 'KillerPDF.csproj'
           [xml]$engine = Get-Content 'engine/KillerPdf.Engine/KillerPdf.Engine.csproj'
-          if ([string]$app.Project.PropertyGroup.Version -ne $version -or
-              [string]$engine.Project.PropertyGroup.Version -ne $version) {
+          if ($app.SelectSingleNode('/Project/PropertyGroup/Version').InnerText -ne $version -or
+              $engine.SelectSingleNode('/Project/PropertyGroup/Version').InnerText -ne $version) {
             throw 'App, engine, and release versions must match.'
           }
           "version=$version" >> $env:GITHUB_OUTPUT
