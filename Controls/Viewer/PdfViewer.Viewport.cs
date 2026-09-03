@@ -251,7 +251,7 @@ namespace KillerPDF.Controls
             if (Host != null && !Host.IsViewerFocused(this))
             {
                 State.CurrentPage = nearest;
-                if (_active != null) _active.PageIndex = nearest;
+                _active?.PageIndex = nearest;
                 return;
             }
             if (_currentPage == nearest)
