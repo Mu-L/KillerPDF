@@ -8,6 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 1.8.4 addresses document closing, text editing, saving, footer behavior, and remaining diagnostic translations.
 
+### Changed
+
+- Added pixel dimensions to the footer details and made its units clickable (#364).
+- Added output scale to the Transform and image export DPI previews (#365).
+
 ### Fixed
 
 - Prevented crashes from stale or repeated tab-close requests (#353).
