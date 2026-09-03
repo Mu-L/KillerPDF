@@ -86,6 +86,30 @@ function Get-DefaultBranch {
     return $null
 }
 
+Write-Host "`n==> Git preflight..." -ForegroundColor Cyan
+Push-Location $PSScriptRoot
+try {
+    $defaultBranch = Get-DefaultBranch
+    if (-not $defaultBranch) { throw "Could not determine the default branch from origin" }
+    $branch = git rev-parse --abbrev-ref HEAD
+    if ($LASTEXITCODE -ne 0) { throw "Could not read the current branch" }
+    if ($branch.Trim() -ne $defaultBranch) { throw "On branch '$branch', expected $defaultBranch" }
+    $dirty = git status --porcelain
+    if ($LASTEXITCODE -ne 0) { throw "Could not read the working tree status" }
+    if ($dirty) { throw "Working tree is not clean. Commit your changes first:`n$($dirty -join "`n")" }
+    git fetch origin $defaultBranch --quiet
+    if ($LASTEXITCODE -ne 0) { throw "Could not fetch origin/$defaultBranch; cannot verify release source" }
+    $localHead = git rev-parse HEAD
+    if ($LASTEXITCODE -ne 0) { throw "Could not read the local commit" }
+    $remoteHead = git rev-parse "refs/remotes/origin/$defaultBranch"
+    if ($LASTEXITCODE -ne 0) { throw "Could not read origin/$defaultBranch" }
+    if ($localHead.Trim() -ne $remoteHead.Trim()) {
+        throw "Local $defaultBranch and origin/$defaultBranch differ. Push or pull first."
+    }
+} finally {
+    Pop-Location
+}
+
 if (-not $PublishOnly) {
 
 # ── 0. SimplySign preflight ──────────────────────────────────────────────────
