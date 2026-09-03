@@ -86,6 +86,38 @@ function Get-DefaultBranch {
     return $null
 }
 
+Write-Host "`n==> Release metadata preflight..." -ForegroundColor Cyan
+$csprojRaw = Get-Content -Path $proj -Raw
+if ($csprojRaw -notmatch '<Version>([0-9]+\.[0-9]+\.[0-9]+)</Version>') {
+    throw "No <Version>x.y.z</Version> found in KillerPDF.csproj"
+}
+$Version = $Matches[1]
+$Tag = "v$Version"
+$changelog = Get-Content -Path (Join-Path $PSScriptRoot 'CHANGELOG.md') -Raw
+if ($changelog -match ('(?im)^## \[' + [regex]::Escape($Version) + '\] - UNRELEASED\s*$')) {
+    throw "CHANGELOG.md section [$Version] is still marked Unreleased"
+}
+if ($changelog -notmatch [regex]::Escape("## [$Version]")) {
+    throw "CHANGELOG.md has no [$Version] section"
+}
+
+# The About card shows <ReleaseDate> beside the version so users can tell how old
+# their build is. It is a hand-edited csproj field, so it silently goes stale unless
+# something checks it - that something is here. It must equal the date on this
+# version's CHANGELOG section, which is the date the release actually goes out.
+if ($csprojRaw -notmatch '<ReleaseDate>([0-9]{4}-[0-9]{2}-[0-9]{2})</ReleaseDate>') {
+    throw "No <ReleaseDate>yyyy-MM-dd</ReleaseDate> found in KillerPDF.csproj"
+}
+$releaseDate = $Matches[1]
+if ($changelog -notmatch ('## \[' + [regex]::Escape($Version) + '\] - ([0-9]{4}-[0-9]{2}-[0-9]{2})')) {
+    throw "CHANGELOG.md section [$Version] has no yyyy-MM-dd date"
+}
+$changelogDate = $Matches[1]
+if ($releaseDate -ne $changelogDate) {
+    throw "csproj <ReleaseDate> is $releaseDate but CHANGELOG [$Version] is dated $changelogDate. Bump the csproj."
+}
+Write-Host "    Release date: $releaseDate"
+
 Write-Host "`n==> Git preflight..." -ForegroundColor Cyan
 Push-Location $PSScriptRoot
 try {
@@ -540,30 +572,6 @@ try {
     }
     if (git tag --list $Tag) { throw "Tag $Tag already exists" }
     if (git ls-remote --tags origin $Tag) { throw "Tag $Tag already exists on origin" }
-    $changelog = Get-Content -Path (Join-Path $PSScriptRoot 'CHANGELOG.md') -Raw
-    if ($changelog -match ('(?im)^## \[' + [regex]::Escape($Version) + '\] - UNRELEASED\s*$')) {
-        throw "CHANGELOG.md section [$Version] is still marked Unreleased"
-    }
-    if ($changelog -notmatch [regex]::Escape("## [$Version]")) {
-        throw "CHANGELOG.md has no [$Version] section"
-    }
-
-    # The About card shows <ReleaseDate> beside the version so users can tell how old
-    # their build is. It is a hand-edited csproj field, so it silently goes stale unless
-    # something checks it - that something is here. It must equal the date on this
-    # version's CHANGELOG section, which is the date the release actually goes out.
-    if ($csprojRaw -notmatch '<ReleaseDate>([0-9]{4}-[0-9]{2}-[0-9]{2})</ReleaseDate>') {
-        throw "No <ReleaseDate>yyyy-MM-dd</ReleaseDate> found in KillerPDF.csproj"
-    }
-    $releaseDate = $Matches[1]
-    if ($changelog -notmatch ('## \[' + [regex]::Escape($Version) + '\] - ([0-9]{4}-[0-9]{2}-[0-9]{2})')) {
-        throw "CHANGELOG.md section [$Version] has no yyyy-MM-dd date"
-    }
-    $changelogDate = $Matches[1]
-    if ($releaseDate -ne $changelogDate) {
-        throw "csproj <ReleaseDate> is $releaseDate but CHANGELOG [$Version] is dated $changelogDate. Bump the csproj."
-    }
-    Write-Host "    Release date: $releaseDate"
 
     # A red test cannot ship. Same gate as the date checks above - fail the release, not a reminder.
     Write-Host "    Running desktop unit tests..."
