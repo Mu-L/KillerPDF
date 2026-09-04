@@ -411,7 +411,7 @@ namespace KillerPDF
                             IsHitTestVisible = false
                         };
                     }
-                    catch { item.Child = new TextBlock { Text = "(image)", IsHitTestVisible = false }; }
+                    catch { item.Child = new TextBlock { Text = $"({Loc("Str_Annot_Image")})", IsHitTestVisible = false }; }
                 }
                 else
                 {
