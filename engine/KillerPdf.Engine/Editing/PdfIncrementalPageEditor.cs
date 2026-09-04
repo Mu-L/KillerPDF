@@ -161,6 +161,7 @@ public sealed class PdfIncrementalPageEditor
     private bool _clearOutputIntents;
     private PdfDocumentMetadata? _metadata;
     private bool _clearMetadata;
+    private bool _allowUntaggedPageImports;
     private readonly Dictionary<string, bool> _checkBoxValues =
         new(StringComparer.Ordinal);
     private readonly Dictionary<string, string?> _radioButtonValues =
@@ -1172,6 +1173,16 @@ public sealed class PdfIncrementalPageEditor
         _bookmarks.Clear();
         _clearOutlines = true;
         _catalogPresentationChanged = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Allows untagged imported pages in a tagged destination when their lost structure is
+    /// intentional, such as replacing selected pages with rasterized versions.
+    /// </summary>
+    public PdfIncrementalPageEditor AllowUntaggedPageImports()
+    {
+        _allowUntaggedPageImports = true;
         return this;
     }
 
@@ -8452,7 +8463,7 @@ public sealed class PdfIncrementalPageEditor
             .All(page => page.Content is null
                 && (page.ImportedDocument is null
                     || page.ImportedTree!.Catalog.ContainsKey(StructTreeRootName)));
-        if (!additionsAreSupported)
+        if (!additionsAreSupported && !_allowUntaggedPageImports)
             throw new NotSupportedException(
                 "Untagged content cannot be imported into an existing tagged PDF. Reordering, removing, adding blank pages, and merging complete tagged documents are supported.");
     }
