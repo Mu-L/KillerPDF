@@ -15,6 +15,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
 
 ### Fixed
 
+- Restored title-bar controls, including the close button and logo zoom control.
 - Registered the PDF handler as KillerPDF instead of the internal KillerPDF.App executable name.
 - Preserved visible pixels when pasted clipboard images contain an empty alpha channel (#389).
 - Preserved pasted images and other unsaved annotations when inserting blank pages (#388).
